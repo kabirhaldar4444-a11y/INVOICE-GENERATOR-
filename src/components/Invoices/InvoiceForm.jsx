@@ -2,19 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { generateNextInvoiceNumber } from '../../utils/helpers';
+import CustomSelect from '../Shared/CustomSelect';
 import { 
   Plus, 
   Trash2, 
   Save, 
   ArrowLeft, 
   Calendar, 
-  UserPlus, 
   Calculator,
   User,
   ShoppingBag,
   FileText,
-  Building2,
-  X
+  Building2
 } from 'lucide-react';
 
 // Helper to safely parse inputs that may contain currency symbols or commas
@@ -38,49 +37,16 @@ export const InvoiceForm = () => {
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [customerId, setCustomerId] = useState('');
   const [status, setStatus] = useState('pending');
-  const [paidAmount, setPaidAmount] = useState('0');
-  const [isPaidManuallyEdited, setIsPaidManuallyEdited] = useState(isEditMode);
+  const [pendingAmount, setPendingAmount] = useState('0');
+  const [discountType, setDiscountType] = useState('percentage');
+  const [discountValue, setDiscountValue] = useState('0');
 
-  // Customer Modal state
-  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  // Inline Customer detail fields
   const [newCustName, setNewCustName] = useState('');
   const [newCustEmail, setNewCustEmail] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCustGst, setNewCustGst] = useState('');
   const [newCustAddress, setNewCustAddress] = useState('');
-  const [isSavingCustomer, setIsSavingCustomer] = useState(false);
-
-  const handleCreateCustomer = async (e) => {
-    e.preventDefault();
-    if (!newCustName || !newCustEmail) {
-      showToast('Name and Email are required', 'error');
-      return;
-    }
-    setIsSavingCustomer(true);
-    try {
-      const newCust = await addCustomer({
-        name: newCustName,
-        email: newCustEmail,
-        phone: newCustPhone,
-        gst_number: newCustGst,
-        address: newCustAddress
-      });
-      if (newCust && newCust.id) {
-        setCustomerId(newCust.id);
-      }
-      // Reset form fields
-      setNewCustName('');
-      setNewCustEmail('');
-      setNewCustPhone('');
-      setNewCustGst('');
-      setNewCustAddress('');
-      setShowAddCustomerModal(false);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSavingCustomer(false);
-    }
-  };
 
   const [items, setItems] = useState([
     { program_name: '', description: '', quantity: 1, unit_price: '0', gross_price: '', gst_percentage: 18, gst_amount: 0, total_amount: 0, paid_amount: '', isPaidManuallyEdited: false }
@@ -97,8 +63,15 @@ export const InvoiceForm = () => {
         setInvoiceNumber(source.invoice_number);
         setInvoiceDate(source.invoice_date);
         setCustomerId(source.customer_id);
+        const cust = customers.find(c => c.id === source.customer_id);
+        if (cust) {
+          setNewCustName(cust.name || '');
+          setNewCustEmail(cust.email || '');
+          setNewCustPhone(cust.phone || '');
+          setNewCustGst(cust.gst_number || '');
+          setNewCustAddress(cust.address || '');
+        }
         setStatus(source.status);
-        setPaidAmount(source.paid_amount.toString());
 
         // Initialize issuing profile selection
         if (source.invoice_profile) {
@@ -108,9 +81,15 @@ export const InvoiceForm = () => {
           } else {
             setSelectedProfileId('custom-invoice-profile');
           }
+          setDiscountType(source.invoice_profile.discount_type || 'percentage');
+          setDiscountValue((source.invoice_profile.discount_value || 0).toString());
+          setPendingAmount((source.invoice_profile.pending_amount || (source.total_amount - source.paid_amount) || 0).toString());
         } else {
           const defaultProf = profiles.find(p => p.is_default);
           setSelectedProfileId(defaultProf?.id || (profiles[0]?.id || 'default-profile'));
+          setDiscountType('percentage');
+          setDiscountValue('0');
+          setPendingAmount((source.total_amount - source.paid_amount || 0).toString());
         }
 
         const hydItems = source.invoice_items.map(item => {
@@ -155,70 +134,74 @@ export const InvoiceForm = () => {
       setInvoiceNumber(generateNextInvoiceNumber(invoices));
       const defaultProf = profiles.find(p => p.is_default);
       setSelectedProfileId(defaultProf?.id || (profiles[0]?.id || 'default-profile'));
+      setDiscountType('percentage');
+      setDiscountValue('0');
+      setPendingAmount('0');
     }
   }, [id, invoices, isEditMode, profiles]);
 
-  // Recalculate invoice summaries based on active items array
+  // On-the-fly calculations
+  const totalPaid = items.reduce((sum, item) => sum + parseAmount(item.paid_amount), 0);
+  const parsedPendingAmt = parseAmount(pendingAmount);
+  const totalBeforeDiscount = totalPaid + parsedPendingAmt;
+  const parsedDiscountVal = parseAmount(discountValue);
+  const discountAmt = discountType === 'percentage' 
+    ? (totalBeforeDiscount * parsedDiscountVal / 100) 
+    : parsedDiscountVal;
+  const finalTotalAmount = Math.max(0, totalBeforeDiscount - discountAmt);
+  const actualPaidAmount = Math.max(0, totalPaid - discountAmt);
+
+  const computedItems = items.map(item => {
+    const itemPaid = parseAmount(item.paid_amount);
+    const qty = parseInt(item.quantity, 10) || 1;
+    const gstPct = parseAmount(item.gst_percentage);
+
+    let itemPending = 0;
+    if (parsedPendingAmt > 0) {
+      if (totalPaid > 0) {
+        itemPending = parsedPendingAmt * (itemPaid / totalPaid);
+      } else {
+        itemPending = parsedPendingAmt / items.length;
+      }
+    }
+
+    const itemGrossBefore = itemPaid + itemPending;
+
+    // Discount is not applied to individual items, so line items, unit prices,
+    // and GST are computed using the pre-discount gross amount.
+    const itemFinalTotal = itemGrossBefore;
+    const grossPrice = itemFinalTotal / qty;
+    const unitPrice = grossPrice / (1 + gstPct / 100);
+    const itemGst = qty * unitPrice * (gstPct / 100);
+
+    return {
+      ...item,
+      unit_price: unitPrice.toFixed(2),
+      gross_price: grossPrice.toFixed(2),
+      gst_amount: parseFloat(itemGst.toFixed(2)),
+      total_amount: parseFloat(itemFinalTotal.toFixed(2)),
+      pending_amount: itemPending
+    };
+  });
+
+  const calculatedSubtotal = parseFloat(computedItems.reduce((sum, item) => sum + (parseAmount(item.unit_price) * (parseInt(item.quantity, 10) || 1)), 0).toFixed(2));
+  const calculatedGstAmount = parseFloat(computedItems.reduce((sum, item) => sum + item.gst_amount, 0).toFixed(2));
+  // Discount is subtracted at the summary level only
+  const calculatedTotalAmount = parseFloat(Math.max(0, totalBeforeDiscount - discountAmt).toFixed(2));
+
   useEffect(() => {
-    let tempSubtotal = 0;
-    let tempGstAmount = 0;
-    let tempTotalAmount = 0;
-    let tempTotalPaid = 0;
-
-    items.forEach(item => {
-      const qty = parseInt(item.quantity, 10) || 0;
-      const unitPrice = parseAmount(item.unit_price);
-      const itemPaid = parseAmount(item.paid_amount);
-      
-      tempSubtotal += unitPrice * qty;
-      tempGstAmount += parseAmount(item.gst_amount);
-      tempTotalAmount += parseAmount(item.total_amount);
-      tempTotalPaid += itemPaid;
-    });
-
-    const finalSubtotal = parseFloat(tempSubtotal.toFixed(2));
-    const finalGstAmount = parseFloat(tempGstAmount.toFixed(2));
-    const finalTotalAmount = parseFloat(tempTotalAmount.toFixed(2));
-    const finalTotalPaid = parseFloat(tempTotalPaid.toFixed(2));
-
-    setSubtotal(finalSubtotal);
-    setGstAmount(finalGstAmount);
-    setTotalAmount(finalTotalAmount);
-    setPaidAmount(finalTotalPaid.toFixed(2));
-
-    // Update status based on total paid vs total amount
-    if (finalTotalPaid >= finalTotalAmount && finalTotalAmount > 0) {
+    if (status === 'cancelled') return;
+    if (parsedPendingAmt === 0 && finalTotalAmount > 0) {
       setStatus('paid');
     } else {
       setStatus('pending');
     }
-  }, [items]);
-
-  const handlePaidAmountChange = (val) => {
-    setIsPaidManuallyEdited(true); // Flag manual edit
-    setPaidAmount(val);
-    const numericPaid = parseAmount(val);
-    if (numericPaid >= totalAmount && totalAmount > 0) {
-      setStatus('paid');
-    } else if (numericPaid > 0 && numericPaid < totalAmount) {
-      setStatus('pending');
-    } else if (numericPaid === 0) {
-      setStatus('pending');
-    }
-  };
+  }, [parsedPendingAmt, finalTotalAmount]);
 
   const handleStatusChange = (newStatus) => {
     setStatus(newStatus);
-    setIsPaidManuallyEdited(true); // Flag manual edit to stop auto-sync
     if (newStatus === 'paid') {
-      setPaidAmount(totalAmount.toFixed(2));
-    } else if (newStatus === 'pending') {
-      const currentPaid = parseAmount(paidAmount);
-      if (currentPaid >= totalAmount) {
-        setPaidAmount('0.00');
-      }
-    } else if (newStatus === 'cancelled') {
-      setPaidAmount('0.00');
+      setPendingAmount('0');
     }
   };
 
@@ -240,49 +223,7 @@ export const InvoiceForm = () => {
   const handleItemFieldChange = (index, field, value) => {
     setItems(prev => prev.map((item, idx) => {
       if (idx === index) {
-        const updated = { ...item, [field]: value };
-        
-        const qty = parseInt(updated.quantity, 10) || 0;
-        const gstPct = parseAmount(updated.gst_percentage);
-
-        if (field === 'unit_price') {
-          // Input Base Rate (Exclusive of tax) -> Calculate Inclusive Rate
-          const price = parseAmount(value);
-          const gross = price * (1 + gstPct / 100);
-          updated.gross_price = value === '' ? '' : gross.toFixed(2);
-          updated.gst_amount = parseFloat((qty * price * (gstPct / 100)).toFixed(2));
-          updated.total_amount = parseFloat((qty * gross).toFixed(2));
-          if (!updated.isPaidManuallyEdited) {
-            updated.paid_amount = updated.total_amount.toString();
-          }
-        } 
-        else if (field === 'gross_price') {
-          // Input Inclusive Rate -> Calculate Base Rate (Exclusive)
-          const gross = parseAmount(value);
-          const price = gross / (1 + gstPct / 100);
-          updated.unit_price = value === '' ? '' : price.toFixed(2);
-          updated.gst_amount = parseFloat((qty * (gross - price)).toFixed(2));
-          updated.total_amount = parseFloat((qty * gross).toFixed(2));
-          if (!updated.isPaidManuallyEdited) {
-            updated.paid_amount = updated.total_amount.toString();
-          }
-        } 
-        else if (field === 'quantity' || field === 'gst_percentage') {
-          // Adjust Quantity or tax rate -> Re-calculate amounts using Inclusive Rate as locked anchor
-          const gross = parseAmount(updated.gross_price);
-          const price = gross / (1 + gstPct / 100);
-          updated.unit_price = price.toFixed(2);
-          updated.gst_amount = parseFloat((qty * (gross - price)).toFixed(2));
-          updated.total_amount = parseFloat((qty * gross).toFixed(2));
-          if (!updated.isPaidManuallyEdited) {
-            updated.paid_amount = updated.total_amount.toString();
-          }
-        }
-        else if (field === 'paid_amount') {
-          updated.isPaidManuallyEdited = true;
-        }
-
-        return updated;
+        return { ...item, [field]: value };
       }
       return item;
     }));
@@ -291,25 +232,47 @@ export const InvoiceForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!customerId) {
-      showToast('Please select a customer', 'error');
+    if (!newCustName.trim()) {
+      showToast('Please enter customer name', 'error');
       return;
     }
 
-    const invalidItem = items.some(item => !item.program_name.trim() || item.quantity <= 0 || parseAmount(item.unit_price) < 0);
+    const invalidItem = computedItems.some(item => !item.program_name.trim() || item.quantity <= 0 || parseAmount(item.unit_price) < 0);
     if (invalidItem) {
       showToast('Ensure all items have a program name, valid quantity and unit rate.', 'error');
       return;
     }
 
+    // Create or reuse customer
+    let finalCustomerId = customerId;
+    if (!finalCustomerId) {
+      try {
+        const newCust = await addCustomer({
+          name: newCustName.trim(),
+          email: newCustEmail.trim(),
+          phone: newCustPhone.trim(),
+          gst_number: newCustGst.trim(),
+          address: newCustAddress.trim()
+        });
+        if (newCust && newCust.id) {
+          finalCustomerId = newCust.id;
+        } else {
+          showToast('Failed to create customer', 'error');
+          return;
+        }
+      } catch (err) {
+        return;
+      }
+    }
+
     const invoicePayload = {
       invoice_number: invoiceNumber,
-      customer_id: customerId,
+      customer_id: finalCustomerId,
       invoice_date: invoiceDate,
-      subtotal,
-      gst_amount: gstAmount,
-      total_amount: totalAmount,
-      paid_amount: parseAmount(paidAmount),
+      subtotal: calculatedSubtotal,
+      gst_amount: calculatedGstAmount,
+      total_amount: calculatedTotalAmount,
+      paid_amount: actualPaidAmount,
       status
     };
 
@@ -324,7 +287,11 @@ export const InvoiceForm = () => {
         phone: activeProfile?.phone || '',
         website: activeProfile?.website || '',
         address: activeProfile?.address || '',
-        logo_url: activeProfile?.logo_url || ''
+        logo_url: activeProfile?.logo_url || '',
+        discount_type: discountType,
+        discount_value: parseAmount(discountValue),
+        discount_amount: discountAmt,
+        pending_amount: parsedPendingAmt
       }),
       quantity: 1,
       unit_price: 0,
@@ -333,7 +300,7 @@ export const InvoiceForm = () => {
       total_amount: 0
     };
 
-    const serializedItems = items.map(item => ({
+    const serializedItems = computedItems.map(item => ({
       program_name: item.program_name,
       description: JSON.stringify({
         text: item.description || '',
@@ -363,7 +330,7 @@ export const InvoiceForm = () => {
     }
   };
 
-  const balanceDue = Math.max(0, totalAmount - parseAmount(paidAmount));
+  const balanceDue = Math.max(0, calculatedTotalAmount - actualPaidAmount);
 
   return (
     <div className="space-y-6">
@@ -398,23 +365,21 @@ export const InvoiceForm = () => {
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
                   Select Profile *
                 </label>
-                <select
+                <CustomSelect
                   required
                   value={selectedProfileId}
-                  onChange={(e) => setSelectedProfileId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-medium"
-                >
-                  {profiles.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.company_name} {p.is_default ? '(Default)' : ''}
-                    </option>
-                  ))}
-                  {selectedProfileId === 'custom-invoice-profile' && (
-                    <option value="custom-invoice-profile">
-                      {invoices.find(inv => inv.id === id)?.invoice_profile?.company_name} (Saved Profile)
-                    </option>
-                  )}
-                </select>
+                  onChange={setSelectedProfileId}
+                  options={[
+                    ...profiles.map(p => ({
+                      value: p.id,
+                      label: p.company_name + (p.is_default ? ' (Default)' : ''),
+                    })),
+                    ...(selectedProfileId === 'custom-invoice-profile' ? [{
+                      value: 'custom-invoice-profile',
+                      label: (invoices.find(inv => inv.id === id)?.invoice_profile?.company_name || 'Saved') + ' (Saved Profile)',
+                    }] : []),
+                  ]}
+                />
               </div>
 
               {/* Profile Details Mini-Preview Card */}
@@ -489,32 +454,72 @@ export const InvoiceForm = () => {
               </div>
 
               <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide">
-                    Recipient Client *
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCustomerModal(true)}
-                    className="text-[10px] text-primary-600 hover:text-primary-700 font-bold flex items-center gap-0.5"
-                  >
-                    <UserPlus className="w-3 h-3" /> Add New
-                  </button>
-                </div>
-                <select
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                  Customer Name *
+                </label>
+                <input
+                  type="text"
                   required
-                  value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-medium"
-                >
-                  <option value="">Select customer...</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} {c.gst_number ? `(${c.gst_number})` : ''}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="e.g. John Doe"
+                  value={newCustName}
+                  onChange={(e) => setNewCustName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-medium"
+                />
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  placeholder="e.g. client@example.com"
+                  value={newCustEmail}
+                  onChange={(e) => setNewCustEmail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  placeholder="e.g. +91 98765 43210"
+                  value={newCustPhone}
+                  onChange={(e) => setNewCustPhone(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                  GST Number (GSTIN)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 27AAAAA1111A1Z1"
+                  value={newCustGst}
+                  onChange={(e) => setNewCustGst(e.target.value.toUpperCase())}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                Billing Address
+              </label>
+              <textarea
+                placeholder="e.g. 123 Business Lane, Mumbai, Maharashtra 400001"
+                rows="2"
+                value={newCustAddress}
+                onChange={(e) => setNewCustAddress(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+              />
             </div>
           </div>
 
@@ -561,23 +566,24 @@ export const InvoiceForm = () => {
                       />
                     </div>
                     <div>
-                      <select
+                      <CustomSelect
+                        size="sm"
                         value={item.gst_percentage}
-                        onChange={(e) => handleItemFieldChange(index, 'gst_percentage', parseInt(e.target.value, 10))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs font-medium"
-                      >
-                        <option value={0}>0% GST (Exempted)</option>
-                        <option value={5}>5% GST</option>
-                        <option value={12}>12% GST</option>
-                        <option value={18}>18% GST (Standard)</option>
-                        <option value={28}>28% GST (Luxury)</option>
-                      </select>
+                        onChange={(v) => handleItemFieldChange(index, 'gst_percentage', parseInt(v, 10))}
+                        options={[
+                          { value: 0,  label: '0% GST (Exempted)' },
+                          { value: 5,  label: '5% GST' },
+                          { value: 12, label: '12% GST' },
+                          { value: 18, label: '18% GST (Standard)' },
+                          { value: 28, label: '28% GST (Luxury)' },
+                        ]}
+                      />
                     </div>
                   </div>
 
                   {/* Row Bottom Details: Description, Qty, Excl. Rate, Incl. Rate */}
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                      <div className="md:col-span-4">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                      <div className="md:col-span-6">
                         <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">
                           Description (Optional)
                         </label>
@@ -606,22 +612,6 @@ export const InvoiceForm = () => {
                       </div>
 
                       <div className="md:col-span-2">
-                        <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1 text-right">
-                          Course Amt (₹)
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="0.00"
-                          value={item.gross_price}
-                          onChange={(e) => handleItemFieldChange(index, 'gross_price', e.target.value)}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-850 dark:text-slate-100 text-right focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs font-mono font-bold"
-                          title="Total actual amount of course"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
                         <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wide mb-1 text-right">
                           Amt Paid (₹)
                         </label>
@@ -639,10 +629,10 @@ export const InvoiceForm = () => {
 
                       <div className="md:col-span-3 flex justify-between items-center pl-2 pb-1.5">
                         <div className="text-[10px] text-right font-semibold text-slate-400 leading-tight">
-                          <div>Total: <span className="text-slate-800 dark:text-slate-200 font-bold">₹{item.total_amount}</span></div>
+                          <div>Total: <span className="text-slate-800 dark:text-slate-200 font-bold">₹{computedItems[index]?.total_amount}</span></div>
                           <div className="mt-0.5">
-                            Pending: <span className={`${(item.total_amount - parseAmount(item.paid_amount)) > 0 ? 'text-amber-600 font-bold' : 'text-slate-400 font-medium'}`}>
-                              ₹{(item.total_amount - parseAmount(item.paid_amount)).toFixed(2)}
+                            Pending: <span className={`${(computedItems[index]?.pending_amount || 0) > 0 ? 'text-amber-600 font-bold' : 'text-slate-400 font-medium'}`}>
+                              ₹{(computedItems[index]?.pending_amount || 0).toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -651,12 +641,12 @@ export const InvoiceForm = () => {
                           onClick={() => handleRemoveItem(index)}
                           className="p-1.5 rounded-lg border border-slate-100 dark:border-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all"
                         >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         </div>
@@ -674,33 +664,88 @@ export const InvoiceForm = () => {
             <div className="space-y-3.5 text-xs">
               <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                 <span>Subtotal Billed</span>
-                <span className="font-bold">₹{subtotal}</span>
+                <span className="font-bold">₹{calculatedSubtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                 <span>Total GST Collected</span>
-                <span className="font-bold">₹{gstAmount}</span>
+                <span className="font-bold">₹{calculatedGstAmount.toFixed(2)}</span>
               </div>
+              
+              <div className="h-px bg-slate-100 dark:bg-slate-800" />
+
+              <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                <span>Gross Amount (Pre-Discount)</span>
+                <span className="font-bold">₹{totalBeforeDiscount.toFixed(2)}</span>
+              </div>
+
+              {discountAmt > 0 && (
+                <div className="flex justify-between items-center text-rose-600">
+                  <span>Discount ({discountType === 'percentage' ? `${discountValue}%` : '₹'})</span>
+                  <span className="font-bold">-₹{discountAmt.toFixed(2)}</span>
+                </div>
+              )}
               
               <div className="h-px bg-slate-100 dark:bg-slate-800" />
               
               <div className="flex justify-between items-center text-sm font-bold text-slate-800 dark:text-white">
                 <span>Gross Payable</span>
-                <span className="text-primary-600 dark:text-primary-400">₹{totalAmount}</span>
+                <span className="text-primary-600 dark:text-primary-400">₹{calculatedTotalAmount.toFixed(2)}</span>
               </div>
               
               <div className="h-px bg-slate-100 dark:bg-slate-800" />
 
               <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                     <div>
+                      <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-450 uppercase tracking-wide mb-1">
+                        Discount Type
+                      </label>
+                      <CustomSelect
+                        size="sm"
+                        value={discountType}
+                        onChange={setDiscountType}
+                        options={[
+                          { value: 'percentage', label: 'Percentage (%)' },
+                          { value: 'rupees',     label: 'Rupees (₹)' },
+                        ]}
+                      />
+                    </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-450 uppercase tracking-wide mb-1">
+                      Discount Value
+                    </label>
+                    <input
+                      type="text"
+                      value={discountValue}
+                      onChange={(e) => setDiscountValue(e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-right focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-semibold"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-450 uppercase tracking-wide mb-1">
                     Amount Paid (₹)
                   </label>
+                  <div className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-right text-sm font-semibold">
+                    ₹{actualPaidAmount.toFixed(2)}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-450 uppercase tracking-wide mb-1">
+                    Pending Amt (₹)
+                  </label>
                   <input
                     type="text"
                     required
-                    value={paidAmount}
-                    onChange={(e) => handlePaidAmountChange(e.target.value)}
+                    value={pendingAmount}
+                    onChange={(e) => setPendingAmount(e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-right focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-semibold"
+                    placeholder="0.00"
                   />
                 </div>
 
@@ -708,15 +753,16 @@ export const InvoiceForm = () => {
                   <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-450 uppercase tracking-wide mb-1">
                     Invoice Payment Status
                   </label>
-                  <select
+                  <CustomSelect
+                    size="sm"
                     value={status}
-                    onChange={(e) => handleStatusChange(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-semibold"
-                  >
-                    <option value="pending">Pending Receipt</option>
-                    <option value="paid">Paid Invoice</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
+                    onChange={handleStatusChange}
+                    options={[
+                      { value: 'pending',   label: '🕐 Pending Receipt' },
+                      { value: 'paid',      label: '✅ Paid Invoice' },
+                      { value: 'cancelled', label: '❌ Cancelled' },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -740,126 +786,7 @@ export const InvoiceForm = () => {
         </div>
       </form>
 
-      {/* Inline Add Customer Modal */}
-      {showAddCustomerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 shadow-2xl rounded-2xl overflow-hidden animate-scale-up">
-            
-            {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-800">
-              <h3 className="font-display font-bold text-base text-slate-800 dark:text-white">
-                Add New Customer
-              </h3>
-              <button 
-                type="button"
-                onClick={() => setShowAddCustomerModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {/* Form */}
-            <form onSubmit={handleCreateCustomer} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
-                    Customer Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. John Doe"
-                    value={newCustName}
-                    onChange={(e) => setNewCustName(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. client@example.com"
-                    value={newCustEmail}
-                    onChange={(e) => setNewCustEmail(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="e.g. +91 98765 43210"
-                    value={newCustPhone}
-                    onChange={(e) => setNewCustPhone(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
-                    GST Number (GSTIN)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 27AAAAA1111A1Z1"
-                    value={newCustGst}
-                    onChange={(e) => setNewCustGst(e.target.value.toUpperCase())}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
-                  Billing Address
-                </label>
-                <textarea
-                  placeholder="e.g. 123 Business Lane, Mumbai, Maharashtra 400001"
-                  rows="3"
-                  value={newCustAddress}
-                  onChange={(e) => setNewCustAddress(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex justify-end items-center gap-3 pt-3 border-t border-slate-150 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowAddCustomerModal(false)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-sm font-semibold transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingCustomer}
-                  className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md shadow-primary-500/10 flex items-center justify-center"
-                >
-                  {isSavingCustomer ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Customer'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

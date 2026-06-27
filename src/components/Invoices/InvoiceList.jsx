@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { generateInvoicePDF } from '../../utils/pdfGenerator';
+import CustomSelect from '../Shared/CustomSelect';
 import { 
   Search, 
   Plus, 
@@ -157,34 +158,32 @@ export const InvoiceList = () => {
             <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-455 uppercase tracking-wide mb-1.5">
               Payment Status
             </label>
-            <select
+            <CustomSelect
+              size="sm"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 transition-all"
-            >
-              <option value="all">All Statuses</option>
-              <option value="paid">Paid</option>
-              <option value="pending">Pending</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+              onChange={setStatusFilter}
+              options={[
+                { value: 'all',       label: 'All Statuses' },
+                { value: 'paid',      label: '✅ Paid' },
+                { value: 'pending',   label: '🕐 Pending' },
+                { value: 'cancelled', label: '❌ Cancelled' },
+              ]}
+            />
           </div>
 
           <div>
             <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-455 uppercase tracking-wide mb-1.5">
               Company Profile
             </label>
-            <select
+            <CustomSelect
+              size="sm"
               value={companyFilter}
-              onChange={(e) => setCompanyFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 transition-all"
-            >
-              <option value="all">All Companies</option>
-              {profiles.map(p => (
-                <option key={p.id} value={p.company_name}>
-                  {p.company_name}
-                </option>
-              ))}
-            </select>
+              onChange={setCompanyFilter}
+              options={[
+                { value: 'all', label: 'All Companies' },
+                ...profiles.map(p => ({ value: p.company_name, label: p.company_name })),
+              ]}
+            />
           </div>
 
           <div>

@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { generateInvoicePDF } from '../../utils/pdfGenerator';
+import { eliteLayout } from '../../utils/eliteLayoutConfig';
 import { 
   ArrowLeft, 
   Download, 
@@ -46,7 +47,12 @@ export const InvoiceDetails = () => {
         return `* ${item.program_name}\n  Qty: ${item.quantity} | Price: ${formatCurrency(item.unit_price)} (+18% GST)\n  Total: ${formatCurrency(item.total_amount)}`;
       }).join('\n\n') || '';
 
-      const netBalance = Math.max(0, found.total_amount - found.paid_amount);
+      const discountAmount = parseFloat(found.invoice_profile?.discount_amount) || 0;
+      const preDiscountTotal = (parseFloat(found.subtotal) || 0) + (parseFloat(found.gst_amount) || 0);
+      const displayPaidAmount = (discountAmount > 0 && Math.abs(found.paid_amount - preDiscountTotal) < 0.05)
+        ? found.paid_amount - discountAmount
+        : found.paid_amount;
+      const netBalance = Math.max(0, preDiscountTotal - discountAmount - displayPaidAmount);
 
       const formattedMessage = 
 `Dear ${found.customers?.name || 'Client'},\n\n` +
@@ -74,8 +80,8 @@ export const InvoiceDetails = () => {
 `SUMMARY:\n` +
 `  Subtotal     : ${formatCurrency(found.subtotal)}\n` +
 `  Tax (18% GST): ${formatCurrency(found.gst_amount)}\n` +
-`  Total Amount : ${formatCurrency(found.total_amount)}\n` +
-`  Paid Amount  : ${formatCurrency(found.paid_amount)}\n` +
+`  Total Amount : ${formatCurrency(preDiscountTotal - discountAmount)}\n` +
+`  Paid Amount  : ${formatCurrency(displayPaidAmount)}\n` +
 `  Balance Due  : ${formatCurrency(netBalance)}\n` +
 `===============================================\n` +
 `     Thank you for doing business with us!     \n` +
@@ -172,7 +178,12 @@ export const InvoiceDetails = () => {
   };
 
   const activeCompany = invoice.invoice_profile || settings;
-  const netBalance = Math.max(0, invoice.total_amount - invoice.paid_amount);
+  const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
+  const preDiscountTotal = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
+  const displayPaidAmount = (discountAmount > 0 && Math.abs(invoice.paid_amount - preDiscountTotal) < 0.05)
+    ? invoice.paid_amount - discountAmount
+    : invoice.paid_amount;
+  const netBalance = Math.max(0, preDiscountTotal - discountAmount - displayPaidAmount);
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat('en-IN', {
@@ -187,7 +198,7 @@ export const InvoiceDetails = () => {
 
   if (companyName.includes('elite')) {
     themeKey = 'elite';
-    localLogoPath = '/logos/elite.png';
+    localLogoPath = '/logo-elite.png';
   } else if (companyName.includes('harvard') || companyName.includes('havard')) {
     themeKey = 'harvard';
     localLogoPath = '/logos/harvard.png';
@@ -197,6 +208,9 @@ export const InvoiceDetails = () => {
   } else if (companyName.includes('princeton') || companyName.includes('princetion')) {
     themeKey = 'princeton';
     localLogoPath = '/logos/princeton.png';
+  } else if (companyName.includes('isuccessnode') || companyName.includes('i-successnode') || companyName.includes('successnode')) {
+    themeKey = 'isuccessnode';
+    localLogoPath = '/logos/isuccessnode.png';
   }
 
   // Brand data fallback overrides
@@ -249,6 +263,19 @@ export const InvoiceDetails = () => {
       secondary: '#102744',
       dark: '#102744',
       bg: '#F8FAFC'
+    },
+    isuccessnode: {
+      company_name: 'I-SUCCESSNODE',
+      phone: '+91-7969537567',
+      email: 'support@isuccessnode.com',
+      website: 'www.isuccessnode.com',
+      gst_number: '09AAHCI9258G1Z3',
+      cin: '',
+      address: '',
+      primary: '#6b21a8',
+      secondary: '#84cc16',
+      dark: '#000050',
+      bg: '#ffffff'
     },
     default: {
       company_name: activeCompany?.company_name || 'I-SUCCESSNODE',
@@ -323,64 +350,241 @@ export const InvoiceDetails = () => {
 
       {/* Invoice Sheet Preview matching template exactly */}
       {themeKey !== 'default' ? (
-        <div className="bg-white text-slate-900 border border-slate-200 rounded-2xl max-w-4xl mx-auto shadow-md relative overflow-hidden transition-colors min-h-[1050px] flex flex-col justify-between w-full" style={{ fontFamily: 'Inter, sans-serif' }}>
-          <div>
-            {/* Top Banner Header */}
-            <div 
-              className="px-8 py-5 flex justify-between items-center text-white relative overflow-hidden"
-              style={{ 
-                backgroundColor: themeKey === 'elite' ? '#ffffff' : activeTheme.primary,
-                borderBottom: themeKey === 'elite' ? '1px solid #e2e8f0' : 'none',
-                borderTop: themeKey === 'elite' ? '8px solid #2E41B4' : 'none'
-              }}
-            >
-              {/* Logo block */}
-              <div className="flex items-center gap-6 z-10">
-                {logoUrlToRender && (
-                  themeKey === 'elite' ? (
-                    <img src={logoUrlToRender} alt="Logo" className="h-[60px] max-w-[160px] object-contain" />
-                  ) : (
-                    <img src={logoUrlToRender} alt="Logo" className="h-[50px] max-w-[120px] object-contain" />
-                  )
-                )}
-                {themeKey === 'pmi' && (
-                  <span className="font-bold text-sm">PMI Services PMIS</span>
-                )}
-              </div>
+        <div 
+          className="bg-white text-slate-900 border border-slate-200 rounded-2xl mx-auto shadow-md relative overflow-hidden transition-colors flex flex-col justify-between" 
+          style={{ 
+            fontFamily: 'Inter, sans-serif',
+            width: themeKey === 'elite' ? `${eliteLayout.width}px` : '100%',
+            maxWidth: themeKey === 'elite' ? `${eliteLayout.width}px` : '56rem',
+            minHeight: themeKey === 'elite' ? `${eliteLayout.height}px` : '1050px',
+          }}
+        >
+          {themeKey === 'isuccessnode' ? (
+            <>
+              <div>
+                {/* Header Row */}
+                <div className="px-8 pt-8 pb-5 flex justify-between items-start">
+                  <div>
+                    <h1 className="text-4xl font-extrabold text-black tracking-tight mb-2">INVOICE</h1>
+                    <p className="text-xs text-slate-500 font-medium">Invoice Number: {invoice.invoice_number}</p>
+                    <p className="text-xs text-slate-500 font-medium mt-1">Invoice Date: {formatDate(invoice.invoice_date)}</p>
+                  </div>
+                  {/* Logo boxed frame */}
+                  <div className="border border-black p-2 bg-white flex items-center justify-center min-w-[130px] min-h-[55px] max-w-[150px] shadow-sm">
+                    {logoUrlToRender ? (
+                      <img src={logoUrlToRender} alt="Logo" className="max-h-12 object-contain" />
+                    ) : (
+                      <span className="font-extrabold text-sm text-black">I-SUCCESSNODE</span>
+                    )}
+                  </div>
+                </div>
 
-              {/* Title & Metadata */}
-              <div className="text-right z-10">
-                {themeKey === 'elite' ? (
-                  <div className="flex flex-col items-end gap-1.5 text-slate-800">
-                    <h1 className="font-bold text-2xl tracking-wide font-display text-[#102744] leading-none">TAX INVOICE</h1>
-                    <p className="text-xs font-bold text-[#2E41B4]">Invoice No: {invoice.invoice_number}</p>
-                    <p className="text-[10px] text-slate-400">Date: {formatDate(invoice.invoice_date)}</p>
-                    <div className="mt-1">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-bold uppercase ${
-                        invoice.status === 'paid' 
-                          ? 'bg-emerald-50 text-emerald-600' 
-                          : invoice.status === 'cancelled'
-                          ? 'bg-rose-50 text-rose-600'
-                          : 'bg-amber-50 text-amber-600'
-                      }`}>
-                        {invoice.status}
-                      </span>
+                {/* Content Area */}
+                <div className="px-8 py-6">
+                  {/* Two Address Boxes */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs mb-8">
+                    {/* Company Info Box */}
+                    <div className="border border-black p-4 bg-white flex flex-col justify-between min-h-[110px]">
+                      <div>
+                        <p className="font-bold text-black text-sm mb-2">{companyNameText}</p>
+                        <div className="space-y-1 text-slate-500">
+                          {companyPhone && <p>{companyPhone}</p>}
+                          {companyWebsite && <p>{companyWebsite}</p>}
+                          {companyGst && <p>GST: {companyGst}</p>}
+                          {companyEmail && <p>{companyEmail}</p>}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Bill To Box */}
+                    <div className="border border-black p-4 bg-white flex flex-col justify-between min-h-[110px]">
+                      <div>
+                        <p className="font-bold text-black text-sm mb-2">BILL TO</p>
+                        <div className="space-y-1 text-slate-500">
+                          <p className="font-bold text-slate-800">{invoice.customers?.name || 'Client Name'}</p>
+                          {invoice.customers?.email && <p>{invoice.customers.email}</p>}
+                          {invoice.customers?.phone && <p>{invoice.customers.phone}</p>}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                ) : themeKey === 'pmi' ? (
-                  <>
-                    <h1 className="font-bold text-sm tracking-wider">TAX INVOICE</h1>
-                    <h2 className="font-extrabold text-lg">INV-{invoice.invoice_number}</h2>
-                  </>
-                ) : (
-                  <>
-                    <h1 className="font-bold text-base tracking-wider">TAX INVOICE</h1>
-                    <p className="text-[10px] opacity-90">Invoice No: {invoice.invoice_number}</p>
-                    <p className="text-[10px] opacity-90">Date: {formatDate(invoice.invoice_date)}</p>
-                  </>
-                )}
+
+                  {/* Items Table with full black borders */}
+                  <div className="overflow-x-auto border border-black rounded-none">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-black" style={{ backgroundColor: '#BCE0FD' }}>
+                          <th className="p-3 text-left font-bold text-black text-xs border-r border-black w-[45%]">Program Name</th>
+                          <th className="p-3 text-right font-bold text-black text-xs border-r border-black w-[18%]">Unit Price</th>
+                          <th className="p-3 text-right font-bold text-black text-xs border-r border-black w-[15%]">GST (18%)</th>
+                          <th className="p-3 text-right font-bold text-black text-xs w-[22%]">Amount (INR)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(invoice.invoice_items || []).map((item, idx) => {
+                          const isComp = parseFloat(item.unit_price) === 0;
+                          return (
+                            <tr key={item.id || idx} className="text-xs font-semibold text-slate-800">
+                              <td className="p-3 text-left border-r border-b border-black font-medium">{item.program_name}</td>
+                              <td className="p-3 text-right border-r border-b border-black font-mono font-normal">
+                                {isComp ? '' : `₹${formatNumber(item.unit_price)}`}
+                              </td>
+                              <td className="p-3 text-right border-r border-b border-black font-mono font-normal">
+                                {isComp ? '' : `₹${formatNumber(item.gst_amount)}`}
+                              </td>
+                              <td className="p-3 text-right border-b border-black font-mono font-bold">
+                                {isComp ? '0.00' : `₹${formatNumber(item.total_amount)}`}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Totals Table right aligned */}
+                  <div className="flex justify-end mt-8">
+                    <div className="w-[220px] bg-white border border-black flex flex-col text-xs">
+                      {/* Row Sub-Total */}
+                      <div className="flex justify-between items-center border-b border-black">
+                        <span className="p-2 font-medium text-slate-800 border-r border-black w-[110px]">Sub-Total</span>
+                        <span className="p-2 text-right font-mono font-medium flex-grow">₹{formatNumber(invoice.subtotal)}</span>
+                      </div>
+                      {/* Row Tax */}
+                      <div className="flex justify-between items-center border-b border-black">
+                        <span className="p-2 font-medium text-slate-800 border-r border-black w-[110px]">Tax (18%)</span>
+                        <span className="p-2 text-right font-mono font-medium flex-grow">₹{formatNumber(invoice.gst_amount)}</span>
+                      </div>
+                      {/* Row Total (Pre-Discount Total = Sub-Total + Tax) */}
+                      <div className="flex justify-between items-center border-b border-black">
+                        <span className="p-2 font-bold text-slate-800 border-r border-black w-[110px]">Total</span>
+                        <span className="p-2 text-right font-mono font-bold flex-grow">₹{formatNumber(invoice.subtotal + invoice.gst_amount)}</span>
+                      </div>
+                      {/* Row Discount (Only shown if discountAmount > 0) */}
+                      {discountAmount > 0 && (
+                        <div className="flex justify-between items-center border-b border-black">
+                          <span className="p-2 font-medium text-slate-800 border-r border-black w-[110px]">Discount</span>
+                          <span className="p-2 text-right font-mono font-medium flex-grow text-slate-800">
+                            ₹{formatNumber(discountAmount)}
+                          </span>
+                        </div>
+                      )}
+                      {/* Row Paid */}
+                      <div className="flex justify-between items-center">
+                        <span className="p-2 font-bold text-slate-800 border-r border-black w-[110px]">Paid</span>
+                        <span className="p-2 text-right font-mono font-bold flex-grow">₹{formatNumber(displayPaidAmount)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+
+              {/* Bottom Footer Stripes */}
+              <div className="mt-auto relative w-full pt-10">
+                <p className="text-center text-slate-500 font-medium text-xs mb-6">
+                  Thank you for doing business with us!
+                </p>
+                <div className="px-8 pb-5 flex justify-between items-end">
+                  <p className="text-[9px] text-slate-400">
+                    All rights reserved by © I-SUCCESSNODE (OPC) Private Limited 2025
+                  </p>
+                </div>
+                <div className="w-full flex flex-col">
+                  <div className="h-[6px] w-full bg-[#84cc16]" />
+                  <div className="h-[8px] w-full bg-[#6b21a8]" />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                {/* ── ELITE TOOLISTIC TOP BANNER — matches reference exactly ── */}
+                {themeKey === 'elite' ? (
+                  <div className="relative overflow-hidden bg-white" style={{ borderTop: `${eliteLayout.footer.blueStripHeight}px solid ${eliteLayout.colors.primary}` }}>
+                    {/* Corner triangles — top right */}
+                    <svg className="absolute top-0 right-0 pointer-events-none z-10" width="110" height="110" viewBox="0 0 110 110">
+                      <polygon points="110,0 0,0 110,110" fill={eliteLayout.colors.dark} />
+                      <polygon points="110,0 46,0 110,64" fill={eliteLayout.colors.primary} />
+                      <polygon points="110,68 72,68 110,110" fill={eliteLayout.colors.lightBlue} />
+                    </svg>
+
+                    {/* Main header content */}
+                    <div className="flex items-center gap-0" style={{ height: `${eliteLayout.header.height}px`, paddingLeft: `${eliteLayout.marginX}px`, paddingRight: `${eliteLayout.marginX}px` }}>
+                      {/* LEFT: Logo */}
+                      <div className="flex-shrink-0 z-10" style={{ width: `${eliteLayout.header.logoWidth}px` }}>
+                        {logoUrlToRender ? (
+                          <img src={logoUrlToRender} alt="ELITETOOLISTIC" className="object-contain"
+                            style={{ width: '155px', height: '80px', objectFit: 'contain', objectPosition: 'left center' }} />
+                        ) : (
+                          <div>
+                            <p className="font-extrabold text-sm leading-tight" style={{ color: eliteLayout.colors.dark }}>ELITETOOLISTIC</p>
+                            <p className="text-[9px] italic" style={{ color: eliteLayout.colors.primary }}>— Where skills meet innovation —</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* CENTER: Vertical divider */}
+                      <div className="flex-shrink-0 mx-4 self-stretch" style={{ width: '1px', background: eliteLayout.colors.border }} />
+
+                      {/* RIGHT: INVOICE + badge */}
+                      <div className="flex-1 flex flex-col items-start justify-center z-10 pl-4" style={{ paddingRight: '100px' }}>
+                        <h1 className="font-extrabold leading-none" style={{ fontSize: `${eliteLayout.header.invoiceTitleSize}px`, color: eliteLayout.colors.dark, letterSpacing: '-0.5px' }}>INVOICE</h1>
+                        <div className="mt-2 px-5 py-1.5 rounded" style={{ backgroundColor: eliteLayout.colors.primary, display: 'inline-block' }}>
+                          <span className="font-bold text-white" style={{ fontSize: `${eliteLayout.header.badgeTextSize}px`, letterSpacing: '0.3px' }}>{invoice.invoice_number}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Separator line */}
+                    <div style={{ height: '1px', backgroundColor: eliteLayout.colors.border, marginLeft: `${eliteLayout.marginX}px`, marginRight: `${eliteLayout.marginX}px` }} />
+
+                    {/* BILL TO (left) + GST/CIN (right) */}
+                    <div className="py-4 flex justify-between items-start text-xs" style={{ paddingLeft: `${eliteLayout.marginX}px`, paddingRight: `${eliteLayout.marginX}px` }}>
+                      <div className="space-y-1">
+                        <p className="font-extrabold text-[11px] uppercase tracking-wide" style={{ color: eliteLayout.colors.dark }}>BILL TO:</p>
+                        <p className="font-bold" style={{ color: eliteLayout.colors.dark }}><span className="font-bold">Customer Name: </span>{invoice.customers?.name || 'Client Name'}</p>
+                        {invoice.customers?.email && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">Customer Email: </span>{invoice.customers.email}</p>}
+                        {invoice.customers?.phone && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">Phone: </span>{invoice.customers.phone}</p>}
+                      </div>
+                      <div className="space-y-1 text-right">
+                        {companyGst && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">GST: </span>{companyGst}</p>}
+                        {companyCin && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">CIN: </span>{companyCin}</p>}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                <div 
+                  className="px-8 py-5 flex justify-between items-center text-white relative overflow-hidden"
+                  style={{ 
+                    backgroundColor: activeTheme.primary,
+                    borderBottom: 'none'
+                  }}
+                >
+                  {/* Logo block */}
+                  <div className="flex items-center gap-6 z-10">
+                    {logoUrlToRender && (
+                      <img src={logoUrlToRender} alt="Logo" className="h-[50px] max-w-[120px] object-contain" />
+                    )}
+                    {themeKey === 'pmi' && (
+                      <span className="font-bold text-sm">PMI Services PMIS</span>
+                    )}
+                  </div>
+                  {/* Title & Metadata */}
+                  <div className="text-right z-10">
+                    {themeKey === 'pmi' ? (
+                      <>
+                        <h1 className="font-bold text-sm tracking-wider">TAX INVOICE</h1>
+                        <h2 className="font-extrabold text-lg">INV-{invoice.invoice_number}</h2>
+                      </>
+                    ) : (
+                      <>
+                        <h1 className="font-bold text-base tracking-wider">TAX INVOICE</h1>
+                        <p className="text-[10px] opacity-90">Invoice No: {invoice.invoice_number}</p>
+                        <p className="text-[10px] opacity-90">Date: {formatDate(invoice.invoice_date)}</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+                )}
 
             {/* Content area */}
             <div className="p-8 sm:p-12">
@@ -455,13 +659,19 @@ export const InvoiceDetails = () => {
                           <span>GST (18%)</span>
                           <span className="font-mono">{formatCurrency(invoice.gst_amount)}</span>
                         </div>
+                        {parseFloat(invoice.invoice_profile?.discount_amount) > 0 && (
+                          <div className="flex justify-between text-rose-600">
+                            <span>Discount {invoice.invoice_profile?.discount_type === 'percentage' && `(${invoice.invoice_profile?.discount_value}%)`}</span>
+                            <span className="font-mono">-{formatCurrency(invoice.invoice_profile?.discount_amount)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between pt-1 border-t border-slate-100 font-bold text-slate-800">
                           <span>Total</span>
                           <span className="font-mono" style={{ color: activeTheme.primary }}>{formatCurrency(invoice.total_amount)}</span>
                         </div>
                         <div className="flex justify-between font-bold text-emerald-600">
                           <span>Paid</span>
-                          <span className="font-mono">{formatCurrency(invoice.paid_amount)}</span>
+                          <span className="font-mono">{formatCurrency(displayPaidAmount)}</span>
                         </div>
                         {netBalance > 0 && (
                           <div className="flex justify-between font-bold text-amber-600 pt-1 border-t border-dashed border-slate-100">
@@ -476,28 +686,9 @@ export const InvoiceDetails = () => {
               ) : (
                 // STANDARD STACKED LAYOUTS (Elite, Harvard, PMI)
                 <div className="space-y-8">
-                  {/* Address Grid */}
+                  {/* Address Grid — Elite section now in header, skip here */}
                   {themeKey === 'elite' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs leading-relaxed text-slate-800">
-                      {/* Left: Customer Info */}
-                      <div className="space-y-1">
-                        <p className="font-bold text-[10px] uppercase tracking-wider text-slate-400">BILL TO</p>
-                        <p className="font-bold text-slate-800 text-sm">{invoice.customers?.name || 'Client Name'}</p>
-                        {invoice.customers?.email && <p className="text-slate-500">{invoice.customers.email}</p>}
-                        {invoice.customers?.phone && <p className="text-slate-500">Phone: {invoice.customers.phone}</p>}
-                        {invoice.customers?.address && <p className="text-slate-400">{invoice.customers.address}</p>}
-                      </div>
-
-                      {/* Right: Company details */}
-                      <div className="space-y-1 sm:text-right flex flex-col sm:items-end">
-                        <div className="text-left space-y-1.5">
-                          <p className="font-bold text-[10px] uppercase tracking-wider text-slate-400">TAX INFORMATION</p>
-                          {companyGst && <p className="text-slate-600"><span className="font-bold text-slate-800">GSTIN:</span> {companyGst}</p>}
-                          {companyCin && <p className="text-slate-600"><span className="font-bold text-slate-800">CIN:</span> {companyCin}</p>}
-                          <p className="text-slate-500"><span className="font-bold text-slate-800">Issued By:</span> {companyNameText}</p>
-                        </div>
-                      </div>
-                    </div>
+                    <div style={{ display: 'none' }} />
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs leading-relaxed">
                       {/* FROM */}
@@ -525,15 +716,15 @@ export const InvoiceDetails = () => {
                   )}
 
                   {/* Itemized Table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse border" style={{ borderColor: themeKey === 'elite' ? '#f1f5f9' : '#e2e8f0' }}>
+                  <div style={{ paddingLeft: themeKey === 'elite' ? `${eliteLayout.marginX}px` : '0', paddingRight: themeKey === 'elite' ? `${eliteLayout.marginX}px` : '0' }}>
+                    <table className="w-full text-left border-collapse border" style={{ borderColor: themeKey === 'elite' ? eliteLayout.colors.border : '#e2e8f0' }}>
                       <thead>
                         {themeKey === 'elite' ? (
-                          <tr className="text-white text-xs font-semibold" style={{ backgroundColor: '#2E41B4' }}>
-                            <th className="p-3 text-left w-[45%]">ITEM DESCRIPTION</th>
-                            <th className="p-3 text-right w-[15%]">UNIT PRICE</th>
-                            <th className="p-3 text-right w-[20%]">GST (18%)</th>
-                            <th className="p-3 text-right w-[20%]">AMOUNT</th>
+                          <tr className="text-white text-xs font-bold" style={{ backgroundColor: eliteLayout.colors.dark, height: `${eliteLayout.table.headerHeight}px` }}>
+                            <th className="p-3 text-center" style={{ width: `${eliteLayout.table.colWidths[0]}px`, borderRight: '1px solid #2d3a5e' }}>ITEM</th>
+                            <th className="p-3 text-center" style={{ width: `${eliteLayout.table.colWidths[1]}px`, borderRight: '1px solid #2d3a5e' }}>Unit Price</th>
+                            <th className="p-3 text-center" style={{ width: `${eliteLayout.table.colWidths[2]}px`, borderRight: '1px solid #2d3a5e' }}>GST (18%)</th>
+                            <th className="p-3 text-center" style={{ width: `${eliteLayout.table.colWidths[3]}px` }}>AMMOUNT</th>
                           </tr>
                         ) : themeKey === 'harvard' ? (
                           <tr className="text-xs font-semibold border-b border-slate-100" style={{ backgroundColor: '#F2F2F2' }}>
@@ -560,14 +751,13 @@ export const InvoiceDetails = () => {
                             return (
                               <tr 
                                 key={item.id || idx} 
-                                className={`border-b border-slate-100 text-xs hover:bg-slate-50/30 font-bold text-slate-800 ${
-                                  idx % 2 === 1 ? 'bg-slate-50/20' : ''
-                                }`}
+                                className="border-b text-xs font-bold"
+                                style={{ borderColor: eliteLayout.colors.border, height: `${eliteLayout.table.rowHeight}px`, color: eliteLayout.colors.dark }}
                               >
-                                <td className="p-3 text-left">{item.program_name}</td>
-                                <td className="p-3 text-right font-normal font-mono">{isComp ? '-' : formatNumber(item.unit_price)}</td>
-                                <td className="p-3 text-right font-normal font-mono">{isComp ? '-' : formatNumber(item.gst_amount)}</td>
-                                <td className="p-3 text-right font-mono">{isComp ? 'Free' : formatNumber(item.total_amount)}</td>
+                                <td className="p-3 text-center" style={{ width: `${eliteLayout.table.colWidths[0]}px`, borderRight: `1px solid ${eliteLayout.colors.border}` }}>{item.program_name}</td>
+                                <td className="p-3 text-center font-bold font-mono" style={{ width: `${eliteLayout.table.colWidths[1]}px`, borderRight: `1px solid ${eliteLayout.colors.border}` }}>{isComp ? '-' : formatNumber(item.unit_price)}</td>
+                                <td className="p-3 text-center font-bold font-mono" style={{ width: `${eliteLayout.table.colWidths[2]}px`, borderRight: `1px solid ${eliteLayout.colors.border}` }}>{isComp ? '-' : formatNumber(item.gst_amount)}</td>
+                                <td className="p-3 text-center font-bold font-mono" style={{ width: `${eliteLayout.table.colWidths[3]}px` }}>{isComp ? 'Free' : formatNumber(item.total_amount)}</td>
                               </tr>
                             );
                           })
@@ -613,30 +803,38 @@ export const InvoiceDetails = () => {
 
                   {/* Calculations grid */}
                   {themeKey === 'elite' ? (
-                    <div className="flex justify-end mt-6 text-xs text-slate-800">
-                      <div className="w-56 space-y-2 py-2">
-                        <div className="flex justify-between text-slate-500 font-semibold">
-                          <span>Subtotal</span>
-                          <span className="font-mono">{formatNumber(invoice.subtotal)}</span>
+                    <div className="flex justify-end mt-6 text-xs" style={{ paddingLeft: `${eliteLayout.marginX}px`, paddingRight: `${eliteLayout.marginX}px` }}>
+                      <div className="flex flex-col gap-3" style={{ width: `${eliteLayout.summary.width}px` }}>
+                        {/* Box 1: Bordered Box */}
+                        <div className="p-3 space-y-2 rounded-none text-xs" style={{ border: `${eliteLayout.summary.borderThickness}px solid ${eliteLayout.colors.primary}`, color: eliteLayout.colors.dark, height: `${eliteLayout.summary.box1Height}px` }}>
+                          <div className="flex justify-between">
+                            <span className="font-bold">SUB TOTAL:</span>
+                            <span className="font-mono">{formatNumber(invoice.subtotal)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-bold">TOTAL GST:</span>
+                            <span className="font-mono">{formatNumber(invoice.gst_amount)}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between text-slate-500 font-semibold">
-                          <span>GST (18%)</span>
-                          <span className="font-mono">{formatNumber(invoice.gst_amount)}</span>
-                        </div>
-                        
-                        <div className="border-t border-slate-100 my-1" />
-                        
-                        <div className="flex justify-between font-bold text-[#102744] text-sm">
-                          <span>Total Amount</span>
-                          <span className="font-mono">INR {formatNumber(invoice.total_amount)}</span>
-                        </div>
-                        <div className="flex justify-between font-bold text-emerald-600">
-                          <span>Paid Amount</span>
-                          <span className="font-mono">INR {formatNumber(invoice.paid_amount)}</span>
-                        </div>
-                        <div className={`flex justify-between font-bold ${netBalance > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
-                          <span>Balance Due</span>
-                          <span className="font-mono">INR {formatNumber(netBalance)}</span>
+
+                        {/* Box 2: Solid Box */}
+                        <div className="text-white p-3 space-y-2 rounded-none text-xs" style={{ backgroundColor: eliteLayout.colors.primary, height: `${eliteLayout.summary.box2Height}px` }}>
+                          <div className="flex justify-between">
+                            <span className="font-bold">TOTAL:</span>
+                            <span className="font-mono">{formatNumber(invoice.total_amount)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-bold">DISCOUNT:</span>
+                            <span className="font-mono">{formatNumber(invoice.invoice_profile?.discount_amount || 0)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-bold">PAID:</span>
+                            <span className="font-mono">{formatNumber(displayPaidAmount)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-bold">DUE:</span>
+                            <span className="font-mono">{formatNumber(netBalance)}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -651,13 +849,19 @@ export const InvoiceDetails = () => {
                           <span>Tax (18%)</span>
                           <span className="font-mono">{formatCurrency(invoice.gst_amount)}</span>
                         </div>
+                        {parseFloat(invoice.invoice_profile?.discount_amount) > 0 && (
+                          <div className="flex justify-between text-rose-600">
+                            <span>Discount {invoice.invoice_profile?.discount_type === 'percentage' && `(${invoice.invoice_profile?.discount_value}%)`}</span>
+                            <span className="font-mono">-{formatCurrency(invoice.invoice_profile?.discount_amount)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between pt-2 border-t border-slate-100 text-sm font-bold" style={{ color: activeTheme.primary }}>
                           <span>Total</span>
                           <span className="font-mono">{formatCurrency(invoice.total_amount)}</span>
                         </div>
                         <div className="flex justify-between text-xs font-bold text-emerald-600">
                           <span>Paid</span>
-                          <span className="font-mono">{formatCurrency(invoice.paid_amount)}</span>
+                          <span className="font-mono">{formatCurrency(displayPaidAmount)}</span>
                         </div>
                         {netBalance > 0 && (
                           <div className="flex justify-between text-xs font-bold text-amber-600 pt-1 border-t border-dashed border-slate-100 mt-1">
@@ -676,7 +880,7 @@ export const InvoiceDetails = () => {
           <div 
             className="px-8 py-5 text-white text-xs relative mt-auto overflow-hidden"
             style={{ 
-              backgroundColor: themeKey === 'elite' ? '#102744' : (themeKey === 'harvard' ? activeTheme.secondary : activeTheme.primary),
+              backgroundColor: themeKey === 'elite' ? '#101838' : (themeKey === 'harvard' ? activeTheme.secondary : activeTheme.primary),
               textAlign: themeKey === 'elite' ? 'left' : 'center',
               borderTop: themeKey === 'elite' ? '3px solid #2E41B4' : 'none'
             }}
@@ -704,15 +908,11 @@ export const InvoiceDetails = () => {
                   <p className="text-[10px] text-slate-300 font-normal mt-0.5 leading-normal">{companyAddress}</p>
                 </div>
                 
-                {/* Bottom-right diagonal blue accent stripe */}
-                <div 
-                  className="absolute right-0 bottom-0 w-20 h-20 pointer-events-none" 
-                  style={{
-                    background: 'linear-gradient(135deg, transparent 50%, #2E41B4 50%)',
-                    marginRight: '-2rem',
-                    marginBottom: '-1.25rem'
-                  }}
-                />
+                {/* Bottom-right corner accent triangles */}
+                <svg className="absolute right-0 bottom-0 pointer-events-none" width="80" height="50" viewBox="0 0 80 50">
+                  <polygon points="80,50 0,50 80,0" fill="#2E41B4" />
+                  <polygon points="80,50 40,50 80,20" fill="#6482DC" />
+                </svg>
               </div>
             ) : themeKey === 'harvard' ? (
               <p className="opacity-90 text-[10px]">
@@ -729,7 +929,9 @@ export const InvoiceDetails = () => {
               </p>
             )}
           </div>
-        </div>
+        </>
+      )}
+    </div>
       ) : (
         <div className="bg-white text-slate-900 border border-slate-200 rounded-2xl p-6 sm:p-12 max-w-4xl mx-auto shadow-md relative overflow-hidden transition-colors min-h-[1050px] flex flex-col justify-between">
           <div>
@@ -852,6 +1054,12 @@ export const InvoiceDetails = () => {
                   <span>Tax (18%)</span>
                   <span className="font-mono">{formatCurrency(invoice.gst_amount)}</span>
                 </div>
+                {parseFloat(invoice.invoice_profile?.discount_amount) > 0 && (
+                  <div className="flex justify-between text-rose-600">
+                    <span>Discount {invoice.invoice_profile?.discount_type === 'percentage' && `(${invoice.invoice_profile?.discount_value}%)`}</span>
+                    <span className="font-mono">-{formatCurrency(invoice.invoice_profile?.discount_amount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between pt-2 border-t border-slate-100 text-sm font-bold text-primary-600">
                   <span>Total</span>
                   <span className="font-mono">{formatCurrency(invoice.total_amount)}</span>

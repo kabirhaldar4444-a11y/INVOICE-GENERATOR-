@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   Building2, 
@@ -13,6 +13,7 @@ import {
   HelpCircle,
   Plus,
   Trash2,
+  Pencil,
   Star,
   Check
 } from 'lucide-react';
@@ -33,6 +34,7 @@ export const Settings = () => {
 
   const [selectedProfileId, setSelectedProfileId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const formRef = useRef(null);
 
   // Form states
   const [companyName, setCompanyName] = useState('');
@@ -115,6 +117,38 @@ export const Settings = () => {
     }
   };
 
+  // Delete a specific profile by id (called from sidebar button)
+  const handleDeleteProfileById = async (e, profileId) => {
+    e.stopPropagation();
+    const confirmed = await confirm({
+      title: 'Delete Business Profile',
+      message: 'Are you sure you want to delete this profile? This action cannot be undone.',
+      type: 'danger',
+      confirmText: 'Delete',
+      cancelText: 'Cancel'
+    });
+    if (confirmed) {
+      try {
+        await deleteProfile(profileId);
+        const defaultProf = profiles.find(p => p.is_default && p.id !== profileId);
+        setSelectedProfileId(defaultProf?.id || '');
+        setIsCreating(false);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  // Edit a specific profile (select it + scroll to form)
+  const handleEditProfile = (e, profileId) => {
+    e.stopPropagation();
+    setIsCreating(false);
+    setSelectedProfileId(profileId);
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
   const handleSetDefault = async () => {
     try {
       await setDefaultProfile(selectedProfileId);
@@ -174,18 +208,19 @@ export const Settings = () => {
             {profiles.map((p) => {
               const isActive = !isCreating && selectedProfileId === p.id;
               return (
-                <button
+                <div
                   key={p.id}
-                  onClick={() => {
-                    setIsCreating(false);
-                    setSelectedProfileId(p.id);
-                  }}
-                  className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 relative group ${
+                  className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 relative group cursor-pointer ${
                     isActive 
                       ? 'bg-primary-50/55 dark:bg-primary-950/20 border-primary-100 dark:border-primary-900/50' 
                       : 'bg-slate-50/20 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-850 border-slate-100 dark:border-slate-800/80'
                   }`}
+                  onClick={() => {
+                    setIsCreating(false);
+                    setSelectedProfileId(p.id);
+                  }}
                 >
+                  {/* Logo thumbnail */}
                   <div className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-150 dark:border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner">
                     {p.logo_url ? (
                       <img src={p.logo_url} alt={p.company_name} className="max-h-full max-w-full object-contain p-0.5" />
@@ -195,8 +230,9 @@ export const Settings = () => {
                       </span>
                     )}
                   </div>
-                  
-                  <div className="min-w-0 flex-grow pr-4">
+
+                  {/* Company name + GST */}
+                  <div className="min-w-0 flex-grow">
                     <p className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate leading-tight">
                       {p.company_name}
                     </p>
@@ -205,12 +241,37 @@ export const Settings = () => {
                     </p>
                   </div>
 
-                  {p.is_default && (
-                    <span className="absolute top-2 right-2 text-amber-500" title="Default Billing Profile">
-                      <Star className="w-3.5 h-3.5 fill-amber-500" />
-                    </span>
-                  )}
-                </button>
+                  {/* Default star OR action buttons on hover */}
+                  <div className="flex-shrink-0 flex items-center gap-0.5">
+                    {p.is_default && (
+                      <span className="text-amber-500 mr-0.5" title="Default Billing Profile">
+                        <Star className="w-3.5 h-3.5 fill-amber-500" />
+                      </span>
+                    )}
+
+                    {/* Edit button */}
+                    <button
+                      type="button"
+                      title="Edit profile"
+                      onClick={(e) => handleEditProfile(e, p.id)}
+                      className="p-1 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/40 text-primary-500 transition-all"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Delete button — hidden for default profile */}
+                    {!p.is_default && (
+                      <button
+                        type="button"
+                        title="Delete profile"
+                        onClick={(e) => handleDeleteProfileById(e, p.id)}
+                        className="p-1 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-500 transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -221,7 +282,7 @@ export const Settings = () => {
       <div className="xl:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Form configuration column */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6" ref={formRef}>
           <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 transition-colors shadow-sm">
             <div className="flex items-center justify-between gap-2 mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-2">
@@ -443,27 +504,7 @@ export const Settings = () => {
             </div>
           </div>
 
-          {/* Supabase Storage Setup Help Card */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 transition-colors shadow-sm">
-            <div className="flex items-center gap-2 mb-3 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <HelpCircle className="w-4.5 h-4.5 text-primary-500" />
-              <h3 className="font-display font-semibold text-sm text-slate-800 dark:text-white">Developer Configuration</h3>
-            </div>
-            
-            <div className="space-y-3 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-              <p>To enable logo uploads, complete these settings in your Supabase dashboard:</p>
-              <ol className="list-decimal pl-4 space-y-1.5">
-                <li>Navigate to <strong>Storage</strong>.</li>
-                <li>Create a new bucket named exactly <code className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 text-primary-600 font-mono rounded">logos</code>.</li>
-                <li>Set bucket visibility toggle to <strong>Public</strong>.</li>
-                <li>Add a bucket security policy:
-                  <ul className="list-disc pl-4 mt-1 space-y-0.5 text-slate-400">
-                    <li>Allow <strong>Insert</strong>, <strong>Select</strong> and <strong>Update</strong> operations for all users.</li>
-                  </ul>
-                </li>
-              </ol>
-            </div>
-          </div>
+
         </div>
       </div>
     </div>

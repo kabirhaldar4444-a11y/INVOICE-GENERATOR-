@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../supabase/supabaseClient';
 import { useAuth } from './AuthContext';
+import {
+  getAllProfiles as idbGetAllProfiles,
+  createProfile as idbCreateProfile,
+  updateProfile as idbUpdateProfile,
+  deleteProfile as idbDeleteProfile,
+  setDefaultProfile as idbSetDefaultProfile,
+} from '../utils/db';
 import { ConfirmDialog } from '../components/Shared/ConfirmDialog';
 
 const AppContext = createContext();
@@ -111,10 +118,13 @@ export const AppProvider = ({ children }) => {
         // Load offline demo data from localStorage or seed with defaults
         fetchOfflineData();
       }
+      // Always load company profiles from IndexedDB (permanent local storage)
+      fetchProfiles();
     } else {
       setCustomers([]);
       setInvoices([]);
       setSettings(null);
+      setProfiles([]);
     }
   }, [user, isTrialMode]);
 
@@ -317,100 +327,208 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Merge settings and other profiles
-  useEffect(() => {
-    if (settings) {
-      const otherProfiles = JSON.parse(localStorage.getItem('invoisify_company_profiles') || '[]');
-      const defaultProfile = {
-        ...settings,
-        id: settings.id || 'default-profile',
-        is_default: true
-      };
-      setProfiles([defaultProfile, ...otherProfiles]);
-    } else {
-      setProfiles([]);
+  // ── COMPANY PROFILES (IndexedDB — permanent local storage) ────  // ── Hardcoded master company list (always visible on every device/browser) ─
+  // Each entry has a stable `id` so re-seeds are idempotent (won't duplicate).
+  const HARDCODED_COMPANIES = [
+    {
+      id: 'hc-isn',
+      company_name: 'I-SUCCESSNODE',
+      gst_number: '09AAHCI9258G1Z3',
+      email: 'support@isuccessnode.com',
+      phone: '+91-7969537567',
+      website: 'www.isuccessnode.com',
+      address: 'I-SUCCESSNODE Office, India',
+      logo_url: '/logo-isn.png',
+      is_default: true,
+    },
+    {
+      id: 'hc-elite',
+      company_name: 'EliteToolistic',
+      gst_number: '09AAOCP5868J1ZI',
+      email: 'info@elitetoolistic.com',
+      phone: '+91-7969325899',
+      website: 'www.elitetoolistic.com',
+      address: '301, 2nd Floor, The Capital, Science City Road, Sola, Ahmedabad - 380060',
+      logo_url: '/logo-elite.png',
+      is_default: false,
+    },
+    {
+      id: 'hc-harvard',
+      company_name: 'Harvard Learning',
+      gst_number: '09AAOCP5868J1ZI',
+      email: 'support@harvardlearning.com',
+      phone: '+91-7969325899',
+      website: 'www.harvardlearning.com',
+      address: 'SG Highway, Bodakdev, Ahmedabad, Gujarat - 380054, India',
+      logo_url: '/logo-harvard.png',
+      is_default: false,
+    },
+    {
+      id: 'hc-princeton',
+      company_name: 'Princeton Professionals',
+      gst_number: '09AAOCP5868J1ZI',
+      email: 'support@princetonprofessional.com',
+      phone: '+91-7969325899',
+      website: 'www.princetonprofessional.com',
+      address: '1203, Mondeal Heights, Sarkhej Gandhinagar Service Road, Near Wide Angle Cinema, Ramdevnagar, Satellite, Ahmedabad, Gujarat 380015',
+      logo_url: '/logo-princeton.png',
+      is_default: false,
+    },
+    {
+      id: 'hc-pmis',
+      company_name: 'PMI Services',
+      gst_number: '09TRFPS5497N1Z6',
+      email: 'support@pmiservices.in',
+      phone: '+91-7969325899',
+      website: 'www.pmiservices.in',
+      address: 'Sarkhej Gandhinagar Service Road, Near Wide Angle Cinema, Ramdevnagar, Satellite, Ahmedabad, Gujarat 380015',
+      logo_url: '/logo-pmi.jpg',
+      is_default: false,
+    },
+  ];
+
+  /**
+   * Load all profiles from IndexedDB.
+   * Hardcoded companies are always seeded/updated on every load so they
+   * appear on every device/browser automatically.
+   * User-created profiles are preserved alongside them.
+   */
+  const fetchProfiles = async () => {
+    try {
+      let stored = await idbGetAllProfiles();
+
+      // ── Step 1: Remove stale auto-generated duplicates ─────────────────────
+      // Old sessions may have seeded profiles with generated ids like
+      // "prof-default-XXXX" or "trial-user-id" that duplicate hardcoded entries.
+      // Remove them so only the canonical hardcoded ids remain.
+      const hardcodedIds = new Set(HARDCODED_COMPANIES.map(c => c.id));
+      const staleIds = stored
+        .filter(p => !hardcodedIds.has(p.id) && (
+          p.id?.startsWith('prof-default-') ||
+          p.id === 'trial-user-id' ||
+          p.id === 'default-profile'
+        ))
+        .map(p => p.id);
+
+      for (const staleId of staleIds) {
+        await idbDeleteProfile(staleId);
+      }
+
+      if (staleIds.length > 0) {
+        stored = await idbGetAllProfiles();
+      }
+
+      // ── Step 2: Upsert each hardcoded company (add if missing) ─────────────
+      const storedIds = new Set(stored.map(p => p.id));
+      const now = new Date().toISOString();
+
+      for (const company of HARDCODED_COMPANIES) {
+        if (!storedIds.has(company.id)) {
+          // Brand new hardcoded company — insert it
+          await idbCreateProfile({ ...company, created_at: now, updated_at: now });
+        } else {
+          // Already exists — only sync the logo_url if it changed (leave other user edits intact)
+          const existing = stored.find(p => p.id === company.id);
+          if (existing && existing.logo_url !== company.logo_url) {
+            await idbUpdateProfile(company.id, { logo_url: company.logo_url });
+          }
+        }
+      }
+
+      // ── Step 3: Migrate old localStorage extra profiles (first run only) ───
+      if (stored.length === 0) {
+        const extraRaw = localStorage.getItem('invoisify_company_profiles');
+        if (extraRaw) {
+          try {
+            const extras = JSON.parse(extraRaw);
+            for (const extra of extras) {
+              if (!HARDCODED_COMPANIES.find(hc => hc.id === extra.id)) {
+                await idbCreateProfile({ ...extra, is_default: false });
+              }
+            }
+            localStorage.removeItem('invoisify_company_profiles');
+          } catch (e) { /* ignore */ }
+        }
+      }
+
+      stored = await idbGetAllProfiles();
+      setProfiles(stored);
+    } catch (err) {
+      console.error('fetchProfiles (IndexedDB) error:', err);
     }
-  }, [settings]);
+  };
+
 
   const addProfile = async (profileFields) => {
-    const newProfile = {
-      id: `prof-${Date.now()}`,
-      ...profileFields,
-      is_default: false
-    };
-    const otherProfiles = JSON.parse(localStorage.getItem('invoisify_company_profiles') || '[]');
-    const updated = [...otherProfiles, newProfile];
-    localStorage.setItem('invoisify_company_profiles', JSON.stringify(updated));
-    if (settings) {
-      setProfiles([{ ...settings, id: settings.id || 'default-profile', is_default: true }, ...updated]);
+    try {
+      const newProfile = await idbCreateProfile({ ...profileFields, is_default: false });
+      setProfiles(prev => [...prev, newProfile]);
+      showToast('Company profile added successfully', 'success');
+      return newProfile;
+    } catch (err) {
+      showToast(err.message || 'Failed to add profile', 'error');
+      throw err;
     }
-    showToast('Company profile added successfully', 'success');
-    return newProfile;
   };
 
   const updateProfile = async (id, updatedFields) => {
-    if (id === settings?.id || id === 'default-profile') {
-      const saved = await updateSettings(updatedFields);
-      return saved;
-    } else {
-      const otherProfiles = JSON.parse(localStorage.getItem('invoisify_company_profiles') || '[]');
-      const updated = otherProfiles.map(p => p.id === id ? { ...p, ...updatedFields } : p);
-      localStorage.setItem('invoisify_company_profiles', JSON.stringify(updated));
-      if (settings) {
-        setProfiles([{ ...settings, id: settings.id || 'default-profile', is_default: true }, ...updated]);
+    try {
+      // If updating the default profile, also sync the main settings
+      const target = profiles.find(p => p.id === id);
+      if (target?.is_default) {
+        await updateSettings(updatedFields);
       }
+      const updated = await idbUpdateProfile(id, updatedFields);
+      setProfiles(prev => prev.map(p => p.id === id ? updated : p));
       showToast('Company profile updated successfully', 'success');
-      return updated.find(p => p.id === id);
+      return updated;
+    } catch (err) {
+      showToast(err.message || 'Failed to update profile', 'error');
+      throw err;
     }
   };
 
   const deleteProfile = async (id) => {
-    if (id === settings?.id || id === 'default-profile') {
-      throw new Error('Cannot delete the default company profile.');
+    try {
+      const target = profiles.find(p => p.id === id);
+      if (target?.is_default) {
+        throw new Error('Cannot delete the default company profile.');
+      }
+      await idbDeleteProfile(id);
+      setProfiles(prev => prev.filter(p => p.id !== id));
+      showToast('Company profile deleted successfully', 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to delete profile', 'error');
+      throw err;
     }
-    const otherProfiles = JSON.parse(localStorage.getItem('invoisify_company_profiles') || '[]');
-    const filtered = otherProfiles.filter(p => p.id !== id);
-    localStorage.setItem('invoisify_company_profiles', JSON.stringify(filtered));
-    if (settings) {
-      setProfiles([{ ...settings, id: settings.id || 'default-profile', is_default: true }, ...filtered]);
-    }
-    showToast('Company profile deleted successfully', 'success');
   };
 
   const setDefaultProfile = async (id) => {
-    if (id === settings?.id || id === 'default-profile') return;
+    try {
+      const target = profiles.find(p => p.id === id);
+      if (!target) throw new Error('Profile not found');
+      if (target.is_default) return; // Already default
 
-    const otherProfiles = JSON.parse(localStorage.getItem('invoisify_company_profiles') || '[]');
-    const targetProfile = otherProfiles.find(p => p.id === id);
-    if (!targetProfile) throw new Error('Profile not found');
+      // Update IndexedDB — sets is_default on target, clears all others
+      const updatedAll = await idbSetDefaultProfile(id);
 
-    // Make current default profile a local profile
-    const oldDefaultLocal = {
-      ...settings,
-      id: `prof-${Date.now()}`,
-      is_default: false
-    };
+      // Also sync the main settings with the new default's fields
+      await updateSettings({
+        company_name: target.company_name,
+        gst_number:   target.gst_number,
+        email:        target.email,
+        phone:        target.phone,
+        website:      target.website,
+        address:      target.address,
+        logo_url:     target.logo_url,
+      });
 
-    // Remove target profile from local, add old default
-    const filteredOther = otherProfiles.filter(p => p.id !== id);
-    const newOtherProfiles = [...filteredOther, oldDefaultLocal];
-
-    // Save local profiles
-    localStorage.setItem('invoisify_company_profiles', JSON.stringify(newOtherProfiles));
-
-    // Update settings with target profile fields
-    const updatedSettings = {
-      company_name: targetProfile.company_name,
-      gst_number: targetProfile.gst_number,
-      email: targetProfile.email,
-      phone: targetProfile.phone,
-      website: targetProfile.website,
-      address: targetProfile.address,
-      logo_url: targetProfile.logo_url
-    };
-
-    await updateSettings(updatedSettings);
-    showToast(`${targetProfile.company_name} set as default profile`, 'success');
+      setProfiles(updatedAll);
+      showToast(`"${target.company_name}" set as default profile`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to set default profile', 'error');
+      throw err;
+    }
   };
 
   // Upload Logo to Supabase Storage (or base64 offline)
@@ -438,24 +556,41 @@ export const AppProvider = ({ children }) => {
           .getPublicUrl(filePath);
 
         if (profileId && profileId !== (settings?.id || 'default-profile')) {
+          // Persist logo_url to IndexedDB for the specific profile
+          await idbUpdateProfile(profileId, { logo_url: publicUrl });
+          setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, logo_url: publicUrl } : p));
           return publicUrl;
         }
 
         await updateSettings({ logo_url: publicUrl });
+        // Also persist to IndexedDB default profile
+        const defaultProf = profiles.find(p => p.is_default);
+        if (defaultProf) {
+          await idbUpdateProfile(defaultProf.id, { logo_url: publicUrl });
+          setProfiles(prev => prev.map(p => p.is_default ? { ...p, logo_url: publicUrl } : p));
+        }
         return publicUrl;
       } else {
-        // Local Storage Base64 UploadFallback
+        // Offline: convert to base64 and save to IndexedDB
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onloadend = async () => {
             try {
               const base64Url = reader.result;
-              if (profileId && profileId !== (settings?.id || 'default-profile')) {
-                resolve(base64Url);
+              if (profileId) {
+                // Save logo to the specific profile in IndexedDB
+                await idbUpdateProfile(profileId, { logo_url: base64Url });
+                setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, logo_url: base64Url } : p));
               } else {
+                // Save logo to the default profile in IndexedDB
+                const defaultProf = profiles.find(p => p.is_default);
+                if (defaultProf) {
+                  await idbUpdateProfile(defaultProf.id, { logo_url: base64Url });
+                  setProfiles(prev => prev.map(p => p.is_default ? { ...p, logo_url: base64Url } : p));
+                }
                 await updateSettings({ logo_url: base64Url });
-                resolve(base64Url);
               }
+              resolve(base64Url);
             } catch (err) {
               reject(err);
             }
@@ -996,6 +1131,7 @@ export const AppProvider = ({ children }) => {
     confirm,
     alert,
     fetchSettings,
+    fetchProfiles,
     updateSettings,
     uploadLogo,
     fetchCustomers,
