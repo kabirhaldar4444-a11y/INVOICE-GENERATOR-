@@ -204,7 +204,7 @@ export const InvoiceDetails = () => {
     localLogoPath = '/logos/harvard.png';
   } else if (companyName.includes('pmi')) {
     themeKey = 'pmi';
-    localLogoPath = '/logos/pmi.png';
+    localLogoPath = '/logo-pmi.jpg';
   } else if (companyName.includes('princeton') || companyName.includes('princetion')) {
     themeKey = 'princeton';
     localLogoPath = '/logos/princeton.png';
