@@ -1,5 +1,69 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { 
+  PDFDocument, 
+  rgb, 
+  StandardFonts,
+  pushGraphicsState, 
+  moveTo, 
+  lineTo, 
+  closePath, 
+  setFillingColor, 
+  setStrokingColor,
+  setLineWidth,
+  fill, 
+  stroke,
+  fillAndStroke,
+  popGraphicsState,
+  appendBezierCurve,
+  PDFName,
+  PDFString,
+  PDFArray
+} from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import { formatCurrency, formatDate } from './helpers.js';
+
+// Helper to manually create link annotations in pdf-lib (adds clickable hyperlinks to PDF)
+const addLinkToPdf = (pdfDoc, page, x, y, width, height, url) => {
+  const { context } = pdfDoc;
+
+  // Create the URI action
+  const uriAction = context.register(
+    context.obj({
+      Type: 'Action',
+      S: 'URI',
+      URI: PDFString.of(url),
+    })
+  );
+
+  // Create the Link Annotation
+  const linkAnnotation = context.register(
+    context.obj({
+      Type: 'Annot',
+      Subtype: 'Link',
+      Rect: [x, y, x + width, y + height], // [left, bottom, right, top]
+      A: uriAction,
+      Border: [0, 0, 0], // Invisible border
+    })
+  );
+
+  // Add the annotation to the page
+  const pageDict = page.node.lookup(PDFName.of('Annots'), PDFArray);
+  if (pageDict) {
+    pageDict.push(linkAnnotation);
+  } else {
+    page.node.set(PDFName.of('Annots'), context.obj([linkAnnotation]));
+  }
+};
+
+const isIsNodeName = (name) => {
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return n.includes('isuccessnode') || 
+         n.includes('isucessnode') || 
+         n.includes('successnode') || 
+         n.includes('sucessnode') ||
+         n.includes('i-successnode') || 
+         n.includes('i-sucessnode');
+};
 
 // Helper to draw text easily with custom color, alignment, and wrapping
 const drawTextHelper = (page, text, x, y, options = {}) => {
@@ -12,7 +76,14 @@ const drawTextHelper = (page, text, x, y, options = {}) => {
   } = options;
 
   let finalX = x;
-  let textString = String(text || '').replace(/₹/g, 'Rs. ');
+  let textString = String(text || '');
+
+  // If the font doesn't support the rupee symbol (e.g. standard Helvetica fallback), replace it with 'Rs. '
+  try {
+    font.widthOfTextAtSize('₹', size);
+  } catch (e) {
+    textString = textString.replace(/₹/g, 'Rs. ');
+  }
 
   // Sanitize textString to prevent WinAnsi encoding errors
   let cleanedString = '';
@@ -45,44 +116,154 @@ const drawTextHelper = (page, text, x, y, options = {}) => {
   });
 };
 
-// Helper to draw a filled polygon using SVG path
+// Helper to draw a filled polygon using native PDF operators (bypasses SVG path rendering issues)
 const drawPolygonHelper = (page, points, options = {}) => {
   if (!points || points.length < 3) return;
-  let path = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i++) {
-    path += ` L ${points[i].x} ${points[i].y}`;
+  const ops = [pushGraphicsState()];
+  if (options.color) {
+    ops.push(setFillingColor(options.color));
   }
-  path += ' Z';
-  page.drawSvgPath(path, options);
+  if (options.borderColor) {
+    ops.push(setStrokingColor(options.borderColor));
+  }
+  if (options.borderWidth) {
+    ops.push(setLineWidth(options.borderWidth));
+  }
+  ops.push(moveTo(points[0].x, points[0].y));
+  for (let i = 1; i < points.length; i++) {
+    ops.push(lineTo(points[i].x, points[i].y));
+  }
+  ops.push(closePath());
+  
+  if (options.color && options.borderColor) {
+    ops.push(fillAndStroke());
+  } else if (options.color) {
+    ops.push(fill());
+  } else if (options.borderColor) {
+    ops.push(stroke());
+  } else {
+    ops.push(fill());
+  }
+  ops.push(popGraphicsState());
+  page.pushOperators(...ops);
 };
 
-// Helper to draw a filled rounded rectangle using SVG path
+// Helper to draw a filled rounded rectangle using native PDF operators (bypasses SVG path rendering issues)
 const drawRoundedRectangleHelper = (page, x, y, width, height, r, options = {}) => {
-  const path = `M ${x + r} ${y} ` +
-               `A ${r} ${r} 0 0 1 ${x} ${y + r} ` +
-               `L ${x} ${y + height - r} ` +
-               `A ${r} ${r} 0 0 1 ${x + r} ${y + height} ` +
-               `L ${x + width - r} ${y + height} ` +
-               `A ${r} ${r} 0 0 1 ${x + width} ${y + height - r} ` +
-               `L ${x + width} ${y + r} ` +
-               `A ${r} ${r} 0 0 1 ${x + width - r} ${y} Z`;
-  page.drawSvgPath(path, options);
+  const ops = [pushGraphicsState()];
+  if (options.color) {
+    ops.push(setFillingColor(options.color));
+  }
+  if (options.borderColor) {
+    ops.push(setStrokingColor(options.borderColor));
+  }
+  if (options.borderWidth) {
+    ops.push(setLineWidth(options.borderWidth));
+  }
+
+  const k = 0.5522847;
+  const kr = k * r;
+
+  ops.push(moveTo(x + r, y));
+  ops.push(lineTo(x + width - r, y));
+  ops.push(appendBezierCurve(x + width - r + kr, y, x + width, y + r - kr, x + width, y + r));
+  ops.push(lineTo(x + width, y + height - r));
+  ops.push(appendBezierCurve(x + width, y + height - r + kr, x + width - r + kr, y + height, x + width - r, y + height));
+  ops.push(lineTo(x + r, y + height));
+  ops.push(appendBezierCurve(x + r - kr, y + height, x, y + height - r + kr, x, y + height - r));
+  ops.push(lineTo(x, y + r));
+  ops.push(appendBezierCurve(x, y + r - kr, x + r - kr, y, x + r, y));
+  ops.push(closePath());
+
+  if (options.color && options.borderColor) {
+    ops.push(fillAndStroke());
+  } else if (options.color) {
+    ops.push(fill());
+  } else if (options.borderColor) {
+    ops.push(stroke());
+  } else {
+    ops.push(fill());
+  }
+
+  ops.push(popGraphicsState());
+  page.pushOperators(...ops);
+};
+
+// Helper to wrap text into lines based on a max width
+const wrapText = (text, font, size, maxWidth) => {
+  if (!text || text.trim() === '') return [];
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let currentLine = '';
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const testWidth = font.widthOfTextAtSize(testLine, size);
+    
+    if (testWidth > maxWidth) {
+      if (currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        lines.push(word);
+        currentLine = '';
+      }
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  return lines;
+};
+
+const getItemDisplayName = (item) => {
+  let displayDesc = '';
+  if (item.description) {
+    let rawDesc = item.description;
+    try {
+      if (rawDesc.startsWith('{') && rawDesc.endsWith('}')) {
+        const json = JSON.parse(rawDesc);
+        displayDesc = json.text || '';
+      } else {
+        displayDesc = rawDesc;
+      }
+    } catch (e) {
+      displayDesc = rawDesc;
+    }
+  }
+  if (displayDesc && displayDesc.trim() !== '') {
+    return `${item.program_name} (${displayDesc.trim()})`;
+  }
+  return item.program_name;
 };
 
 export const generateInvoicePDF = async (invoice, settings) => {
   const activeCompany = invoice.invoice_profile || settings;
   settings = activeCompany;
   try {
-    // 1. Create a PDF Document
+    // 1. Create a PDF Document and register fontkit
     const pdfDoc = await PDFDocument.create();
+    pdfDoc.registerFontkit(fontkit);
     
     // 2. Add an A4 sized page (595.276 x 841.89 points)
     const page = pdfDoc.addPage([595.276, 841.89]);
     const { width, height } = page.getSize();
     
-    // 3. Embed standard fonts
-    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    // 3. Embed custom Roboto fonts (supports Rupee symbol ₹)
+    let fontRegular, fontBold;
+    try {
+      const fontRegularBytes = await fetch('/fonts/Roboto-Regular.ttf').then(res => res.arrayBuffer());
+      const fontBoldBytes = await fetch('/fonts/Roboto-Bold.ttf').then(res => res.arrayBuffer());
+      fontRegular = await pdfDoc.embedFont(fontRegularBytes);
+      fontBold = await pdfDoc.embedFont(fontBoldBytes);
+    } catch (e) {
+      console.warn('Failed to load Roboto fonts, falling back to Helvetica:', e);
+      fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    }
     const fontOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
     
     // Detect theme
@@ -102,7 +283,14 @@ export const generateInvoicePDF = async (invoice, settings) => {
     } else if (companyName.includes('princeton') || companyName.includes('princetion')) {
       themeKey = 'princeton';
       localLogoPath = '/logos/princeton.png';
-    } else if (companyName.includes('isuccessnode') || companyName.includes('i-successnode') || companyName.includes('successnode')) {
+    } else if (
+      companyName.includes('isuccessnode') || 
+      companyName.includes('i-successnode') || 
+      companyName.includes('successnode') ||
+      companyName.includes('isucessnode') || 
+      companyName.includes('i-sucessnode') || 
+      companyName.includes('sucessnode')
+    ) {
       themeKey = 'isuccessnode';
       localLogoPath = '/logos/isuccessnode.png';
     }
@@ -225,6 +413,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
     const companyEmail = brandOverride.email || activeCompany?.email || '';
     const companyWebsite = brandOverride.website || activeCompany?.website || '';
     const companyGst = brandOverride.gst_number || activeCompany?.gst_number || '';
+    const isIssuingNode = isIsNodeName(companyNameText);
     const companyCin = brandOverride.cin || activeCompany?.cin || '';
     const companyAddress = brandOverride.address || activeCompany?.address || '';
     const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
@@ -433,15 +622,12 @@ export const generateInvoicePDF = async (invoice, settings) => {
       drawTextHelper(page, 'BILL TO:', marginX, billY, { font: fontBold, size: 8.5, color: eDark });
       billY -= 14;
       
-      drawTextHelper(page, 'Customer Name: ', marginX, billY, { font: fontBold, size: 9, color: eDark });
-      const nameLabelW = fontBold.widthOfTextAtSize('Customer Name: ', 9);
-      drawTextHelper(page, invoice.customers?.name || '', marginX + nameLabelW, billY, { font: fontRegular, size: 9, color: eDark });
+      const customerNameVal = invoice.customers?.name || invoice.customer_name || 'Client Name';
+      drawTextHelper(page, customerNameVal, marginX, billY, { font: fontBold, size: 9, color: eDark });
       billY -= 13;
       
       if (invoice.customers?.email) {
-        drawTextHelper(page, 'Customer Email: ', marginX, billY, { font: fontBold, size: 9, color: eDark });
-        const emailLabelW = fontBold.widthOfTextAtSize('Customer Email: ', 9);
-        drawTextHelper(page, invoice.customers.email, marginX + emailLabelW, billY, { font: fontRegular, size: 9, color: eDark });
+        drawTextHelper(page, invoice.customers.email, marginX, billY, { font: fontRegular, size: 9, color: eDark });
         billY -= 13;
       }
       if (invoice.customers?.phone) {
@@ -503,37 +689,67 @@ export const generateInvoicePDF = async (invoice, settings) => {
       currentY -= hdrH;
 
       // ── DATA ROWS ──────────────────────────────────────────────
-      const rowH = 26;  // taller rows = cleaner, matches preview
+      const tableDataTop = currentY;
+      const rowH_default = 26;
+      const fontSize = 9;
+      const lineHeight = 11;
       const items = invoice.invoice_items || [];
-      const MIN_ROWS = Math.max(items.length, 7); // always show at least 7 rows
+      const MIN_ROWS = items.length; // only show rows with content
 
       for (let rIdx = 0; rIdx < MIN_ROWS; rIdx++) {
         const item = items[rIdx];
-        const cellY = currentY - rowH + 9;
+        let rowHeight = rowH_default;
+        let wrappedLines = [];
+
+        if (item) {
+          wrappedLines = wrapText(getItemDisplayName(item), fontBold, fontSize, colWs[0] - 12);
+          const lineCount = wrappedLines.length;
+          rowHeight = Math.max(rowH_default, lineCount * lineHeight + 14); // 7pt padding top/bottom
+        }
+
+        const cellY = currentY - rowHeight / 2 - fontSize / 2 + 1;
         const isComp = item ? parseFloat(item.unit_price) === 0 : false;
 
         if (item) {
           let cx = marginX;
-          // Col 0: Item name — bold, centered
-          drawTextHelper(page, item.program_name, cx + colWs[0] / 2, cellY, { font: fontBold, size: 9, color: eDark, align: 'center', width: colWs[0] - 12 });
+          
+          // Col 0: Item name — wrapped & vertically centered
+          const lineCount = wrappedLines.length;
+          const totalTextHeight = (lineCount - 1) * lineHeight + fontSize;
+          const startY = currentY - (rowHeight - totalTextHeight) / 2 - fontSize;
+          
+          wrappedLines.forEach((lineText, lIdx) => {
+            const lineY = startY - lIdx * lineHeight;
+            drawTextHelper(page, lineText, cx + colWs[0] / 2, lineY, {
+              font: fontBold,
+              size: fontSize,
+              color: eDark,
+              align: 'center',
+              width: colWs[0] - 12
+            });
+          });
           cx += colWs[0];
-          // Col 1: Unit Price — bold, always 2 decimals (matches preview)
-          drawTextHelper(page, isComp ? '-' : eFmt(item.unit_price), cx + colWs[1] / 2, cellY, { font: fontBold, size: 9, color: eDark, align: 'center' });
+
+          // Col 1: Unit Price
+          drawTextHelper(page, isComp ? '-' : eFmt(item.unit_price), cx + colWs[1] / 2, cellY, { font: fontBold, size: fontSize, color: eDark, align: 'center' });
           cx += colWs[1];
-          // Col 2: GST — bold, always 2 decimals
-          drawTextHelper(page, isComp ? '-' : eFmt(item.gst_amount), cx + colWs[2] / 2, cellY, { font: fontBold, size: 9, color: eDark, align: 'center' });
+
+          // Col 2: GST
+          drawTextHelper(page, isComp ? '-' : eFmt(item.gst_amount), cx + colWs[2] / 2, cellY, { font: fontBold, size: fontSize, color: eDark, align: 'center' });
           cx += colWs[2];
-          // Col 3: Amount — bold, always 2 decimals (matches preview formatNumber)
-          drawTextHelper(page, isComp ? 'Free' : eFmt(item.total_amount), cx + colWs[3] / 2, cellY, { font: fontBold, size: 9, color: eDark, align: 'center' });
+
+          // Col 3: Amount
+          drawTextHelper(page, isComp ? 'Free' : eFmt(item.total_amount), cx + colWs[3] / 2, cellY, { font: fontBold, size: fontSize, color: eDark, align: 'center' });
         }
+
         // Row bottom border
-        page.drawLine({ start: { x: marginX, y: currentY - rowH }, end: { x: width - marginX, y: currentY - rowH }, color: eBorder, thickness: 0.6 });
-        currentY -= rowH;
+        page.drawLine({ start: { x: marginX, y: currentY - rowHeight }, end: { x: width - marginX, y: currentY - rowHeight }, color: eBorder, thickness: 0.6 });
+        currentY -= rowHeight;
       }
 
       // Vertical column dividers (spanning header + data rows)
       const tableBottom = currentY;
-      const tableTop    = currentY + hdrH + MIN_ROWS * rowH;
+      const tableTop = tableDataTop + hdrH;
       let vx = marginX;
       colWs.forEach((cw, i) => {
         if (i > 0) {
@@ -576,70 +792,104 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       totY = box1Y - 10;
 
-      // ── Box 2: Solid navy — TOTAL / DISCOUNT / PAID / DUE ─────
-      const box2H = 76;
-      const box2Y = totY - box2H;
-      page.drawRectangle({ x: boxX, y: box2Y, width: boxW, height: box2H, color: eDark });
-
-      // Internal horizontal dividers
-      const row2H = box2H / 4;
-      for (let i = 1; i < 4; i++) {
-        page.drawLine({
-          start: { x: boxX, y: box2Y + i * row2H },
-          end:   { x: boxX + boxW, y: box2Y + i * row2H },
-          color: rgb(50/255, 60/255, 100/255), thickness: 0.5
-        });
-      }
-
+      // ── Box 2: Solid Royal Blue — TOTAL / (DISCOUNT) / PAID / DUE ─────
       const box2Rows = [
         { label: 'TOTAL:', val: eFmt(invoice.total_amount) },
-        { label: 'DISCOUNT:', val: eFmtZeroAsPadded(discountAmount) },
+        ...(discountAmount > 0 ? [{ label: 'DISCOUNT:', val: `-${eFmt(discountAmount)}`, highlight: true }] : []),
         { label: 'PAID:', val: eFmt(paidAmt) },
         { label: 'DUE:', val: eFmtZeroAsPadded(dueAmt) }
       ];
+      const box2H = box2Rows.length * 19;
+      const box2Y = totY - box2H;
+      page.drawRectangle({ x: boxX, y: box2Y, width: boxW, height: box2H, color: eBlue });
+
+      const row2H = box2H / box2Rows.length;
       box2Rows.forEach((row, i) => {
         const ry = box2Y + box2H - (i + 1) * row2H + row2H / 2 - 4;
+        const valColor = row.highlight ? rgb(255/255, 220/255, 80/255) : eWhite;
         drawTextHelper(page, row.label, boxX + 10, ry, { font: fontBold, size: 8.5, color: eWhite });
-        drawTextHelper(page, row.val, boxX + boxW - 10, ry, { font: fontRegular, size: 8.5, color: eWhite, align: 'right' });
+        drawTextHelper(page, row.val, boxX + boxW - 10, ry, { font: fontRegular, size: 8.5, color: valColor, align: 'right' });
       });
 
       currentY = box2Y - 16;
 
       // ── FOOTER ─────────────────────────────────────────────────
-      const footerH = 72;
+      const footerH = 80;
       // Dark navy footer background
       page.drawRectangle({ x: 0, y: 0, width, height: footerH, color: eDark });
-      // Thin blue accent strip on top of footer
+      // Thin blue accent strip on top of footer (matches preview 3px border-top)
       page.drawRectangle({ x: 0, y: footerH, width, height: 3, color: eBlue });
 
-      // Bottom-right corner accent triangles
-      drawPolygonHelper(page, [ { x: width, y: 0 }, { x: width - 80, y: 0 }, { x: width, y: 50 } ], {
+      // Bottom-right corner accent triangles (mirror preview SVG exactly)
+      drawPolygonHelper(page, [ { x: width, y: 0 }, { x: width - 80, y: 0 }, { x: width, y: footerH } ], {
         color: eBlue
       });
-      drawPolygonHelper(page, [ { x: width, y: 30 }, { x: width - 40, y: 0 }, { x: width, y: 0 } ], {
+      drawPolygonHelper(page, [ { x: width, y: 0 }, { x: width - 40, y: 0 }, { x: width, y: footerH * 0.6 } ], {
         color: rgb(100/255, 130/255, 220/255)
       });
 
-      // Contact info stacked left-aligned
-      const footerTextStartY = footerH - 16;
-      drawTextHelper(page, `+91 ${companyPhone.replace(/\+91[-\s]?/, '')}`, marginX, footerTextStartY, {
+      // ── LEFT COLUMN: Phone / Email / Web ──────────────────────
+      const footerTop = footerH - 16;  // start from top of footer
+      const lineGap = 14;
+
+      // Phone
+      drawTextHelper(page, `Phone: ${companyPhone}`, marginX, footerTop, {
         font: fontBold, size: 8.5, color: eWhite
-      });
-      
-      drawTextHelper(page, companyEmail, marginX, footerTextStartY - 14, {
-        font: fontBold, size: 8.5, color: eWhite
-      });
-      // Draw underline for email
-      const emailWidth = fontBold.widthOfTextAtSize(companyEmail, 8.5);
-      page.drawLine({
-        start: { x: marginX, y: footerTextStartY - 14 - 1 },
-        end: { x: marginX + emailWidth, y: footerTextStartY - 14 - 1 },
-        color: eWhite,
-        thickness: 0.8
       });
 
-      drawTextHelper(page, `Address: ${companyAddress}`, marginX, footerTextStartY - 28, {
-        font: fontRegular, size: 7.5, color: eWhite, width: width - marginX * 2 - 100
+      // Email with underline
+      drawTextHelper(page, `Email:`, marginX, footerTop - lineGap, {
+        font: fontBold, size: 8.5, color: eWhite
+      });
+      const emailLabelW = fontBold.widthOfTextAtSize('Email: ', 8.5);
+      drawTextHelper(page, companyEmail, marginX + emailLabelW, footerTop - lineGap, {
+        font: fontBold, size: 8.5, color: eWhite
+      });
+      const emailTxtW = fontBold.widthOfTextAtSize(companyEmail, 8.5);
+      page.drawLine({
+        start: { x: marginX + emailLabelW, y: footerTop - lineGap - 1.5 },
+        end:   { x: marginX + emailLabelW + emailTxtW, y: footerTop - lineGap - 1.5 },
+        color: eWhite, thickness: 0.7
+      });
+      // Register clickable mailto link in PDF
+      addLinkToPdf(pdfDoc, page, marginX + emailLabelW, footerTop - lineGap - 2, emailTxtW, 12, `mailto:${companyEmail}`);
+
+      // Web
+      if (companyWebsite) {
+        drawTextHelper(page, `Web: ${companyWebsite}`, marginX, footerTop - lineGap * 2, {
+          font: fontBold, size: 8.5, color: eWhite
+        });
+        const webLabelW = fontBold.widthOfTextAtSize('Web: ', 8.5);
+        const webTxtW = fontBold.widthOfTextAtSize(companyWebsite, 8.5);
+        const webUrl = companyWebsite.startsWith('http') ? companyWebsite : `https://${companyWebsite}`;
+        
+        // Underline web link
+        page.drawLine({
+          start: { x: marginX + webLabelW, y: footerTop - lineGap * 2 - 1.5 },
+          end:   { x: marginX + webLabelW + webTxtW, y: footerTop - lineGap * 2 - 1.5 },
+          color: eWhite, thickness: 0.7
+        });
+        
+        // Register clickable URL link in PDF
+        addLinkToPdf(pdfDoc, page, marginX + webLabelW, footerTop - lineGap * 2 - 2, webTxtW, 12, webUrl);
+      }
+
+      // ── RIGHT COLUMN: ADDRESS label + address text ─────────────
+      const addrRightEdge = width - 65; // aligned professionally closer to the right margin
+      const addrMaxW = 220;
+      const addrX = addrRightEdge - addrMaxW;
+
+      // "ADDRESS" label (small caps, slate-400 style → use muted white)
+      drawTextHelper(page, 'ADDRESS', addrRightEdge, footerTop, {
+        font: fontBold, size: 7.5, color: rgb(150/255, 165/255, 195/255), align: 'right'
+      });
+
+      // Address text — wrapped, right-aligned
+      const addrLines = wrapText(companyAddress, fontRegular, 8, addrMaxW);
+      addrLines.forEach((line, i) => {
+        drawTextHelper(page, line, addrRightEdge, footerTop - lineGap * (i + 1), {
+          font: fontRegular, size: 8, color: rgb(200/255, 210/255, 230/255), align: 'right'
+        });
       });
 
       const pdfBytes = await pdfDoc.save();
@@ -661,7 +911,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
       const rx = width - marginX; // Right edge
 
       // --- HEADER: INVOICE title (left) + Logo in bordered box (right) ---
-      drawTextHelper(page, 'INVOICE', lx, y, { font: fontBold, size: 30, color: isn_dark });
+      drawTextHelper(page, 'INVOICE', lx, y, { font: fontBold, size: 33, color: isn_dark });
 
       // Logo box on right
       const logoBoxW = 130;
@@ -681,9 +931,9 @@ export const generateInvoicePDF = async (invoice, settings) => {
       }
 
       y -= 38;
-      drawTextHelper(page, `Invoice Number: ${invoice.invoice_number}`, lx, y, { font: fontRegular, size: 9, color: isn_muted });
+      drawTextHelper(page, `Invoice Number: ${invoice.invoice_number}`, lx, y, { font: fontRegular, size: 12, color: isn_muted });
       y -= 14;
-      drawTextHelper(page, `Invoice Date: ${formatDate(invoice.invoice_date)}`, lx, y, { font: fontRegular, size: 9, color: isn_muted });
+      drawTextHelper(page, `Invoice Date: ${formatDate(invoice.invoice_date)}`, lx, y, { font: fontRegular, size: 12, color: isn_muted });
 
       y -= 30;
 
@@ -709,36 +959,36 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // Left box content: Company info
       let leftY = y - boxPad - 4;
-      drawTextHelper(page, companyNameText, leftBoxX + boxPad, leftY, { font: fontBold, size: 10, color: isn_dark });
+      drawTextHelper(page, companyNameText, leftBoxX + boxPad, leftY, { font: fontBold, size: 13, color: isn_dark });
       leftY -= 14;
       if (companyPhone) {
-        drawTextHelper(page, companyPhone, leftBoxX + boxPad, leftY, { font: fontRegular, size: 8.5, color: isn_muted });
+        drawTextHelper(page, companyPhone, leftBoxX + boxPad, leftY, { font: fontRegular, size: 11.5, color: isn_muted });
         leftY -= 12;
       }
       if (companyWebsite) {
-        drawTextHelper(page, companyWebsite, leftBoxX + boxPad, leftY, { font: fontRegular, size: 8.5, color: isn_muted });
+        drawTextHelper(page, companyWebsite, leftBoxX + boxPad, leftY, { font: fontRegular, size: 11.5, color: isn_muted });
         leftY -= 12;
       }
       if (companyGst) {
-        drawTextHelper(page, `GST: ${companyGst}`, leftBoxX + boxPad, leftY, { font: fontRegular, size: 8.5, color: isn_muted });
+        drawTextHelper(page, `GST: ${companyGst}`, leftBoxX + boxPad, leftY, { font: fontRegular, size: 11.5, color: isn_muted });
         leftY -= 12;
       }
       if (companyEmail) {
-        drawTextHelper(page, companyEmail, leftBoxX + boxPad, leftY, { font: fontRegular, size: 8.5, color: isn_muted });
+        drawTextHelper(page, companyEmail, leftBoxX + boxPad, leftY, { font: fontRegular, size: 11.5, color: isn_muted });
       }
 
       // Right box content: Bill To
       let rightY = y - boxPad - 4;
-      drawTextHelper(page, 'BILL TO', rightBoxX + boxPad, rightY, { font: fontBold, size: 10, color: isn_dark });
+      drawTextHelper(page, 'BILL TO', rightBoxX + boxPad, rightY, { font: fontBold, size: 13, color: isn_dark });
       rightY -= 14;
-      drawTextHelper(page, invoice.customers?.name || 'Client Name', rightBoxX + boxPad, rightY, { font: fontRegular, size: 9, color: isn_muted });
+      drawTextHelper(page, invoice.customers?.name || 'Client Name', rightBoxX + boxPad, rightY, { font: fontRegular, size: 12, color: isn_muted });
       rightY -= 12;
       if (invoice.customers?.email) {
-        drawTextHelper(page, invoice.customers.email, rightBoxX + boxPad, rightY, { font: fontRegular, size: 8.5, color: isn_muted });
+        drawTextHelper(page, invoice.customers.email, rightBoxX + boxPad, rightY, { font: fontRegular, size: 11.5, color: isn_muted });
         rightY -= 12;
       }
       if (invoice.customers?.phone) {
-        drawTextHelper(page, invoice.customers.phone, rightBoxX + boxPad, rightY, { font: fontRegular, size: 8.5, color: isn_muted });
+        drawTextHelper(page, invoice.customers.phone, rightBoxX + boxPad, rightY, { font: fontRegular, size: 11.5, color: isn_muted });
       }
 
       y -= boxH + 25;
@@ -759,7 +1009,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         const cw = colW[i];
         const isRight = i > 0;
         const tx = isRight ? hx + cw - 8 : hx + 8;
-        drawTextHelper(page, h, tx, y - tHdrH + 7, { font: fontBold, size: 8.5, color: isn_dark, align: isRight ? 'right' : 'left' });
+        drawTextHelper(page, h, tx, y - tHdrH + 7, { font: fontBold, size: 11.5, color: isn_dark, align: isRight ? 'right' : 'left' });
         hx += cw;
       });
 
@@ -780,22 +1030,22 @@ export const generateInvoicePDF = async (invoice, settings) => {
         const cellY = y - rowH + 8;
 
         // Col 0: Program Name
-        drawTextHelper(page, item.program_name, cx + 8, cellY, { font: fontRegular, size: 9, color: isn_dark, width: colW[0] - 16 });
+        drawTextHelper(page, getItemDisplayName(item), cx + 8, cellY, { font: fontRegular, size: 12, color: isn_dark, width: colW[0] - 16 });
         cx += colW[0];
 
         // Col 1: Unit Price
-        const upTxt = isComp ? '' : issnFmt(item.unit_price);
-        drawTextHelper(page, upTxt, cx + colW[1] - 8, cellY, { font: fontRegular, size: 9, color: isn_dark, align: 'right' });
+        const upTxt = isComp ? '' : `₹${issnFmt(item.unit_price)}`;
+        drawTextHelper(page, upTxt, cx + colW[1] - 8, cellY, { font: fontRegular, size: 12, color: isn_dark, align: 'right' });
         cx += colW[1];
 
         // Col 2: GST
-        const gstTxt = isComp ? '' : issnFmt(item.gst_amount);
-        drawTextHelper(page, gstTxt, cx + colW[2] - 8, cellY, { font: fontRegular, size: 9, color: isn_dark, align: 'right' });
+        const gstTxt = isComp ? '' : `₹${issnFmt(item.gst_amount)}`;
+        drawTextHelper(page, gstTxt, cx + colW[2] - 8, cellY, { font: fontRegular, size: 12, color: isn_dark, align: 'right' });
         cx += colW[2];
 
         // Col 3: Amount
-        const amtTxt = isComp ? '0.00' : issnFmt(item.total_amount);
-        drawTextHelper(page, amtTxt, cx + colW[3] - 8, cellY, { font: fontRegular, size: 9, color: isn_dark, align: 'right' });
+        const amtTxt = isComp ? '0.00' : `₹${issnFmt(item.total_amount)}`;
+        drawTextHelper(page, amtTxt, cx + colW[3] - 8, cellY, { font: fontRegular, size: 12, color: isn_dark, align: 'right' });
 
         // Row bottom border
         page.drawLine({ start: { x: lx, y: y - rowH }, end: { x: rx, y: y - rowH }, color: isn_border, thickness: 0.8 });
@@ -832,15 +1082,21 @@ export const generateInvoicePDF = async (invoice, settings) => {
       const preDiscountTotal = invoice.subtotal + invoice.gst_amount;
       const isnTotals = [
         { label: 'Sub-Total', val: `₹${issnFmt(invoice.subtotal)}` },
-        { label: 'Tax (18%)', val: `₹${issnFmt(invoice.gst_amount)}` },
-        { label: 'Total', val: `₹${issnFmt(preDiscountTotal)}`, bold: true }
+        { label: 'Tax (18%)', val: `₹${issnFmt(invoice.gst_amount)}` }
       ];
 
       if (realDiscountAmt > 0) {
-        isnTotals.push({ label: 'Discount', val: `₹${issnFmt(realDiscountAmt)}` });
+        isnTotals.push({ label: 'Discount', val: `-₹${issnFmt(realDiscountAmt)}`, isDiscount: true });
       }
 
-      isnTotals.push({ label: 'Paid', val: `₹${issnFmt(displayPaidAmount)}`, bold: true });
+      isnTotals.push(
+        { label: 'Total', val: `₹${issnFmt(invoice.total_amount)}`, bold: true },
+        { label: 'Paid', val: `₹${issnFmt(displayPaidAmount)}`, bold: true }
+      );
+
+      if (balanceDue > 0) {
+        isnTotals.push({ label: 'Balance Due', val: `₹${issnFmt(balanceDue)}`, bold: true, isPending: true });
+      }
 
       const totalBoxH = isnTotals.length * totRowH + 2;
       page.drawRectangle({ x: totX - 8, y: y - totalBoxH, width: totW + 8, height: totalBoxH, borderColor: isn_border, borderWidth: 1, color: rgb(1,1,1) });
@@ -856,8 +1112,14 @@ export const generateInvoicePDF = async (invoice, settings) => {
       let totY = y - 2;
       isnTotals.forEach((row, i) => {
         const labelY = totY - totRowH + 6;
-        drawTextHelper(page, row.label, totLabelX, labelY, { font: row.bold ? fontBold : fontRegular, size: 9, color: isn_dark });
-        drawTextHelper(page, row.val, totValX, labelY, { font: row.bold ? fontBold : fontRegular, size: 9, color: isn_dark, align: 'right' });
+        let rowColor = isn_dark;
+        if (row.isPending) {
+          rowColor = rgb(217/255, 119/255, 6/255);
+        } else if (row.isDiscount) {
+          rowColor = rgb(225/255, 29/255, 72/255);
+        }
+        drawTextHelper(page, row.label, totLabelX, labelY, { font: row.bold ? fontBold : fontRegular, size: 12, color: rowColor });
+        drawTextHelper(page, row.val, totValX, labelY, { font: row.bold ? fontBold : fontRegular, size: 12, color: rowColor, align: 'right' });
         if (i < isnTotals.length - 1) {
           page.drawLine({ start: { x: totX - 8, y: totY - totRowH }, end: { x: rx, y: totY - totRowH }, color: isn_border, thickness: 0.8 });
         }
@@ -866,10 +1128,10 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // --- FOOTER ---
       const footerY = 70;
-      drawTextHelper(page, 'Thank you for doing business with us!', width / 2, footerY, { font: fontRegular, size: 10, color: isn_muted, align: 'center' });
+      drawTextHelper(page, 'Thank you for doing business with us!', width / 2, footerY, { font: fontRegular, size: 13, color: isn_muted, align: 'center' });
 
       const copyrightText = `All rights reserved by © I-SUCCESSNODE (OPC) Private Limited 2025`;
-      drawTextHelper(page, copyrightText, lx, footerY - 16, { font: fontRegular, size: 7.5, color: isn_muted });
+      drawTextHelper(page, copyrightText, lx, footerY - 16, { font: fontRegular, size: 10.5, color: isn_muted });
 
       // Color accent bar at very bottom (Lime green on top of Purple)
       page.drawRectangle({ x: 0, y: 0, width: width, height: 8, color: rgb(107/255, 33/255, 168/255) }); // Purple (#6b21a8)
@@ -1076,7 +1338,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         });
 
         const cellY = tableY - 15;
-        drawTextHelper(page, item.program_name, colDescX, cellY, { font: fontRegular, size: 8, color: colorDark, width: 125 });
+        drawTextHelper(page, getItemDisplayName(item), colDescX, cellY, { font: fontRegular, size: 8, color: colorDark, width: 125 });
         drawTextHelper(page, String(item.quantity || 1), colQtyX + 10, cellY, { font: fontRegular, size: 8, color: colorDark, align: 'right' });
         
         const isComp = parseFloat(item.unit_price) === 0;
@@ -1222,8 +1484,9 @@ export const generateInvoicePDF = async (invoice, settings) => {
         drawTextHelper(page, `Email: ${invoice.customers.email}`, rightColX, rightY, { font: fontRegular, size: 8.5, color: colorMuted });
         rightY -= 12;
       }
-      if (invoice.customers?.gst_number) {
-        drawTextHelper(page, `GSTIN: ${invoice.customers.gst_number}`, rightColX, rightY, { font: fontRegular, size: 8.5, color: colorMuted });
+      const customerGst = isIssuingNode ? '09AAHCI9258G1Z3' : (invoice.customers?.gst_number || '');
+      if (customerGst) {
+        drawTextHelper(page, `GSTIN: ${customerGst}`, rightColX, rightY, { font: fontRegular, size: 8.5, color: colorMuted });
         rightY -= 12;
       }
       if (invoice.customers?.address) {
@@ -1334,7 +1597,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
             if (themeKey === 'harvard') {
               if (idx === 0) {
-                drawTextHelper(page, item.program_name, colX + 8, cellTextY, { font: fontBold, size: 9, color: colorDark, width: curW - 16 });
+                drawTextHelper(page, getItemDisplayName(item), colX + 8, cellTextY, { font: fontBold, size: 9, color: colorDark, width: curW - 16 });
               } else if (idx === 1) {
                 drawTextHelper(page, String(item.quantity || 1), colX + curW - 8, cellTextY, { font: fontRegular, size: 8.5, color: colorDark, align: 'right' });
               } else if (idx === 2) {
@@ -1346,7 +1609,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
               }
             } else if (themeKey === 'pmi') {
               if (idx === 0) {
-                drawTextHelper(page, item.program_name, colX + 8, cellTextY, { font: fontBold, size: 9, color: colorDark, width: curW - 16 });
+                drawTextHelper(page, getItemDisplayName(item), colX + 8, cellTextY, { font: fontBold, size: 9, color: colorDark, width: curW - 16 });
               } else if (idx === 1) {
                 drawTextHelper(page, String(item.quantity || 1), colX + curW - 8, cellTextY, { font: fontRegular, size: 8.5, color: colorDark, align: 'right' });
               } else if (idx === 2) {
@@ -1361,7 +1624,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
               }
             } else {
               if (idx === 0) {
-                drawTextHelper(page, item.program_name, colX + 8, cellTextY, { font: fontBold, size: 9, color: colorDark, width: curW - 16 });
+                drawTextHelper(page, getItemDisplayName(item), colX + 8, cellTextY, { font: fontBold, size: 9, color: colorDark, width: curW - 16 });
               } else if (idx === 1) {
                 const txt = isComp ? '-' : formatCurrency(item.unit_price);
                 drawTextHelper(page, txt, colX + curW - 8, cellTextY, { font: fontRegular, size: 8.5, color: colorDark, align: 'right' });

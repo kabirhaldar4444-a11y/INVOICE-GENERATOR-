@@ -10,7 +10,8 @@ import {
   LogOut, 
   Sun, 
   Moon,
-  ReceiptText
+  ReceiptText,
+  ChevronLeft
 } from 'lucide-react';
 
 export const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -36,19 +37,30 @@ export const Sidebar = ({ isOpen, toggleSidebar }) => {
 
       {/* Sidebar Panel */}
       <aside 
-        className={`fixed top-0 bottom-0 left-0 z-40 flex flex-col w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700/60 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 bottom-0 left-0 z-40 flex flex-col bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700/60 transition-all duration-300 ease-in-out lg:static ${
+          isOpen 
+            ? 'translate-x-0 w-64 opacity-100' 
+            : '-translate-x-full lg:-translate-x-full lg:w-0 lg:opacity-0 overflow-hidden border-r-0'
         }`}
       >
         {/* Header / Logo */}
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-100 dark:border-slate-700/60">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-600 text-white shadow-lg shadow-primary-500/20">
-            <ReceiptText className="w-6 h-6" />
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-700/60">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-600 text-white shadow-lg shadow-primary-500/20">
+              <ReceiptText className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="font-display font-bold text-lg text-slate-800 dark:text-white leading-tight">Invoisify</h1>
+              <span className="text-xs font-semibold text-primary-600 dark:text-primary-400 tracking-wider uppercase">SaaS Portal</span>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display font-bold text-lg text-slate-800 dark:text-white leading-tight">Invoisify</h1>
-            <span className="text-xs font-semibold text-primary-600 dark:text-primary-400 tracking-wider uppercase">SaaS Portal</span>
-          </div>
+          <button
+            onClick={toggleSidebar}
+            className="hidden lg:flex items-center justify-center p-1.5 rounded-lg border border-slate-150 dark:border-slate-700 text-slate-400 hover:text-slate-650 dark:hover:text-slate-250 hover:bg-slate-50 dark:hover:bg-slate-850 transition-all cursor-pointer"
+            title="Collapse Sidebar"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Navigation Links */}

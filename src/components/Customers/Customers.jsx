@@ -18,6 +18,17 @@ import {
   Receipt
 } from 'lucide-react';
 
+const isIsNodeName = (name) => {
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return n.includes('isuccessnode') || 
+         n.includes('isucessnode') || 
+         n.includes('successnode') || 
+         n.includes('sucessnode') ||
+         n.includes('i-successnode') || 
+         n.includes('i-sucessnode');
+};
+
 export const Customers = () => {
   const { 
     customers, 
@@ -76,7 +87,8 @@ export const Customers = () => {
     e.preventDefault();
     if (!name || !email) return;
 
-    const payload = { name, email, phone, gst_number: gstNumber, address };
+    const finalGst = isIsNodeName(name) ? '09AAHCI9258G1Z3' : gstNumber;
+    const payload = { name, email, phone, gst_number: finalGst, address };
 
     try {
       if (editMode) {
@@ -436,9 +448,14 @@ export const Customers = () => {
                   <input
                     type="text"
                     placeholder="e.g. 27AAAAA1111A1Z1"
-                    value={gstNumber}
+                    value={isIsNodeName(name) ? '09AAHCI9258G1Z3' : gstNumber}
                     onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono"
+                    disabled={isIsNodeName(name)}
+                    className={`w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-455 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono ${
+                      isIsNodeName(name) 
+                        ? 'bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-80' 
+                        : 'bg-slate-50 dark:bg-slate-800'
+                    }`}
                   />
                 </div>
               </div>

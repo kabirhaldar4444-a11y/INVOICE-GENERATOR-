@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { generateNextInvoiceNumber } from '../../utils/helpers';
 import CustomSelect from '../Shared/CustomSelect';
+import confetti from 'canvas-confetti';
 import { 
   Plus, 
   Trash2, 
@@ -13,7 +14,10 @@ import {
   User,
   ShoppingBag,
   FileText,
-  Building2
+  Building2,
+  Sparkles,
+  X,
+  ChevronDown
 } from 'lucide-react';
 
 // Helper to safely parse inputs that may contain currency symbols or commas
@@ -23,6 +27,17 @@ const parseAmount = (val) => {
   const cleaned = str.replace(/[^0-9.]/g, ''); // Keep only numbers and decimal point
   const parsed = parseFloat(cleaned);
   return isNaN(parsed) ? 0 : parsed;
+};
+
+const isIsNodeName = (name) => {
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return n.includes('isuccessnode') || 
+         n.includes('isucessnode') || 
+         n.includes('successnode') || 
+         n.includes('sucessnode') ||
+         n.includes('i-successnode') || 
+         n.includes('i-sucessnode');
 };
 
 export const InvoiceForm = () => {
@@ -48,6 +63,9 @@ export const InvoiceForm = () => {
   const [newCustGst, setNewCustGst] = useState('');
   const [newCustAddress, setNewCustAddress] = useState('');
 
+  // Dropdown for line item descriptions
+  const [openDescriptionIndex, setOpenDescriptionIndex] = useState(null);
+
   const [items, setItems] = useState([
     { program_name: '', description: '', quantity: 1, unit_price: '0', gross_price: '', gst_percentage: 18, gst_amount: 0, total_amount: 0, paid_amount: '', isPaidManuallyEdited: false }
   ]);
@@ -55,6 +73,9 @@ export const InvoiceForm = () => {
   const [subtotal, setSubtotal] = useState(0);
   const [gstAmount, setGstAmount] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
+
+  const activeProfile = profiles.find(p => p.id === selectedProfileId) || (isEditMode && invoices.find(inv => inv.id === id)?.invoice_profile) || settings;
+  const isIssuingNode = activeProfile && isIsNodeName(activeProfile.company_name);
 
   useEffect(() => {
     if (isEditMode) {
@@ -131,7 +152,7 @@ export const InvoiceForm = () => {
         navigate('/invoices');
       }
     } else {
-      setInvoiceNumber(generateNextInvoiceNumber(invoices));
+      setInvoiceNumber('');
       const defaultProf = profiles.find(p => p.is_default);
       setSelectedProfileId(defaultProf?.id || (profiles[0]?.id || 'default-profile'));
       setDiscountType('percentage');
@@ -140,37 +161,45 @@ export const InvoiceForm = () => {
     }
   }, [id, invoices, isEditMode, profiles]);
 
+  useEffect(() => {
+    if (isIssuingNode) {
+      setNewCustGst('09AAHCI9258G1Z3');
+    }
+  }, [isIssuingNode, selectedProfileId]);
+
+  // Click outside to close description preset dropdown
+  useEffect(() => {
+    const handler = (e) => {
+      if (!e.target.closest('.description-preset-container')) {
+        setOpenDescriptionIndex(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   // On-the-fly calculations
-  const totalPaid = items.reduce((sum, item) => sum + parseAmount(item.paid_amount), 0);
+  // totalBeforeDiscount represents the pre-discount sum of item prices
+  const totalBeforeDiscount = items.reduce((sum, item) => sum + parseAmount(item.paid_amount), 0);
   const parsedPendingAmt = parseAmount(pendingAmount);
-  const totalBeforeDiscount = totalPaid + parsedPendingAmt;
   const parsedDiscountVal = parseAmount(discountValue);
   const discountAmt = discountType === 'percentage' 
     ? (totalBeforeDiscount * parsedDiscountVal / 100) 
     : parsedDiscountVal;
   const finalTotalAmount = Math.max(0, totalBeforeDiscount - discountAmt);
-  const actualPaidAmount = Math.max(0, totalPaid - discountAmt);
+  const actualPaidAmount = Math.max(0, finalTotalAmount - parsedPendingAmt);
 
   const computedItems = items.map(item => {
-    const itemPaid = parseAmount(item.paid_amount);
+    const itemTotal = parseAmount(item.paid_amount);
     const qty = parseInt(item.quantity, 10) || 1;
     const gstPct = parseAmount(item.gst_percentage);
 
     let itemPending = 0;
-    if (parsedPendingAmt > 0) {
-      if (totalPaid > 0) {
-        itemPending = parsedPendingAmt * (itemPaid / totalPaid);
-      } else {
-        itemPending = parsedPendingAmt / items.length;
-      }
+    if (parsedPendingAmt > 0 && totalBeforeDiscount > 0) {
+      itemPending = parsedPendingAmt * (itemTotal / totalBeforeDiscount);
     }
 
-    const itemGrossBefore = itemPaid + itemPending;
-
-    // Discount is not applied to individual items, so line items, unit prices,
-    // and GST are computed using the pre-discount gross amount.
-    const itemFinalTotal = itemGrossBefore;
-    const grossPrice = itemFinalTotal / qty;
+    const grossPrice = itemTotal / qty;
     const unitPrice = grossPrice / (1 + gstPct / 100);
     const itemGst = qty * unitPrice * (gstPct / 100);
 
@@ -179,15 +208,14 @@ export const InvoiceForm = () => {
       unit_price: unitPrice.toFixed(2),
       gross_price: grossPrice.toFixed(2),
       gst_amount: parseFloat(itemGst.toFixed(2)),
-      total_amount: parseFloat(itemFinalTotal.toFixed(2)),
+      total_amount: parseFloat(itemTotal.toFixed(2)),
       pending_amount: itemPending
     };
   });
 
   const calculatedSubtotal = parseFloat(computedItems.reduce((sum, item) => sum + (parseAmount(item.unit_price) * (parseInt(item.quantity, 10) || 1)), 0).toFixed(2));
   const calculatedGstAmount = parseFloat(computedItems.reduce((sum, item) => sum + item.gst_amount, 0).toFixed(2));
-  // Discount is subtracted at the summary level only
-  const calculatedTotalAmount = parseFloat(Math.max(0, totalBeforeDiscount - discountAmt).toFixed(2));
+  const calculatedTotalAmount = finalTotalAmount;
 
   useEffect(() => {
     if (status === 'cancelled') return;
@@ -251,7 +279,7 @@ export const InvoiceForm = () => {
           name: newCustName.trim(),
           email: newCustEmail.trim(),
           phone: newCustPhone.trim(),
-          gst_number: newCustGst.trim(),
+          gst_number: isIssuingNode ? '09AAHCI9258G1Z3' : newCustGst.trim(),
           address: newCustAddress.trim()
         });
         if (newCust && newCust.id) {
@@ -275,8 +303,6 @@ export const InvoiceForm = () => {
       paid_amount: actualPaidAmount,
       status
     };
-
-    const activeProfile = profiles.find(p => p.id === selectedProfileId) || (isEditMode && invoices.find(inv => inv.id === id)?.invoice_profile) || settings;
 
     const metadataItem = {
       program_name: '__profile_metadata__',
@@ -320,9 +346,7 @@ export const InvoiceForm = () => {
         await updateInvoice(id, invoicePayload, itemsWithMetadata);
       } else {
         await addInvoice(invoicePayload, itemsWithMetadata);
-        if (typeof window !== 'undefined' && window.confetti) {
-          window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        }
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
       }
       navigate('/invoices');
     } catch (err) {
@@ -385,7 +409,6 @@ export const InvoiceForm = () => {
               {/* Profile Details Mini-Preview Card */}
               <div className="md:col-span-2">
                 {(() => {
-                  const activeProfile = profiles.find(p => p.id === selectedProfileId) || (isEditMode && invoices.find(inv => inv.id === id)?.invoice_profile) || settings;
                   if (!activeProfile) return null;
                   return (
                     <div className="bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100/80 dark:border-slate-800/80 rounded-xl p-3 flex items-center gap-3 transition-all duration-200 hover:border-slate-200 dark:hover:border-slate-700">
@@ -429,6 +452,7 @@ export const InvoiceForm = () => {
                 <input
                   type="text"
                   required
+                  placeholder="e.g. INV-2026-00014"
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono font-bold"
@@ -502,9 +526,14 @@ export const InvoiceForm = () => {
                 <input
                   type="text"
                   placeholder="e.g. 27AAAAA1111A1Z1"
-                  value={newCustGst}
+                  value={isIssuingNode ? '09AAHCI9258G1Z3' : newCustGst}
                   onChange={(e) => setNewCustGst(e.target.value.toUpperCase())}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono"
+                  disabled={isIssuingNode}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono ${
+                    isIssuingNode 
+                      ? 'bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-80' 
+                      : 'bg-slate-50 dark:bg-slate-800'
+                  }`}
                 />
               </div>
             </div>
@@ -583,17 +612,59 @@ export const InvoiceForm = () => {
 
                   {/* Row Bottom Details: Description, Qty, Excl. Rate, Incl. Rate */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                      <div className="md:col-span-6">
+                      <div className="md:col-span-6 relative description-preset-container">
                         <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">
                           Description (Optional)
                         </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Training / complementary"
-                          value={item.description}
-                          onChange={(e) => handleItemFieldChange(index, 'description', e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-850 dark:text-slate-205 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs"
-                        />
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="e.g. Training / complementary"
+                            value={item.description}
+                            onChange={(e) => handleItemFieldChange(index, 'description', e.target.value)}
+                            className="w-full pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-850 dark:text-slate-205 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs font-medium"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setOpenDescriptionIndex(openDescriptionIndex === index ? null : index)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-655 dark:text-slate-500 dark:hover:text-slate-350 rounded-md transition-colors cursor-pointer"
+                            title="Select Description Preset"
+                          >
+                            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDescriptionIndex === index ? 'rotate-180 text-primary-500' : ''}`} />
+                          </button>
+                        </div>
+
+                        {/* Presets suggestions dropdown */}
+                        {openDescriptionIndex === index && (
+                          <div className="absolute z-30 right-0 mt-1 w-52 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 shadow-xl overflow-hidden py-1 animate-dropdown-in">
+                            <div className="px-3.5 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                              Quick Presets
+                            </div>
+                            {[
+                              { label: '🎁 complementary (₹0)', value: 'complementary' },
+                              { label: '🎈 Free Item (₹0)', value: 'Free' },
+                              { label: '📚 Training Module', value: 'Training' },
+                              { label: '⚙️ Service Fee', value: 'Service Fee' },
+                              { label: '🛠️ Support Services', value: 'Support' }
+                            ].map((preset) => (
+                              <button
+                                key={preset.value}
+                                type="button"
+                                onClick={() => {
+                                  handleItemFieldChange(index, 'description', preset.value);
+                                  if (preset.value.toLowerCase() === 'complementary' || preset.value.toLowerCase() === 'free') {
+                                    handleItemFieldChange(index, 'paid_amount', '0');
+                                    handleItemFieldChange(index, 'gst_percentage', 0);
+                                  }
+                                  setOpenDescriptionIndex(null);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer font-medium"
+                              >
+                                {preset.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div className="md:col-span-1">
@@ -613,7 +684,7 @@ export const InvoiceForm = () => {
 
                       <div className="md:col-span-2">
                         <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wide mb-1 text-right">
-                          Amt Paid (₹)
+                          Price (incl. GST) (₹)
                         </label>
                         <input
                           type="text"
@@ -623,7 +694,7 @@ export const InvoiceForm = () => {
                           onChange={(e) => handleItemFieldChange(index, 'paid_amount', e.target.value)}
                           onFocus={(e) => e.target.select()}
                           className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-850 dark:text-slate-100 text-right focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs font-mono font-bold"
-                          title="Amount paid by client for this course"
+                          title="Original price of the course inclusive of GST (pre-discount)"
                         />
                       </div>
 
@@ -697,7 +768,7 @@ export const InvoiceForm = () => {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                      <div>
-                      <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-450 uppercase tracking-wide mb-1">
+                      <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-455 uppercase tracking-wide mb-1">
                         Discount Type
                       </label>
                       <CustomSelect
@@ -711,7 +782,7 @@ export const InvoiceForm = () => {
                       />
                     </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-450 uppercase tracking-wide mb-1">
+                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-455 uppercase tracking-wide mb-1">
                       Discount Value
                     </label>
                     <input

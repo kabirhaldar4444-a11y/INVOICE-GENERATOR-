@@ -2,7 +2,7 @@ import React from 'react';
 import { Menu, Bell } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-export const Navbar = ({ toggleSidebar, title }) => {
+export const Navbar = ({ toggleSidebar, title, isSidebarOpen }) => {
   const { profile } = useAuth();
 
   return (
@@ -10,7 +10,9 @@ export const Navbar = ({ toggleSidebar, title }) => {
       <div className="flex items-center gap-4">
         <button
           onClick={toggleSidebar}
-          className="p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-150 dark:hover:bg-slate-800 lg:hidden transition-colors"
+          className={`p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-150 dark:hover:bg-slate-800 transition-colors ${
+            isSidebarOpen ? 'lg:hidden' : 'flex'
+          }`}
           aria-label="Open navigation sidebar"
         >
           <Menu className="w-5 h-5" />

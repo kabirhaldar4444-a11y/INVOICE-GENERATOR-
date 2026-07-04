@@ -10,6 +10,17 @@ import {
 } from '../utils/db';
 import { ConfirmDialog } from '../components/Shared/ConfirmDialog';
 
+const isIsNodeName = (name) => {
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return n.includes('isuccessnode') || 
+         n.includes('isucessnode') || 
+         n.includes('successnode') || 
+         n.includes('sucessnode') ||
+         n.includes('i-successnode') || 
+         n.includes('i-sucessnode');
+};
+
 const AppContext = createContext();
 
 // Detect if Supabase is configured
@@ -260,7 +271,13 @@ export const AppProvider = ({ children }) => {
           invoice_items: inv.invoice_items?.filter(item => item.program_name !== '__profile_metadata__') || []
         };
       });
-      setInvoices(processed);
+      setInvoices(processed.map(inv => ({
+        ...inv,
+        // Re-attach fresh customer object: prefer JSON snapshot, fall back to customers array
+        customers: inv.customers?.name
+          ? inv.customers
+          : seedCustomers.find(c => c.id === inv.customer_id) || inv.customers || null
+      })));
     }
   };
 
@@ -300,11 +317,15 @@ export const AppProvider = ({ children }) => {
     if (!user) return;
     setLoadingStates(prev => ({ ...prev, settings: true }));
     try {
+      const processedFields = { ...updatedFields };
+      if (isIsNodeName(processedFields.company_name)) {
+        processedFields.gst_number = '09AAHCI9258G1Z3';
+      }
       if (useSupabase) {
         // Supabase Database Update
         const { data, error } = await supabase
           .from('company_settings')
-          .update({ ...updatedFields, updated_at: new Date() })
+          .update({ ...processedFields, updated_at: new Date() })
           .eq('id', user.id)
           .select()
           .single();
@@ -313,7 +334,7 @@ export const AppProvider = ({ children }) => {
         setSettings(data);
       } else {
         // Trial Mode Local Update
-        const newSettings = { ...settings, ...updatedFields };
+        const newSettings = { ...settings, ...processedFields };
         localStorage.setItem('invoisify_settings', JSON.stringify(newSettings));
         setSettings(newSettings);
       }
@@ -461,7 +482,11 @@ export const AppProvider = ({ children }) => {
 
   const addProfile = async (profileFields) => {
     try {
-      const newProfile = await idbCreateProfile({ ...profileFields, is_default: false });
+      const processedFields = { ...profileFields };
+      if (isIsNodeName(processedFields.company_name)) {
+        processedFields.gst_number = '09AAHCI9258G1Z3';
+      }
+      const newProfile = await idbCreateProfile({ ...processedFields, is_default: false });
       setProfiles(prev => [...prev, newProfile]);
       showToast('Company profile added successfully', 'success');
       return newProfile;
@@ -473,12 +498,16 @@ export const AppProvider = ({ children }) => {
 
   const updateProfile = async (id, updatedFields) => {
     try {
+      const processedFields = { ...updatedFields };
+      if (isIsNodeName(processedFields.company_name)) {
+        processedFields.gst_number = '09AAHCI9258G1Z3';
+      }
       // If updating the default profile, also sync the main settings
       const target = profiles.find(p => p.id === id);
       if (target?.is_default) {
-        await updateSettings(updatedFields);
+        await updateSettings(processedFields);
       }
-      const updated = await idbUpdateProfile(id, updatedFields);
+      const updated = await idbUpdateProfile(id, processedFields);
       setProfiles(prev => prev.map(p => p.id === id ? updated : p));
       showToast('Company profile updated successfully', 'success');
       return updated;
@@ -762,7 +791,13 @@ export const AppProvider = ({ children }) => {
         };
       });
 
-      setInvoices(processed);
+      setInvoices(processed.map(inv => ({
+        ...inv,
+        // Re-attach fresh customer: prefer Supabase join, fall back to customers[] array
+        customers: inv.customers?.name
+          ? inv.customers
+          : (customers || []).find(c => c.id === inv.customer_id) || inv.customers || null
+      })));
     } catch (err) {
       console.error("Error fetching invoices:", err);
     } finally {
@@ -818,7 +853,21 @@ export const AppProvider = ({ children }) => {
           throw itemsError;
         }
 
-        const customer = customers.find(c => c.id === invoiceFields.customer_id);
+        let customer = customers.find(c => c.id === invoiceFields.customer_id);
+        if (!customer && invoiceFields.customer_id) {
+          const { data: custData } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('id', invoiceFields.customer_id)
+            .single();
+          if (custData) {
+            customer = custData;
+            setCustomers(prev => {
+              if (prev.some(c => c.id === custData.id)) return prev;
+              return [...prev, custData].sort((a, b) => a.name.localeCompare(b.name));
+            });
+          }
+        }
         
         const profileItem = insertedItems.find(item => item.program_name === '__profile_metadata__');
         let invoiceProfile = null;
@@ -848,7 +897,11 @@ export const AppProvider = ({ children }) => {
         }
 
         const newInvoiceId = `inv-${Date.now()}`;
-        const customer = customers.find(c => c.id === invoiceFields.customer_id);
+        let customer = customers.find(c => c.id === invoiceFields.customer_id);
+        if (!customer && invoiceFields.customer_id) {
+          const latestCustomers = JSON.parse(localStorage.getItem('invoisify_customers') || '[]');
+          customer = latestCustomers.find(c => c.id === invoiceFields.customer_id);
+        }
 
         const newItems = items.map((item, idx) => ({
           id: `item-${Date.now()}-${idx}`,
@@ -950,7 +1003,21 @@ export const AppProvider = ({ children }) => {
 
         if (itemsError) throw itemsError;
 
-        const customer = customers.find(c => c.id === invoiceFields.customer_id);
+        let customer = customers.find(c => c.id === invoiceFields.customer_id);
+        if (!customer && invoiceFields.customer_id) {
+          const { data: custData } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('id', invoiceFields.customer_id)
+            .single();
+          if (custData) {
+            customer = custData;
+            setCustomers(prev => {
+              if (prev.some(c => c.id === custData.id)) return prev;
+              return [...prev, custData].sort((a, b) => a.name.localeCompare(b.name));
+            });
+          }
+        }
         
         const profileItem = insertedItems.find(item => item.program_name === '__profile_metadata__');
         let invoiceProfile = null;
@@ -974,7 +1041,11 @@ export const AppProvider = ({ children }) => {
         return fullInvoice;
       } else {
         // Trial Mode Invoice Edit
-        const customer = customers.find(c => c.id === invoiceFields.customer_id);
+        let customer = customers.find(c => c.id === invoiceFields.customer_id);
+        if (!customer && invoiceFields.customer_id) {
+          const latestCustomers = JSON.parse(localStorage.getItem('invoisify_customers') || '[]');
+          customer = latestCustomers.find(c => c.id === invoiceFields.customer_id);
+        }
         
         const rawInvoices = JSON.parse(localStorage.getItem('invoisify_invoices') || '[]');
         const source = rawInvoices.find(i => i.id === id);

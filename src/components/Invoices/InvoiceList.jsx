@@ -68,6 +68,8 @@ export const InvoiceList = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
       // Sanitize filename to prevent browser crashes when invoice number contains "/"
       const safeFilename = inv.invoice_number.replace(/[^a-zA-Z0-9-_]/g, '_');
       link.download = `${safeFilename}.pdf`;
@@ -259,8 +261,12 @@ export const InvoiceList = () => {
                         {inv.invoice_profile?.company_name || settings?.company_name || 'I-SUCCESSNODE'}
                       </td>
                       <td className="py-4">
-                        <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{inv.customers?.name}</div>
-                        <div className="text-[10px] text-slate-400 dark:text-slate-500">{inv.customers?.email}</div>
+                        <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                          {inv.customers?.name || 'Deleted Customer'}
+                        </div>
+                        {inv.customers?.email && (
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500">{inv.customers.email}</div>
+                        )}
                       </td>
                       <td className="py-4 text-xs font-medium text-slate-600 dark:text-slate-400">
                         {formatDate(inv.invoice_date)}

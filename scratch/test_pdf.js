@@ -46,7 +46,7 @@ const mockInvoiceBase = {
   },
   invoice_items: [
     {
-      program_name: 'FAC Program Course',
+      program_name: 'FAC Program Course with a very long title that should wrap onto multiple lines in the generated PDF table row',
       description: 'Full Course Access',
       quantity: 1,
       unit_price: 41737.29,

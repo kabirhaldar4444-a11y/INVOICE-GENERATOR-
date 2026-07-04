@@ -14,10 +14,35 @@ import {
   Building,
   Send,
   X
-} from 'lucide-react';
+} from 'lucide-react';const isIsNodeName = (name) => {
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return n.includes('isuccessnode') || 
+         n.includes('isucessnode') || 
+         n.includes('successnode') || 
+         n.includes('sucessnode') ||
+         n.includes('i-successnode') || 
+         n.includes('i-sucessnode');
+};
+
+const renderItemDescription = (item, isElite = false) => {
+  let displayDesc = item.description || '';
+  try {
+    if (displayDesc.startsWith('{') && displayDesc.endsWith('}')) {
+      const json = JSON.parse(displayDesc);
+      displayDesc = json.text || '';
+    }
+  } catch (e) {}
+  if (!displayDesc) return null;
+  
+  if (isElite) {
+    return <span className="block text-[9px] text-slate-400 font-normal mt-0.5">({displayDesc})</span>;
+  }
+  return <span className="block text-[10px] text-slate-400 font-normal mt-0.5">({displayDesc})</span>;
+};
 
 export const InvoiceDetails = () => {
-  const { invoices, settings, deleteInvoice, showToast, confirm } = useApp();
+  const { invoices, customers, settings, deleteInvoice, showToast, confirm } = useApp();
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -103,12 +128,18 @@ export const InvoiceDetails = () => {
   const handleDownloadPDF = async () => {
     try {
       showToast('Generating PDF Document...', 'info');
-      const pdfBytes = await generateInvoicePDF(invoice, settings);
+      // Resolve customer with fallback so PDF always has the name
+      const resolvedCust = invoice.customers?.name
+        ? invoice.customers
+        : (customers || []).find(c => c.id === invoice.customer_id) || invoice.customers || null;
+      const pdfBytes = await generateInvoicePDF({ ...invoice, customers: resolvedCust }, settings);
       
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
       // Sanitize filename to prevent browser crashes when invoice number contains "/"
       const safeFilename = invoice.invoice_number.replace(/[^a-zA-Z0-9-_]/g, '_');
       link.download = `${safeFilename}.pdf`;
@@ -178,6 +209,13 @@ export const InvoiceDetails = () => {
   };
 
   const activeCompany = invoice.invoice_profile || settings;
+
+  // ── Customer resolution: always resolve from multiple sources so name never disappears
+  // Priority: invoice.customers join → customers[] array lookup by customer_id → null
+  const resolvedCustomer = invoice.customers?.name
+    ? invoice.customers
+    : (customers || []).find(c => c.id === invoice.customer_id) || invoice.customers || null;
+
   const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
   const preDiscountTotal = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
   const displayPaidAmount = (discountAmount > 0 && Math.abs(invoice.paid_amount - preDiscountTotal) < 0.05)
@@ -208,10 +246,19 @@ export const InvoiceDetails = () => {
   } else if (companyName.includes('princeton') || companyName.includes('princetion')) {
     themeKey = 'princeton';
     localLogoPath = '/logos/princeton.png';
-  } else if (companyName.includes('isuccessnode') || companyName.includes('i-successnode') || companyName.includes('successnode')) {
+  } else if (
+    companyName.includes('isuccessnode') || 
+    companyName.includes('i-successnode') || 
+    companyName.includes('successnode') ||
+    companyName.includes('isucessnode') || 
+    companyName.includes('i-sucessnode') || 
+    companyName.includes('sucessnode')
+  ) {
     themeKey = 'isuccessnode';
     localLogoPath = '/logos/isuccessnode.png';
   }
+
+  const eliteMarginX = 20;
 
   // Brand data fallback overrides
   const brandData = {
@@ -365,9 +412,9 @@ export const InvoiceDetails = () => {
                 {/* Header Row */}
                 <div className="px-8 pt-8 pb-5 flex justify-between items-start">
                   <div>
-                    <h1 className="text-4xl font-extrabold text-black tracking-tight mb-2">INVOICE</h1>
-                    <p className="text-xs text-slate-500 font-medium">Invoice Number: {invoice.invoice_number}</p>
-                    <p className="text-xs text-slate-500 font-medium mt-1">Invoice Date: {formatDate(invoice.invoice_date)}</p>
+                    <h1 className="text-5xl font-extrabold text-black tracking-tight mb-2">INVOICE</h1>
+                    <p className="text-sm text-slate-500 font-medium">Invoice Number: {invoice.invoice_number}</p>
+                    <p className="text-sm text-slate-500 font-medium mt-1">Invoice Date: {formatDate(invoice.invoice_date)}</p>
                   </div>
                   {/* Logo boxed frame */}
                   <div className="border border-black p-2 bg-white flex items-center justify-center min-w-[130px] min-h-[55px] max-w-[150px] shadow-sm">
@@ -382,11 +429,11 @@ export const InvoiceDetails = () => {
                 {/* Content Area */}
                 <div className="px-8 py-6">
                   {/* Two Address Boxes */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs mb-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm mb-8">
                     {/* Company Info Box */}
                     <div className="border border-black p-4 bg-white flex flex-col justify-between min-h-[110px]">
                       <div>
-                        <p className="font-bold text-black text-sm mb-2">{companyNameText}</p>
+                        <p className="font-bold text-black text-base mb-2">{companyNameText}</p>
                         <div className="space-y-1 text-slate-500">
                           {companyPhone && <p>{companyPhone}</p>}
                           {companyWebsite && <p>{companyWebsite}</p>}
@@ -398,11 +445,11 @@ export const InvoiceDetails = () => {
                     {/* Bill To Box */}
                     <div className="border border-black p-4 bg-white flex flex-col justify-between min-h-[110px]">
                       <div>
-                        <p className="font-bold text-black text-sm mb-2">BILL TO</p>
+                        <p className="font-bold text-black text-base mb-2">BILL TO</p>
                         <div className="space-y-1 text-slate-500">
-                          <p className="font-bold text-slate-800">{invoice.customers?.name || 'Client Name'}</p>
-                          {invoice.customers?.email && <p>{invoice.customers.email}</p>}
-                          {invoice.customers?.phone && <p>{invoice.customers.phone}</p>}
+                          <p className="font-bold text-slate-800">{resolvedCustomer?.name || 'Client Name'}</p>
+                          {resolvedCustomer?.email && <p>{resolvedCustomer.email}</p>}
+                          {resolvedCustomer?.phone && <p>{resolvedCustomer.phone}</p>}
                         </div>
                       </div>
                     </div>
@@ -413,18 +460,21 @@ export const InvoiceDetails = () => {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-black" style={{ backgroundColor: '#BCE0FD' }}>
-                          <th className="p-3 text-left font-bold text-black text-xs border-r border-black w-[45%]">Program Name</th>
-                          <th className="p-3 text-right font-bold text-black text-xs border-r border-black w-[18%]">Unit Price</th>
-                          <th className="p-3 text-right font-bold text-black text-xs border-r border-black w-[15%]">GST (18%)</th>
-                          <th className="p-3 text-right font-bold text-black text-xs w-[22%]">Amount (INR)</th>
+                          <th className="p-3 text-left font-bold text-black text-sm border-r border-black w-[45%]">Program Name</th>
+                          <th className="p-3 text-right font-bold text-black text-sm border-r border-black w-[18%]">Unit Price</th>
+                          <th className="p-3 text-right font-bold text-black text-sm border-r border-black w-[15%]">GST (18%)</th>
+                          <th className="p-3 text-right font-bold text-black text-sm w-[22%]">Amount (INR)</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(invoice.invoice_items || []).map((item, idx) => {
                           const isComp = parseFloat(item.unit_price) === 0;
                           return (
-                            <tr key={item.id || idx} className="text-xs font-semibold text-slate-800">
-                              <td className="p-3 text-left border-r border-b border-black font-medium">{item.program_name}</td>
+                            <tr key={item.id || idx} className="text-sm font-semibold text-slate-800">
+                              <td className="p-3 text-left border-r border-b border-black font-medium">
+                                {item.program_name}
+                                {renderItemDescription(item)}
+                              </td>
                               <td className="p-3 text-right border-r border-b border-black font-mono font-normal">
                                 {isComp ? '' : `₹${formatNumber(item.unit_price)}`}
                               </td>
@@ -443,7 +493,7 @@ export const InvoiceDetails = () => {
 
                   {/* Totals Table right aligned */}
                   <div className="flex justify-end mt-8">
-                    <div className="w-[220px] bg-white border border-black flex flex-col text-xs">
+                    <div className="w-[260px] bg-white border border-black flex flex-col text-sm">
                       {/* Row Sub-Total */}
                       <div className="flex justify-between items-center border-b border-black">
                         <span className="p-2 font-medium text-slate-800 border-r border-black w-[110px]">Sub-Total</span>
@@ -454,25 +504,32 @@ export const InvoiceDetails = () => {
                         <span className="p-2 font-medium text-slate-800 border-r border-black w-[110px]">Tax (18%)</span>
                         <span className="p-2 text-right font-mono font-medium flex-grow">₹{formatNumber(invoice.gst_amount)}</span>
                       </div>
-                      {/* Row Total (Pre-Discount Total = Sub-Total + Tax) */}
-                      <div className="flex justify-between items-center border-b border-black">
-                        <span className="p-2 font-bold text-slate-800 border-r border-black w-[110px]">Total</span>
-                        <span className="p-2 text-right font-mono font-bold flex-grow">₹{formatNumber(invoice.subtotal + invoice.gst_amount)}</span>
-                      </div>
                       {/* Row Discount (Only shown if discountAmount > 0) */}
                       {discountAmount > 0 && (
-                        <div className="flex justify-between items-center border-b border-black">
-                          <span className="p-2 font-medium text-slate-800 border-r border-black w-[110px]">Discount</span>
-                          <span className="p-2 text-right font-mono font-medium flex-grow text-slate-800">
-                            ₹{formatNumber(discountAmount)}
+                        <div className="flex justify-between items-center border-b border-black text-rose-600">
+                          <span className="p-2 font-medium border-r border-black w-[110px]">Discount</span>
+                          <span className="p-2 text-right font-mono font-medium flex-grow">
+                            -₹{formatNumber(discountAmount)}
                           </span>
                         </div>
                       )}
+                      {/* Row Total (Post-Discount Total) */}
+                      <div className="flex justify-between items-center border-b border-black">
+                        <span className="p-2 font-bold text-slate-800 border-r border-black w-[110px]">Total</span>
+                        <span className="p-2 text-right font-mono font-bold flex-grow">₹{formatNumber(invoice.total_amount)}</span>
+                      </div>
                       {/* Row Paid */}
-                      <div className="flex justify-between items-center">
+                      <div className={`flex justify-between items-center ${netBalance > 0 ? 'border-b border-black' : ''}`}>
                         <span className="p-2 font-bold text-slate-800 border-r border-black w-[110px]">Paid</span>
                         <span className="p-2 text-right font-mono font-bold flex-grow">₹{formatNumber(displayPaidAmount)}</span>
                       </div>
+                      {/* Row Balance Due */}
+                      {netBalance > 0 && (
+                        <div className="flex justify-between items-center text-amber-650 font-bold bg-amber-50/10">
+                          <span className="p-2 border-r border-black w-[110px]">Balance Due</span>
+                          <span className="p-2 text-right font-mono flex-grow">₹{formatNumber(netBalance)}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -480,11 +537,11 @@ export const InvoiceDetails = () => {
 
               {/* Bottom Footer Stripes */}
               <div className="mt-auto relative w-full pt-10">
-                <p className="text-center text-slate-500 font-medium text-xs mb-6">
+                <p className="text-center text-slate-500 font-medium text-sm mb-6">
                   Thank you for doing business with us!
                 </p>
                 <div className="px-8 pb-5 flex justify-between items-end">
-                  <p className="text-[9px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     All rights reserved by © I-SUCCESSNODE (OPC) Private Limited 2025
                   </p>
                 </div>
@@ -508,7 +565,7 @@ export const InvoiceDetails = () => {
                     </svg>
 
                     {/* Main header content */}
-                    <div className="flex items-center gap-0" style={{ height: `${eliteLayout.header.height}px`, paddingLeft: `${eliteLayout.marginX}px`, paddingRight: `${eliteLayout.marginX}px` }}>
+                    <div className="flex items-center gap-0" style={{ height: `${eliteLayout.header.height}px`, paddingLeft: `${eliteMarginX}px`, paddingRight: `${eliteMarginX}px` }}>
                       {/* LEFT: Logo */}
                       <div className="flex-shrink-0 z-10" style={{ width: `${eliteLayout.header.logoWidth}px` }}>
                         {logoUrlToRender ? (
@@ -535,15 +592,15 @@ export const InvoiceDetails = () => {
                     </div>
 
                     {/* Separator line */}
-                    <div style={{ height: '1px', backgroundColor: eliteLayout.colors.border, marginLeft: `${eliteLayout.marginX}px`, marginRight: `${eliteLayout.marginX}px` }} />
+                    <div style={{ height: '1px', backgroundColor: eliteLayout.colors.border, marginLeft: `${eliteMarginX}px`, marginRight: `${eliteMarginX}px` }} />
 
                     {/* BILL TO (left) + GST/CIN (right) */}
-                    <div className="py-4 flex justify-between items-start text-xs" style={{ paddingLeft: `${eliteLayout.marginX}px`, paddingRight: `${eliteLayout.marginX}px` }}>
+                    <div className="py-4 flex justify-between items-start text-xs" style={{ paddingLeft: `${eliteMarginX}px`, paddingRight: `${eliteMarginX}px` }}>
                       <div className="space-y-1">
                         <p className="font-extrabold text-[11px] uppercase tracking-wide" style={{ color: eliteLayout.colors.dark }}>BILL TO:</p>
-                        <p className="font-bold" style={{ color: eliteLayout.colors.dark }}><span className="font-bold">Customer Name: </span>{invoice.customers?.name || 'Client Name'}</p>
-                        {invoice.customers?.email && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">Customer Email: </span>{invoice.customers.email}</p>}
-                        {invoice.customers?.phone && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">Phone: </span>{invoice.customers.phone}</p>}
+                        <p className="font-bold" style={{ color: eliteLayout.colors.dark }}>{resolvedCustomer?.name || 'Client Name'}</p>
+                        {resolvedCustomer?.email && <p style={{ color: eliteLayout.colors.dark }}>{resolvedCustomer.email}</p>}
+                        {resolvedCustomer?.phone && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">Phone: </span>{resolvedCustomer.phone}</p>}
                       </div>
                       <div className="space-y-1 text-right">
                         {companyGst && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">GST: </span>{companyGst}</p>}
@@ -600,16 +657,16 @@ export const InvoiceDetails = () => {
                     
                     <div className="space-y-1 text-slate-500">
                       <p className="font-bold text-[10px] uppercase tracking-wider text-slate-400">BILL TO:</p>
-                      <p className="font-bold text-slate-800">{invoice.customers?.name || 'Client Name'}</p>
-                      {invoice.customers?.email && <p>{invoice.customers.email}</p>}
-                      {invoice.customers?.phone && <p>Phone: {invoice.customers.phone}</p>}
-                      {invoice.customers?.address && <p className="text-slate-400">{invoice.customers.address}</p>}
+                      <p className="font-bold text-slate-800">{resolvedCustomer?.name || 'Client Name'}</p>
+                      {resolvedCustomer?.email && <p>{resolvedCustomer.email}</p>}
+                      {resolvedCustomer?.phone && <p>Phone: {resolvedCustomer.phone}</p>}
+                      {resolvedCustomer?.address && <p className="text-slate-400">{resolvedCustomer.address}</p>}
                     </div>
 
                     <div className="space-y-1 text-slate-500">
                       <p className="font-bold text-[10px] uppercase tracking-wider text-slate-400">SHIP TO:</p>
-                      <p className="font-bold text-slate-800">{invoice.customers?.name || 'Client Name'}</p>
-                      {invoice.customers?.address && <p className="text-slate-400">{invoice.customers.address}</p>}
+                      <p className="font-bold text-slate-800">{resolvedCustomer?.name || 'Client Name'}</p>
+                      {resolvedCustomer?.address && <p className="text-slate-400">{resolvedCustomer.address}</p>}
                     </div>
                   </div>
 
@@ -633,7 +690,10 @@ export const InvoiceDetails = () => {
                             const isComp = parseFloat(item.unit_price) === 0;
                             return (
                               <tr key={item.id || idx} className="border-b border-slate-50 text-[10px]">
-                                <td className="p-2 text-slate-800 font-medium">{item.program_name}</td>
+                                <td className="p-2 text-slate-800 font-medium">
+                                  {item.program_name}
+                                  {renderItemDescription(item)}
+                                </td>
                                 <td className="p-2 text-right text-slate-650 font-mono">{item.quantity || 1}</td>
                                 <td className="p-2 text-right text-slate-600 font-mono">
                                   {isComp ? '-' : formatCurrency(item.unit_price)}
@@ -706,25 +766,29 @@ export const InvoiceDetails = () => {
                       {/* BILL TO */}
                       <div className="space-y-1 text-slate-500">
                         <p className="font-bold text-[10px] uppercase tracking-wider text-slate-400">BILL TO</p>
-                        <p className="font-bold text-slate-800 text-sm">{invoice.customers?.name || 'Client Name'}</p>
-                        {invoice.customers?.phone && <p>Phone: {invoice.customers.phone}</p>}
-                        {invoice.customers?.email && <p>Email: {invoice.customers.email}</p>}
-                        {invoice.customers?.gst_number && <p className="font-medium text-slate-700">GSTIN: {invoice.customers.gst_number}</p>}
-                        {invoice.customers?.address && <p className="pt-1 text-slate-400">{invoice.customers.address}</p>}
+                        <p className="font-bold text-slate-800 text-sm">{resolvedCustomer?.name || 'Client Name'}</p>
+                        {resolvedCustomer?.phone && <p>Phone: {resolvedCustomer.phone}</p>}
+                        {resolvedCustomer?.email && <p>Email: {resolvedCustomer.email}</p>}
+                        {(isIsNodeName(companyNameText) || resolvedCustomer?.gst_number) && (
+                          <p className="font-medium text-slate-700">
+                            GSTIN: {isIsNodeName(companyNameText) ? '09AAHCI9258G1Z3' : resolvedCustomer.gst_number}
+                          </p>
+                        )}
+                        {resolvedCustomer?.address && <p className="pt-1 text-slate-400">{resolvedCustomer.address}</p>}
                       </div>
                     </div>
                   )}
 
                   {/* Itemized Table */}
-                  <div style={{ paddingLeft: themeKey === 'elite' ? `${eliteLayout.marginX}px` : '0', paddingRight: themeKey === 'elite' ? `${eliteLayout.marginX}px` : '0' }}>
-                    <table className="w-full text-left border-collapse border" style={{ borderColor: themeKey === 'elite' ? eliteLayout.colors.border : '#e2e8f0' }}>
+                  <div style={{ paddingLeft: themeKey === 'elite' ? `${eliteMarginX}px` : '0', paddingRight: themeKey === 'elite' ? `${eliteMarginX}px` : '0' }}>
+                    <table className="w-full text-left border-collapse border" style={{ width: '100%', borderColor: themeKey === 'elite' ? eliteLayout.colors.border : '#e2e8f0' }}>
                       <thead>
                         {themeKey === 'elite' ? (
                           <tr className="text-white text-xs font-bold" style={{ backgroundColor: eliteLayout.colors.dark, height: `${eliteLayout.table.headerHeight}px` }}>
-                            <th className="p-3 text-center" style={{ width: `${eliteLayout.table.colWidths[0]}px`, borderRight: '1px solid #2d3a5e' }}>ITEM</th>
-                            <th className="p-3 text-center" style={{ width: `${eliteLayout.table.colWidths[1]}px`, borderRight: '1px solid #2d3a5e' }}>Unit Price</th>
-                            <th className="p-3 text-center" style={{ width: `${eliteLayout.table.colWidths[2]}px`, borderRight: '1px solid #2d3a5e' }}>GST (18%)</th>
-                            <th className="p-3 text-center" style={{ width: `${eliteLayout.table.colWidths[3]}px` }}>AMMOUNT</th>
+                            <th className="p-3 text-center" style={{ width: '45.5%', borderRight: '1px solid #2d3a5e' }}>ITEM</th>
+                            <th className="p-3 text-center" style={{ width: '18%', borderRight: '1px solid #2d3a5e' }}>Unit Price</th>
+                            <th className="p-3 text-center" style={{ width: '18%', borderRight: '1px solid #2d3a5e' }}>GST (18%)</th>
+                            <th className="p-3 text-center" style={{ width: '18.5%' }}>AMMOUNT</th>
                           </tr>
                         ) : themeKey === 'harvard' ? (
                           <tr className="text-xs font-semibold border-b border-slate-100" style={{ backgroundColor: '#F2F2F2' }}>
@@ -746,21 +810,33 @@ export const InvoiceDetails = () => {
                       </thead>
                       <tbody>
                         {themeKey === 'elite' ? (
-                          (invoice.invoice_items || []).map((item, idx) => {
-                            const isComp = parseFloat(item.unit_price) === 0;
-                            return (
-                              <tr 
-                                key={item.id || idx} 
-                                className="border-b text-xs font-bold"
-                                style={{ borderColor: eliteLayout.colors.border, height: `${eliteLayout.table.rowHeight}px`, color: eliteLayout.colors.dark }}
-                              >
-                                <td className="p-3 text-center" style={{ width: `${eliteLayout.table.colWidths[0]}px`, borderRight: `1px solid ${eliteLayout.colors.border}` }}>{item.program_name}</td>
-                                <td className="p-3 text-center font-bold font-mono" style={{ width: `${eliteLayout.table.colWidths[1]}px`, borderRight: `1px solid ${eliteLayout.colors.border}` }}>{isComp ? '-' : formatNumber(item.unit_price)}</td>
-                                <td className="p-3 text-center font-bold font-mono" style={{ width: `${eliteLayout.table.colWidths[2]}px`, borderRight: `1px solid ${eliteLayout.colors.border}` }}>{isComp ? '-' : formatNumber(item.gst_amount)}</td>
-                                <td className="p-3 text-center font-bold font-mono" style={{ width: `${eliteLayout.table.colWidths[3]}px` }}>{isComp ? 'Free' : formatNumber(item.total_amount)}</td>
-                              </tr>
-                            );
-                          })
+                          (() => {
+                            const items = invoice.invoice_items || [];
+                            const MIN_ROWS = items.length; // only show rows with content
+                            const rows = [];
+                            for (let rIdx = 0; rIdx < MIN_ROWS; rIdx++) {
+                              const item = items[rIdx];
+                              const isComp = item ? parseFloat(item.unit_price) === 0 : false;
+                              if (item) {
+                                rows.push(
+                                  <tr 
+                                    key={item.id || rIdx} 
+                                    className="border-b text-xs font-bold"
+                                    style={{ borderColor: eliteLayout.colors.border, color: eliteLayout.colors.dark }}
+                                  >
+                                    <td className="p-3 text-center" style={{ width: '45.5%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>
+                                      {item.program_name}
+                                      {renderItemDescription(item, true)}
+                                    </td>
+                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '-' : formatNumber(item.unit_price)}</td>
+                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '-' : formatNumber(item.gst_amount)}</td>
+                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18.5%', verticalAlign: 'middle' }}>{isComp ? 'Free' : formatNumber(item.total_amount)}</td>
+                                  </tr>
+                                );
+                              }
+                            }
+                            return rows;
+                          })()
                         ) : (
                           invoice.invoice_items?.map((item, idx) => {
                             const isComp = parseFloat(item.unit_price) === 0;
@@ -768,7 +844,10 @@ export const InvoiceDetails = () => {
                               <tr key={item.id || idx} className="border-b border-slate-100/60 text-xs hover:bg-slate-50/30">
                                 {themeKey === 'harvard' ? (
                                   <>
-                                    <td className="p-3.5 pl-4 font-medium text-slate-800">{item.program_name}</td>
+                                    <td className="p-3.5 pl-4 font-medium text-slate-800">
+                                      {item.program_name}
+                                      {renderItemDescription(item)}
+                                    </td>
                                     <td className="p-3.5 text-right text-slate-600 font-mono">{item.quantity || 1}</td>
                                     <td className="p-3.5 text-right text-slate-600 font-mono">
                                       {isComp ? '-' : formatCurrency(item.unit_price)}
@@ -780,7 +859,10 @@ export const InvoiceDetails = () => {
                                 ) : (
                                   // PMI Theme
                                   <>
-                                    <td className="p-3.5 pl-4 font-medium text-slate-800">{item.program_name}</td>
+                                    <td className="p-3.5 pl-4 font-medium text-slate-800">
+                                      {item.program_name}
+                                      {renderItemDescription(item)}
+                                    </td>
                                     <td className="p-3.5 text-right text-slate-600 font-mono">{item.quantity || 1}</td>
                                     <td className="p-3.5 text-right text-slate-600 font-mono">
                                       {isComp ? '-' : formatCurrency(item.unit_price)}
@@ -803,10 +885,10 @@ export const InvoiceDetails = () => {
 
                   {/* Calculations grid */}
                   {themeKey === 'elite' ? (
-                    <div className="flex justify-end mt-6 text-xs" style={{ paddingLeft: `${eliteLayout.marginX}px`, paddingRight: `${eliteLayout.marginX}px` }}>
+                    <div className="flex justify-end mt-6 text-xs" style={{ paddingLeft: `${eliteMarginX}px`, paddingRight: `${eliteMarginX}px` }}>
                       <div className="flex flex-col gap-3" style={{ width: `${eliteLayout.summary.width}px` }}>
                         {/* Box 1: Bordered Box */}
-                        <div className="p-3 space-y-2 rounded-none text-xs" style={{ border: `${eliteLayout.summary.borderThickness}px solid ${eliteLayout.colors.primary}`, color: eliteLayout.colors.dark, height: `${eliteLayout.summary.box1Height}px` }}>
+                        <div className="p-3 space-y-2 rounded-none text-xs" style={{ border: `${eliteLayout.summary.borderThickness}px solid ${eliteLayout.colors.primary}`, color: eliteLayout.colors.dark }}>
                           <div className="flex justify-between">
                             <span className="font-bold">SUB TOTAL:</span>
                             <span className="font-mono">{formatNumber(invoice.subtotal)}</span>
@@ -818,15 +900,17 @@ export const InvoiceDetails = () => {
                         </div>
 
                         {/* Box 2: Solid Box */}
-                        <div className="text-white p-3 space-y-2 rounded-none text-xs" style={{ backgroundColor: eliteLayout.colors.primary, height: `${eliteLayout.summary.box2Height}px` }}>
+                        <div className="text-white p-3 space-y-2 rounded-none text-xs" style={{ backgroundColor: eliteLayout.colors.primary }}>
                           <div className="flex justify-between">
                             <span className="font-bold">TOTAL:</span>
                             <span className="font-mono">{formatNumber(invoice.total_amount)}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="font-bold">DISCOUNT:</span>
-                            <span className="font-mono">{formatNumber(invoice.invoice_profile?.discount_amount || 0)}</span>
-                          </div>
+                          {discountAmount > 0 && (
+                            <div className="flex justify-between text-yellow-300">
+                              <span className="font-bold">DISCOUNT:</span>
+                              <span className="font-mono">-{formatNumber(discountAmount)}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between">
                             <span className="font-bold">PAID:</span>
                             <span className="font-mono">{formatNumber(displayPaidAmount)}</span>
@@ -899,8 +983,12 @@ export const InvoiceDetails = () => {
                 {/* Left Column */}
                 <div className="space-y-1">
                   <p className="font-bold text-xs">Phone: {companyPhone}</p>
-                  <p className="font-bold text-xs underline">Email: {companyEmail}</p>
-                  <p className="font-bold text-xs">Web: {companyWebsite || 'www.elitetoolistic.com'}</p>
+                  <p className="font-bold text-xs">
+                    Email: <a href={`mailto:${companyEmail}`} className="underline hover:text-blue-200 transition-colors">{companyEmail}</a>
+                  </p>
+                  <p className="font-bold text-xs">
+                    Web: <a href={(companyWebsite || 'www.elitetoolistic.com').startsWith('http') ? (companyWebsite || 'www.elitetoolistic.com') : `https://${companyWebsite || 'www.elitetoolistic.com'}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200 transition-colors">{companyWebsite || 'www.elitetoolistic.com'}</a>
+                  </p>
                 </div>
                 {/* Right Column */}
                 <div className="text-right max-w-sm mr-16">
@@ -990,11 +1078,15 @@ export const InvoiceDetails = () => {
               {/* BILL TO Column */}
               <div className="space-y-1 text-slate-500">
                 <p className="font-bold text-[10px] uppercase tracking-wider text-slate-400">BILL TO</p>
-                <p className="font-bold text-slate-800 text-sm">{invoice.customers?.name || 'Client Name'}</p>
-                {invoice.customers?.phone && <p>Phone: {invoice.customers.phone}</p>}
-                {invoice.customers?.email && <p>Email: {invoice.customers.email}</p>}
-                {invoice.customers?.gst_number && <p className="font-medium text-slate-700">GSTIN: {invoice.customers.gst_number}</p>}
-                {invoice.customers?.address && <p className="pt-1 text-slate-400">{invoice.customers.address}</p>}
+                <p className="font-bold text-slate-800 text-sm">{resolvedCustomer?.name || 'Client Name'}</p>
+                {resolvedCustomer?.phone && <p>Phone: {resolvedCustomer.phone}</p>}
+                {resolvedCustomer?.email && <p>Email: {resolvedCustomer.email}</p>}
+                {(isIsNodeName(activeCompany?.company_name || 'I-SUCCESSNODE') || resolvedCustomer?.gst_number) && (
+                  <p className="font-medium text-slate-700">
+                    GSTIN: {isIsNodeName(activeCompany?.company_name || 'I-SUCCESSNODE') ? '09AAHCI9258G1Z3' : resolvedCustomer.gst_number}
+                  </p>
+                )}
+                {resolvedCustomer?.address && <p className="pt-1 text-slate-400">{resolvedCustomer.address}</p>}
               </div>
             </div>
 
@@ -1016,16 +1108,7 @@ export const InvoiceDetails = () => {
                       <tr key={item.id || index} className="border-b border-slate-100/60 text-xs hover:bg-slate-50/30">
                         <td className="p-3.5 pl-4 font-medium text-slate-800">
                           <span className="font-semibold">{item.program_name}</span>
-                          {(() => {
-                            let displayDesc = item.description || '';
-                            try {
-                              if (displayDesc.startsWith('{') && displayDesc.endsWith('}')) {
-                                const json = JSON.parse(displayDesc);
-                                displayDesc = json.text || '';
-                              }
-                            } catch (e) {}
-                            return displayDesc ? <span className="block text-[10px] text-slate-400 font-normal mt-0.5">({displayDesc})</span> : null;
-                          })()}
+                          {renderItemDescription(item)}
                         </td>
                         <td className="p-3.5 text-right text-slate-650 font-mono">
                           {isComp ? '-' : formatCurrency(item.unit_price)}
