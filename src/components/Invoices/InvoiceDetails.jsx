@@ -401,9 +401,9 @@ export const InvoiceDetails = () => {
           className="bg-white text-slate-900 border border-slate-200 rounded-2xl mx-auto shadow-md relative overflow-hidden transition-colors flex flex-col justify-between" 
           style={{ 
             fontFamily: 'Inter, sans-serif',
-            width: themeKey === 'elite' ? `${eliteLayout.width}px` : '100%',
-            maxWidth: themeKey === 'elite' ? `${eliteLayout.width}px` : '56rem',
-            minHeight: themeKey === 'elite' ? `${eliteLayout.height}px` : '1050px',
+            width: (themeKey === 'elite' || themeKey === 'pmi') ? '595.276px' : '100%',
+            maxWidth: (themeKey === 'elite' || themeKey === 'pmi') ? '595.276px' : '56rem',
+            minHeight: (themeKey === 'elite' || themeKey === 'pmi') ? '841.89px' : '1050px',
           }}
         >
           {themeKey === 'isuccessnode' ? (
@@ -551,6 +551,209 @@ export const InvoiceDetails = () => {
                 </div>
               </div>
             </>
+          ) : themeKey === 'pmi' ? (
+            <>
+              {/* Purple top strip */}
+              <div className="absolute top-0 left-0 w-full h-[18px] bg-[#4A15B7] z-10" style={{ clipPath: 'polygon(0 0, 48% 0, 43% 100%, 0 100%)' }} />
+
+              {/* Logo & Shield */}
+              <div className="absolute left-[45px] top-[24px] flex flex-col items-center">
+                {logoUrlToRender && (
+                  <img src={logoUrlToRender} alt="Logo" className="w-[75px] h-[75px] object-contain" />
+                )}
+                <span className="font-extrabold text-[18px] text-[#4A15B7] mt-1 tracking-wider">PMI</span>
+              </div>
+
+              {/* Purple polygon behind "INVOICE" */}
+              <div className="absolute right-0 top-0 h-[75px] bg-[#4A15B7] flex items-center justify-end pr-10 z-10"
+                   style={{
+                     width: '280px',
+                     clipPath: 'polygon(25% 0, 100% 0, 100% 100%, 0 100%)'
+                   }}>
+                <span className="font-black text-white text-[32px] tracking-wide">INVOICE</span>
+              </div>
+
+              {/* Orange invoice ribbon */}
+              <div className="absolute right-0 top-[75px] h-[30px] bg-[#F19D12] flex items-center justify-center z-10"
+                   style={{
+                     width: '256px',
+                     clipPath: 'polygon(14% 0, 100% 0, 100% 100%, 0 100%)'
+                   }}>
+                <span className="font-black text-white text-[14px] uppercase tracking-wide pr-6">{invoice.invoice_number}</span>
+              </div>
+
+              {/* Green diagonal ribbon */}
+              <div className="absolute right-0 top-[105px] w-[85px] h-[95px] bg-[#1E8457] z-10"
+                   style={{
+                     clipPath: 'polygon(100% 0, 100% 100%, 0 0)'
+                   }}
+              />
+
+              {/* GST Text on the right */}
+              <div className="absolute left-[345px] top-[120px] text-[9px] text-black">
+                <span className="font-bold">GST: </span>
+                <span>{companyGst || '09TRFPS5497N1Z6'}</span>
+              </div>
+
+              {/* Content area */}
+              <div className="flex-grow flex flex-col justify-between" style={{ paddingTop: '145px', paddingLeft: '45px', paddingRight: '45px', paddingBottom: '90px' }}>
+                <div>
+                  {/* BILL TO */}
+                  <div className="mt-5 text-[10px] text-black leading-normal text-left">
+                    <p className="font-black text-[10px] tracking-wide mb-1 text-black">BILL TO:</p>
+                    <p className="text-black"><span className="font-bold">Customer Name: </span>{resolvedCustomer?.name || 'Client Name'}</p>
+                    {resolvedCustomer?.email && (
+                      <p className="text-black"><span className="font-bold">Customer Email: </span>{resolvedCustomer.email}</p>
+                    )}
+                  </div>
+
+                  {/* ITEMS TABLE */}
+                  <div className="mt-6">
+                    <table className="w-full border-collapse border border-black text-[10px] text-left" style={{ tableLayout: 'fixed' }}>
+                      <thead>
+                        <tr className="bg-[#4A15B7] text-white text-[10px] font-bold" style={{ height: '32px' }}>
+                          <th className="border border-black text-center" style={{ width: '50px' }}>ITEM</th>
+                          <th className="border border-black text-center" style={{ width: '255px' }}>DESCRIPTION</th>
+                          <th className="border border-black text-center" style={{ width: '65px' }}>GST (18%)</th>
+                          <th className="border border-black text-center" style={{ width: '65px' }}>AMOUNT</th>
+                          <th className="border border-black text-center" style={{ width: '70px' }}>TOTAL</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const items = invoice.invoice_items || [];
+                          const pmiFmt = (num, isSubTotal = false) => {
+                            const val = parseFloat(num) || 0;
+                            if (isSubTotal) {
+                              const str = val.toFixed(2);
+                              if (str.endsWith('.00')) return val.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                              return val.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                            }
+                            return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+                          };
+                          return items.map((item, rIdx) => {
+                            const isAlt = rIdx % 2 === 1;
+                            const isComp = item ? parseFloat(item.unit_price) === 0 : false;
+                            const getItemDisplayName = (itm) => {
+                              if (itm.course_type === 'Course' && itm.course_details) {
+                                const d = itm.course_details;
+                                if (d.course_name && d.mode && d.admission_type) {
+                                  return `${d.course_name} (${d.mode} - ${d.admission_type})`;
+                                }
+                              }
+                              return itm.program_name || '';
+                            };
+                            return (
+                              <tr key={rIdx} className="font-bold text-black border-b border-black" style={{ backgroundColor: isAlt ? '#F2F4F7' : '#FFFFFF', minHeight: '30px' }}>
+                                <td className="border border-black p-2 text-center">{String(rIdx + 1).padStart(2, '0')}</td>
+                                <td className="border border-black p-2 text-left leading-tight break-words">{getItemDisplayName(item)}</td>
+                                <td className="border border-black p-2 text-center">{isComp ? '-' : pmiFmt(item.gst_amount)}</td>
+                                <td className="border border-black p-2 text-center">{isComp ? '-' : pmiFmt(item.unit_price)}</td>
+                                <td className="border border-black p-2 text-center">{isComp ? 'Free' : pmiFmt(item.total_amount)}</td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* SUMMARY BOX */}
+                  {(() => {
+                    const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
+                    const preDiscTotal   = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
+                    const paidAmt        = (discountAmount > 0 && Math.abs((invoice.paid_amount || 0) - preDiscTotal) < 0.05)
+                      ? (invoice.paid_amount || 0) - discountAmount
+                      : (invoice.paid_amount || 0);
+                    const dueAmt         = Math.max(0, preDiscTotal - discountAmount - paidAmt);
+                    const pmiFmt = (num, isSubTotal = false) => {
+                      const val = parseFloat(num) || 0;
+                      if (isSubTotal) {
+                        const str = val.toFixed(2);
+                        if (str.endsWith('.00')) return val.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                        return val.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                      }
+                      return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+                    };
+                    return (
+                      <div className="flex justify-end mt-4 text-[9.5px] text-left">
+                        <div className="flex flex-col gap-2.5 w-[190px]">
+                          {/* Upper Box */}
+                          <div className="border border-black p-2 space-y-1.5 bg-white text-black font-bold">
+                            <div className="flex justify-between">
+                              <span>SUB <span className="border-b border-[#4A15B7] leading-none inline-block">TOTAL</span> :</span>
+                              <span className="font-bold">{pmiFmt(invoice.subtotal, true)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>TOTAL <span className="border-b border-[#4A15B7] leading-none inline-block">GST</span> :</span>
+                              <span className="font-bold">{pmiFmt(invoice.gst_amount)}</span>
+                            </div>
+                          </div>
+
+                          {/* Lower Box */}
+                          <div className="bg-[#1E8457] text-white p-2 space-y-1.5 font-bold">
+                            <div className="flex justify-between">
+                              <span><span className="border-b border-white leading-none inline-block">TOTAL</span> :</span>
+                              <span>{pmiFmt(invoice.total_amount)}</span>
+                            </div>
+                            {discountAmount > 0 && (
+                              <div className="flex justify-between">
+                                <span>DISCOUNT :</span>
+                                <span>-{pmiFmt(discountAmount)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between">
+                              <span><span className="border-b border-white leading-none inline-block">PAID</span> :</span>
+                              <span>{pmiFmt(paidAmt)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>DUE:</span>
+                              <span>{pmiFmt(dueAmt)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Footer */}
+              {(() => {
+                const companyPhone = '+91 7969325899';
+                const companyEmail = 'support@pmiservices.in';
+                const companyAddress1 = 'Sarkhej Gandhinagar Service Road Near Wide Angle Cinema Ramdev Nagar,';
+                const companyAddress2 = 'Satellite, Ahmedabad, Gujarat 380015';
+                return (
+                  <div className="absolute bottom-0 left-0 w-full h-[80px] text-white overflow-hidden z-10 text-left select-none">
+                    {/* Background SVG containing precise shapes matching coordinates exactly */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 595.276 80" preserveAspectRatio="none">
+                      {/* Main Purple Banner on Left */}
+                      <polygon points="0,0 440,0 387,80 0,80" fill="#4A15B7" />
+
+                      {/* Purple Corner Triangle on Bottom-Right */}
+                      <polygon points="475,80 595.276,80 595.276,15" fill="#4A15B7" />
+
+                      {/* Green Diagonal Strip */}
+                      <polygon points="455,80 475,80 595.276,15 595.276,0" fill="#1E8457" />
+
+                      {/* Orange Dome Shape */}
+                      <path d="M 448,80 L 448,55 A 27.5,27.5 0 0,1 503,55 L 503,80 Z" fill="#F19D12" />
+                    </svg>
+
+                    {/* Contact Info overlay */}
+                    <div className="absolute bottom-[8px] left-[45px] z-20 text-white flex flex-col justify-end text-left select-none">
+                      <p className="font-bold text-[10px] leading-none mb-1.5">{companyPhone} | {companyEmail}</p>
+                      <p className="text-[9.5px] leading-tight max-w-[345px] mb-1">
+                        <span className="font-bold">Address: </span>
+                        {companyAddress1}
+                      </p>
+                      <p className="text-[9.5px] leading-tight pl-[43px]">{companyAddress2}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
           ) : (
             <>
               <div>
@@ -598,11 +801,11 @@ export const InvoiceDetails = () => {
                     <div className="py-4 flex justify-between items-start text-xs" style={{ paddingLeft: `${eliteMarginX}px`, paddingRight: `${eliteMarginX}px` }}>
                       <div className="space-y-1">
                         <p className="font-extrabold text-[11px] uppercase tracking-wide" style={{ color: eliteLayout.colors.dark }}>BILL TO:</p>
-                        <p className="font-bold" style={{ color: eliteLayout.colors.dark }}>{resolvedCustomer?.name || 'Client Name'}</p>
+                        <p className="" style={{ color: eliteLayout.colors.dark }}>{resolvedCustomer?.name || 'Client Name'}</p>
                         {resolvedCustomer?.email && <p style={{ color: eliteLayout.colors.dark }}>{resolvedCustomer.email}</p>}
                         {resolvedCustomer?.phone && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">Phone: </span>{resolvedCustomer.phone}</p>}
                       </div>
-                      <div className="space-y-1 text-right">
+                      <div className="space-y-1 text-left">
                         {companyGst && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">GST: </span>{companyGst}</p>}
                         {companyCin && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">CIN: </span>{companyCin}</p>}
                       </div>
@@ -784,10 +987,10 @@ export const InvoiceDetails = () => {
                     <table className="w-full text-left border-collapse border" style={{ width: '100%', borderColor: themeKey === 'elite' ? eliteLayout.colors.border : '#e2e8f0' }}>
                       <thead>
                         {themeKey === 'elite' ? (
-                          <tr className="text-white text-xs font-bold" style={{ backgroundColor: eliteLayout.colors.dark, height: `${eliteLayout.table.headerHeight}px` }}>
-                            <th className="p-3 text-center" style={{ width: '45.5%', borderRight: '1px solid #2d3a5e' }}>ITEM</th>
-                            <th className="p-3 text-center" style={{ width: '18%', borderRight: '1px solid #2d3a5e' }}>Unit Price</th>
-                            <th className="p-3 text-center" style={{ width: '18%', borderRight: '1px solid #2d3a5e' }}>GST (18%)</th>
+                          <tr className="text-white text-xs font-bold" style={{ backgroundColor: eliteLayout.colors.primary, height: `${eliteLayout.table.headerHeight}px` }}>
+                            <th className="p-3 text-center" style={{ width: '45.5%', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>ITEM</th>
+                            <th className="p-3 text-center" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>Unit Price</th>
+                            <th className="p-3 text-center" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>GST (18%)</th>
                             <th className="p-3 text-center" style={{ width: '18.5%' }}>AMMOUNT</th>
                           </tr>
                         ) : themeKey === 'harvard' ? (
@@ -828,9 +1031,9 @@ export const InvoiceDetails = () => {
                                       {item.program_name}
                                       {renderItemDescription(item, true)}
                                     </td>
-                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '-' : formatNumber(item.unit_price)}</td>
-                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '-' : formatNumber(item.gst_amount)}</td>
-                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18.5%', verticalAlign: 'middle' }}>{isComp ? 'Free' : formatNumber(item.total_amount)}</td>
+                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '-' : `₹${formatNumber(item.unit_price)}`}</td>
+                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '-' : `₹${formatNumber(item.gst_amount)}`}</td>
+                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18.5%', verticalAlign: 'middle' }}>{isComp ? 'Free' : `₹${formatNumber(item.total_amount)}`}</td>
                                   </tr>
                                 );
                               }
@@ -891,11 +1094,11 @@ export const InvoiceDetails = () => {
                         <div className="p-3 space-y-2 rounded-none text-xs" style={{ border: `${eliteLayout.summary.borderThickness}px solid ${eliteLayout.colors.primary}`, color: eliteLayout.colors.dark }}>
                           <div className="flex justify-between">
                             <span className="font-bold">SUB TOTAL:</span>
-                            <span className="font-mono">{formatNumber(invoice.subtotal)}</span>
+                            <span className="font-mono">₹{formatNumber(invoice.subtotal)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="font-bold">TOTAL GST:</span>
-                            <span className="font-mono">{formatNumber(invoice.gst_amount)}</span>
+                            <span className="font-mono">₹{formatNumber(invoice.gst_amount)}</span>
                           </div>
                         </div>
 
@@ -903,21 +1106,21 @@ export const InvoiceDetails = () => {
                         <div className="text-white p-3 space-y-2 rounded-none text-xs" style={{ backgroundColor: eliteLayout.colors.primary }}>
                           <div className="flex justify-between">
                             <span className="font-bold">TOTAL:</span>
-                            <span className="font-mono">{formatNumber(invoice.total_amount)}</span>
+                            <span className="font-mono">₹{formatNumber(invoice.total_amount)}</span>
                           </div>
                           {discountAmount > 0 && (
                             <div className="flex justify-between text-yellow-300">
                               <span className="font-bold">DISCOUNT:</span>
-                              <span className="font-mono">-{formatNumber(discountAmount)}</span>
+                              <span className="font-mono">-₹{formatNumber(discountAmount)}</span>
                             </div>
                           )}
                           <div className="flex justify-between">
                             <span className="font-bold">PAID:</span>
-                            <span className="font-mono">{formatNumber(displayPaidAmount)}</span>
+                            <span className="font-mono">₹{formatNumber(displayPaidAmount)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="font-bold">DUE:</span>
-                            <span className="font-mono">{formatNumber(netBalance)}</span>
+                            <span className="font-mono">₹{formatNumber(netBalance)}</span>
                           </div>
                         </div>
                       </div>

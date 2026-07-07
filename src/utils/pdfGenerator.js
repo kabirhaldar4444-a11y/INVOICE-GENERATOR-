@@ -619,37 +619,52 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // ── BILL TO (left) + GST/CIN (right) ──────────────────────
       let billY = currentY;
-      drawTextHelper(page, 'BILL TO:', marginX, billY, { font: fontBold, size: 8.5, color: eDark });
-      billY -= 14;
+      drawTextHelper(page, 'BILL TO:', marginX, billY, { font: fontBold, size: 10, color: eDark });
+      billY -= 15;
       
       const customerNameVal = invoice.customers?.name || invoice.customer_name || 'Client Name';
-      drawTextHelper(page, customerNameVal, marginX, billY, { font: fontBold, size: 9, color: eDark });
-      billY -= 13;
+      drawTextHelper(page, customerNameVal, marginX, billY, { font: fontRegular, size: 10.5, color: eDark });
+      billY -= 14;
       
       if (invoice.customers?.email) {
-        drawTextHelper(page, invoice.customers.email, marginX, billY, { font: fontRegular, size: 9, color: eDark });
+        drawTextHelper(page, invoice.customers.email, marginX, billY, { font: fontRegular, size: 9.5, color: eDark });
         billY -= 13;
       }
       if (invoice.customers?.phone) {
-        drawTextHelper(page, 'Phone: ', marginX, billY, { font: fontBold, size: 8.5, color: eDark });
-        const phoneLabelW = fontBold.widthOfTextAtSize('Phone: ', 8.5);
-        drawTextHelper(page, invoice.customers.phone, marginX + phoneLabelW, billY, { font: fontRegular, size: 8.5, color: eMuted });
+        drawTextHelper(page, 'Phone: ', marginX, billY, { font: fontBold, size: 9.5, color: eDark });
+        const phoneLabelW = fontBold.widthOfTextAtSize('Phone: ', 9.5);
+        drawTextHelper(page, invoice.customers.phone, marginX + phoneLabelW, billY, { font: fontRegular, size: 9.5, color: eMuted });
       }
 
-      // GST + CIN on the right (right-aligned to the margin)
+      // GST + CIN on the right (left-aligned block positioned on the right)
       let infoY = currentY;
+      const gstLabel = 'GST: ';
+      const cinLabel = 'CIN: ';
       
-      const gstVal = companyGst;
-      const gstValW = fontRegular.widthOfTextAtSize(gstVal, 9);
-      drawTextHelper(page, gstVal, width - marginX, infoY, { font: fontRegular, size: 9, color: eDark, align: 'right' });
-      drawTextHelper(page, 'GST: ', width - marginX - gstValW, infoY, { font: fontBold, size: 9, color: eDark, align: 'right' });
-      infoY -= 14;
+      const gstLabelW = fontBold.widthOfTextAtSize(gstLabel, 10);
+      const gstValW = fontRegular.widthOfTextAtSize(companyGst || '', 10);
+      const gstTotalW = gstLabelW + gstValW;
       
+      let cinTotalW = 0;
+      let cinLabelW = 0;
       if (companyCin) {
-        const cinVal = companyCin;
-        const cinValW = fontRegular.widthOfTextAtSize(cinVal, 9);
-        drawTextHelper(page, cinVal, width - marginX, infoY, { font: fontRegular, size: 9, color: eDark, align: 'right' });
-        drawTextHelper(page, 'CIN: ', width - marginX - cinValW, infoY, { font: fontBold, size: 9, color: eDark, align: 'right' });
+        cinLabelW = fontBold.widthOfTextAtSize(cinLabel, 10);
+        const cinValW = fontRegular.widthOfTextAtSize(companyCin, 10);
+        cinTotalW = cinLabelW + cinValW;
+      }
+      
+      const maxInfoW = Math.max(gstTotalW, cinTotalW);
+      const infoStartX = width - marginX - maxInfoW;
+      
+      // Draw GST
+      drawTextHelper(page, gstLabel, infoStartX, infoY, { font: fontBold, size: 10, color: eDark, align: 'left' });
+      drawTextHelper(page, companyGst || '', infoStartX + gstLabelW, infoY, { font: fontRegular, size: 10, color: eDark, align: 'left' });
+      infoY -= 15;
+      
+      // Draw CIN
+      if (companyCin) {
+        drawTextHelper(page, cinLabel, infoStartX, infoY, { font: fontBold, size: 10, color: eDark, align: 'left' });
+        drawTextHelper(page, companyCin, infoStartX + cinLabelW, infoY, { font: fontRegular, size: 10, color: eDark, align: 'left' });
       }
 
       currentY = billY - 22;
@@ -658,17 +673,17 @@ export const generateInvoicePDF = async (invoice, settings) => {
       // Column widths match HTML preview: 45% | 18% | 18% | 19%
       const tableW  = width - marginX * 2;   // 505pt
       const colWs   = [230, 91, 91, 93];    // ITEM | Unit Price | GST(18%) | AMMOUNT
-      const hdrH    = 28;
+      const hdrH    = 32;
       const hdrLabels = ['ITEM', 'Unit Price', 'GST (18%)', 'AMMOUNT'];
 
       // Table outer top border
       page.drawLine({ start: { x: marginX, y: currentY }, end: { x: width - marginX, y: currentY }, color: eBorder, thickness: 0.8 });
 
-      // Header background — dark navy (matches HTML preview #101838)
+      // Header background — royal blue (matches HTML preview #2E41B4)
       page.drawRectangle({
         x: marginX, y: currentY - hdrH,
         width: tableW, height: hdrH,
-        color: eDark
+        color: eBlue
       });
 
       // Header labels (centered in each column)
@@ -676,12 +691,12 @@ export const generateInvoicePDF = async (invoice, settings) => {
       hdrLabels.forEach((lbl, i) => {
         const cw = colWs[i];
         const tx = hx + cw / 2;
-        drawTextHelper(page, lbl, tx, currentY - hdrH + 10, {
-          font: fontBold, size: 9.5, color: eWhite, align: 'center'
+        drawTextHelper(page, lbl, tx, currentY - hdrH + 11, {
+          font: fontBold, size: 10.5, color: eWhite, align: 'center'
         });
         // Header column divider
         if (i > 0) {
-          page.drawLine({ start: { x: hx, y: currentY }, end: { x: hx, y: currentY - hdrH }, color: rgb(45/255, 58/255, 94/255), thickness: 0.6 });
+          page.drawLine({ start: { x: hx, y: currentY }, end: { x: hx, y: currentY - hdrH }, color: eDark, thickness: 0.6 });
         }
         hx += cw;
       });
@@ -690,9 +705,9 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // ── DATA ROWS ──────────────────────────────────────────────
       const tableDataTop = currentY;
-      const rowH_default = 26;
-      const fontSize = 9;
-      const lineHeight = 11;
+      const rowH_default = 30;
+      const fontSize = 10.5;
+      const lineHeight = 13;
       const items = invoice.invoice_items || [];
       const MIN_ROWS = items.length; // only show rows with content
 
@@ -731,15 +746,15 @@ export const generateInvoicePDF = async (invoice, settings) => {
           cx += colWs[0];
 
           // Col 1: Unit Price
-          drawTextHelper(page, isComp ? '-' : eFmt(item.unit_price), cx + colWs[1] / 2, cellY, { font: fontBold, size: fontSize, color: eDark, align: 'center' });
+          drawTextHelper(page, isComp ? '-' : `₹${eFmt(item.unit_price)}`, cx + colWs[1] / 2, cellY, { font: fontBold, size: fontSize, color: eDark, align: 'center' });
           cx += colWs[1];
 
           // Col 2: GST
-          drawTextHelper(page, isComp ? '-' : eFmt(item.gst_amount), cx + colWs[2] / 2, cellY, { font: fontBold, size: fontSize, color: eDark, align: 'center' });
+          drawTextHelper(page, isComp ? '-' : `₹${eFmt(item.gst_amount)}`, cx + colWs[2] / 2, cellY, { font: fontBold, size: fontSize, color: eDark, align: 'center' });
           cx += colWs[2];
 
           // Col 3: Amount
-          drawTextHelper(page, isComp ? 'Free' : eFmt(item.total_amount), cx + colWs[3] / 2, cellY, { font: fontBold, size: fontSize, color: eDark, align: 'center' });
+          drawTextHelper(page, isComp ? 'Free' : `₹${eFmt(item.total_amount)}`, cx + colWs[3] / 2, cellY, { font: fontBold, size: fontSize, color: eDark, align: 'center' });
         }
 
         // Row bottom border
@@ -775,40 +790,38 @@ export const generateInvoicePDF = async (invoice, settings) => {
       let totY    = currentY - 16;
 
       // ── Box 1: Bordered — SUB TOTAL + TOTAL GST ───────────────
-      const box1H = 44;
+      const box1H = 50;
       const box1Y = totY - box1H;
       page.drawRectangle({
         x: boxX, y: box1Y, width: boxW, height: box1H,
         borderColor: eBlue, borderWidth: 1.2, color: eWhite
       });
-      // Internal divider line
-      page.drawLine({ start: { x: boxX, y: box1Y + box1H / 2 }, end: { x: boxX + boxW, y: box1Y + box1H / 2 }, color: eBorder, thickness: 0.6 });
       // Row 1: SUB TOTAL
-      drawTextHelper(page, 'SUB TOTAL:', boxX + 10, box1Y + 29, { font: fontBold, size: 8.5, color: eDark });
-      drawTextHelper(page, eFmt(invoice.subtotal), boxX + boxW - 10, box1Y + 29, { font: fontRegular, size: 8.5, color: eDark, align: 'right' });
+      drawTextHelper(page, 'SUB TOTAL:', boxX + 10, box1Y + 33, { font: fontBold, size: 9.5, color: eDark });
+      drawTextHelper(page, `₹${eFmt(invoice.subtotal)}`, boxX + boxW - 10, box1Y + 33, { font: fontRegular, size: 9.5, color: eDark, align: 'right' });
       // Row 2: TOTAL GST
-      drawTextHelper(page, 'TOTAL GST:', boxX + 10, box1Y + 12, { font: fontBold, size: 8.5, color: eDark });
-      drawTextHelper(page, eFmt(invoice.gst_amount), boxX + boxW - 10, box1Y + 12, { font: fontRegular, size: 8.5, color: eDark, align: 'right' });
+      drawTextHelper(page, 'TOTAL GST:', boxX + 10, box1Y + 13, { font: fontBold, size: 9.5, color: eDark });
+      drawTextHelper(page, `₹${eFmt(invoice.gst_amount)}`, boxX + boxW - 10, box1Y + 13, { font: fontRegular, size: 9.5, color: eDark, align: 'right' });
 
       totY = box1Y - 10;
 
       // ── Box 2: Solid Royal Blue — TOTAL / (DISCOUNT) / PAID / DUE ─────
       const box2Rows = [
-        { label: 'TOTAL:', val: eFmt(invoice.total_amount) },
-        ...(discountAmount > 0 ? [{ label: 'DISCOUNT:', val: `-${eFmt(discountAmount)}`, highlight: true }] : []),
-        { label: 'PAID:', val: eFmt(paidAmt) },
-        { label: 'DUE:', val: eFmtZeroAsPadded(dueAmt) }
+        { label: 'TOTAL:', val: `₹${eFmt(invoice.total_amount)}` },
+        ...(discountAmount > 0 ? [{ label: 'DISCOUNT:', val: `-₹${eFmt(discountAmount)}`, highlight: true }] : []),
+        { label: 'PAID:', val: `₹${eFmt(paidAmt)}` },
+        { label: 'DUE:', val: `₹${eFmtZeroAsPadded(dueAmt)}` }
       ];
-      const box2H = box2Rows.length * 19;
+      const box2H = box2Rows.length * 22;
       const box2Y = totY - box2H;
       page.drawRectangle({ x: boxX, y: box2Y, width: boxW, height: box2H, color: eBlue });
 
       const row2H = box2H / box2Rows.length;
       box2Rows.forEach((row, i) => {
-        const ry = box2Y + box2H - (i + 1) * row2H + row2H / 2 - 4;
+        const ry = box2Y + box2H - (i + 1) * row2H + row2H / 2 - 4.5;
         const valColor = row.highlight ? rgb(255/255, 220/255, 80/255) : eWhite;
-        drawTextHelper(page, row.label, boxX + 10, ry, { font: fontBold, size: 8.5, color: eWhite });
-        drawTextHelper(page, row.val, boxX + boxW - 10, ry, { font: fontRegular, size: 8.5, color: valColor, align: 'right' });
+        drawTextHelper(page, row.label, boxX + 10, ry, { font: fontBold, size: 9.5, color: eWhite });
+        drawTextHelper(page, row.val, boxX + boxW - 10, ry, { font: fontRegular, size: 9.5, color: valColor, align: 'right' });
       });
 
       currentY = box2Y - 16;
@@ -830,25 +843,25 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // ── LEFT COLUMN: Phone / Email / Web ──────────────────────
       const footerTop = footerH - 16;  // start from top of footer
-      const lineGap = 14;
+      const lineGap = 18;
 
       // Phone
       drawTextHelper(page, `Phone: ${companyPhone}`, marginX, footerTop, {
-        font: fontBold, size: 8.5, color: eWhite
+        font: fontBold, size: 10, color: eWhite
       });
 
       // Email with underline
       drawTextHelper(page, `Email:`, marginX, footerTop - lineGap, {
-        font: fontBold, size: 8.5, color: eWhite
+        font: fontBold, size: 10, color: eWhite
       });
-      const emailLabelW = fontBold.widthOfTextAtSize('Email: ', 8.5);
+      const emailLabelW = fontBold.widthOfTextAtSize('Email: ', 10);
       drawTextHelper(page, companyEmail, marginX + emailLabelW, footerTop - lineGap, {
-        font: fontBold, size: 8.5, color: eWhite
+        font: fontBold, size: 10, color: eWhite
       });
-      const emailTxtW = fontBold.widthOfTextAtSize(companyEmail, 8.5);
+      const emailTxtW = fontBold.widthOfTextAtSize(companyEmail, 10);
       page.drawLine({
-        start: { x: marginX + emailLabelW, y: footerTop - lineGap - 1.5 },
-        end:   { x: marginX + emailLabelW + emailTxtW, y: footerTop - lineGap - 1.5 },
+        start: { x: marginX + emailLabelW, y: footerTop - lineGap - 2 },
+        end:   { x: marginX + emailLabelW + emailTxtW, y: footerTop - lineGap - 2 },
         color: eWhite, thickness: 0.7
       });
       // Register clickable mailto link in PDF
@@ -857,16 +870,16 @@ export const generateInvoicePDF = async (invoice, settings) => {
       // Web
       if (companyWebsite) {
         drawTextHelper(page, `Web: ${companyWebsite}`, marginX, footerTop - lineGap * 2, {
-          font: fontBold, size: 8.5, color: eWhite
+          font: fontBold, size: 10, color: eWhite
         });
-        const webLabelW = fontBold.widthOfTextAtSize('Web: ', 8.5);
-        const webTxtW = fontBold.widthOfTextAtSize(companyWebsite, 8.5);
+        const webLabelW = fontBold.widthOfTextAtSize('Web: ', 10);
+        const webTxtW = fontBold.widthOfTextAtSize(companyWebsite, 10);
         const webUrl = companyWebsite.startsWith('http') ? companyWebsite : `https://${companyWebsite}`;
         
         // Underline web link
         page.drawLine({
-          start: { x: marginX + webLabelW, y: footerTop - lineGap * 2 - 1.5 },
-          end:   { x: marginX + webLabelW + webTxtW, y: footerTop - lineGap * 2 - 1.5 },
+          start: { x: marginX + webLabelW, y: footerTop - lineGap * 2 - 2 },
+          end:   { x: marginX + webLabelW + webTxtW, y: footerTop - lineGap * 2 - 2 },
           color: eWhite, thickness: 0.7
         });
         
@@ -898,11 +911,372 @@ export const generateInvoicePDF = async (invoice, settings) => {
     // ── end Elite dedicated path ──────────────────────────────────
 
     // ============================================================
+    // ===  PMI SERVICES PMIS — EXACT 1:1 REPLICATION  ===========
+    // ============================================================
+    if (themeKey === 'pmi') {
+      const pmiPurple = rgb(74/255, 21/255, 183/255);    // #4A15B7
+      const pmiOrange = rgb(241/255, 157/255, 18/255);   // #F19D12
+      const pmiGreen  = rgb(30/255, 132/255, 87/255);    // #1E8457
+      const pmiBlack  = rgb(0, 0, 0);                    // #000000
+      const pmiWhite  = rgb(1, 1, 1);                    // #FFFFFF
+      const pmiLightBg = rgb(242/255, 244/255, 247/255); // #F2F4F7 alternating rows
+      const pmiFmt = (num, isSubTotal = false) => {
+        const val = parseFloat(num) || 0;
+        if (isSubTotal) {
+          const str = val.toFixed(2);
+          if (str.endsWith('.00')) return val.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+          return val.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        }
+        return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+      };
+
+      // ── TOP ACCENTS ─────────────────────────────────────────────
+      // Purple top strip
+      drawPolygonHelper(page, [
+        { x: 0, y: height },
+        { x: width * 0.48, y: height },
+        { x: width * 0.43, y: height - 18 },
+        { x: 0, y: height - 18 }
+      ], { color: pmiPurple });
+
+      // PMI Shield Logo
+      if (logoImage) {
+        page.drawImage(logoImage, {
+          x: marginX,
+          y: height - 110,
+          width: 75,
+          height: 75
+        });
+      }
+      drawTextHelper(page, 'PMI', marginX + 37.5, height - 130, { font: fontBold, size: 18, color: pmiPurple, align: 'center' });
+
+      // Purple polygon behind "INVOICE"
+      drawPolygonHelper(page, [
+        { x: width * 0.65, y: height },
+        { x: width, y: height },
+        { x: width, y: height - 75 },
+        { x: width * 0.53, y: height - 75 }
+      ], { color: pmiPurple });
+
+      drawTextHelper(page, 'INVOICE', width - 85, height - 48, { font: fontBold, size: 32, color: pmiWhite, align: 'center' });
+
+      // Orange invoice ribbon
+      drawPolygonHelper(page, [
+        { x: width * 0.63, y: height - 75 },
+        { x: width, y: height - 75 },
+        { x: width, y: height - 105 },
+        { x: width * 0.57, y: height - 105 }
+      ], { color: pmiOrange });
+
+      drawTextHelper(page, invoice.invoice_number, width - 90, height - 96, { font: fontBold, size: 14, color: pmiWhite, align: 'center' });
+
+      // Green diagonal ribbon
+      drawPolygonHelper(page, [
+        { x: width, y: height - 105 },
+        { x: width, y: height - 200 },
+        { x: width - 85, y: height - 105 }
+      ], { color: pmiGreen });
+
+      // GST Text on the right
+      const gstLabelText = 'GST: ';
+      const gstValText = companyGst || '09TRFPS5497N1Z6';
+      drawTextHelper(page, gstLabelText, width * 0.58, height - 120, { font: fontBold, size: 9, color: pmiBlack });
+      const pmiGstLabelW = fontBold.widthOfTextAtSize(gstLabelText, 9);
+      drawTextHelper(page, gstValText, width * 0.58 + pmiGstLabelW, height - 120, { font: fontRegular, size: 9, color: pmiBlack });
+
+      let currentY = height - 145;
+
+      // ── BILL TO SECTION ─────────────────────────────────────────
+      let clientY = currentY - 20;
+      drawTextHelper(page, 'BILL TO:', marginX, clientY, { font: fontBold, size: 10, color: pmiBlack });
+      clientY -= 15;
+      
+      const cNameLabel = 'Customer Name: ';
+      const cNameVal = invoice.customers?.name || invoice.customer_name || 'Client Name';
+      drawTextHelper(page, cNameLabel, marginX, clientY, { font: fontBold, size: 10, color: pmiBlack });
+      const cNameLabelW = fontBold.widthOfTextAtSize(cNameLabel, 10);
+      drawTextHelper(page, cNameVal, marginX + cNameLabelW, clientY, { font: fontRegular, size: 10, color: pmiBlack });
+      clientY -= 15;
+      
+      if (invoice.customers?.email) {
+        const cEmailLabel = 'Customer Email: ';
+        const cEmailVal = invoice.customers.email;
+        drawTextHelper(page, cEmailLabel, marginX, clientY, { font: fontBold, size: 10, color: pmiBlack });
+        const cEmailLabelW = fontBold.widthOfTextAtSize(cEmailLabel, 10);
+        drawTextHelper(page, cEmailVal, marginX + cEmailLabelW, clientY, { font: fontRegular, size: 10, color: pmiBlack });
+        clientY -= 15;
+      }
+
+      // ── ITEMS TABLE ────────────────────────────────────────────
+      let tableY = clientY - 15;
+      const colWs = [50, 255, 65, 65, 70];
+      const tableW = width - marginX * 2;
+      const hdrH = 32;
+      
+      // Header background
+      page.drawRectangle({
+        x: marginX, y: tableY - hdrH,
+        width: tableW, height: hdrH,
+        color: pmiPurple
+      });
+      
+      // Table outer top border
+      page.drawLine({ start: { x: marginX, y: tableY }, end: { x: width - marginX, y: tableY }, color: pmiBlack, thickness: 1 });
+      
+      // Header texts
+      let hx = marginX;
+      const hdrLabels = ['ITEM', 'DESCRIPTION', 'GST (18%)', 'AMOUNT', 'TOTAL'];
+      hdrLabels.forEach((lbl, i) => {
+        const cw = colWs[i];
+        const tx = hx + cw / 2;
+        drawTextHelper(page, lbl, tx, tableY - hdrH + 11, {
+          font: fontBold, size: 10, color: pmiWhite, align: 'center'
+        });
+        // Header vertical dividers (black borders)
+        if (i > 0) {
+          page.drawLine({ start: { x: hx, y: tableY }, end: { x: hx, y: tableY - hdrH }, color: pmiBlack, thickness: 1 });
+        }
+        hx += cw;
+      });
+      
+      tableY -= hdrH;
+
+      // Data rows
+      const items = invoice.invoice_items || [];
+      const rowH_default = 30;
+      const fontSize = 10;
+      const lineHeight = 13;
+      
+      for (let rIdx = 0; rIdx < items.length; rIdx++) {
+        const item = items[rIdx];
+        let rowHeight = rowH_default;
+        
+        const wrappedLines = wrapText(getItemDisplayName(item), fontBold, fontSize, colWs[1] - 16);
+        const lineCount = wrappedLines.length;
+        rowHeight = Math.max(rowH_default, lineCount * lineHeight + 14); // 7pt padding top/bottom
+        
+        const isAlt = rIdx % 2 === 1;
+        const rowBg = isAlt ? pmiLightBg : pmiWhite;
+        
+        // Draw row background
+        page.drawRectangle({
+          x: marginX, y: tableY - rowHeight,
+          width: tableW, height: rowHeight,
+          color: rowBg
+        });
+        
+        const isComp = item ? parseFloat(item.unit_price) === 0 : false;
+        const cellY = tableY - rowHeight / 2 - fontSize / 2 + 1;
+        
+        let cx = marginX;
+        
+        // Col 0: ITEM number
+        const itemNoStr = String(rIdx + 1).padStart(2, '0');
+        drawTextHelper(page, itemNoStr, cx + colWs[0] / 2, cellY, { font: fontBold, size: fontSize, color: pmiBlack, align: 'center' });
+        cx += colWs[0];
+        
+        // Col 1: DESCRIPTION
+        const totalTextHeight = (lineCount - 1) * lineHeight + fontSize;
+        const startY = tableY - (rowHeight - totalTextHeight) / 2 - fontSize;
+        wrappedLines.forEach((lineText, lIdx) => {
+          const lineY = startY - lIdx * lineHeight;
+          drawTextHelper(page, lineText, cx + 8, lineY, {
+            font: fontBold,
+            size: fontSize,
+            color: pmiBlack,
+            align: 'left',
+            width: colWs[1] - 16
+          });
+        });
+        cx += colWs[1];
+        
+        // Col 2: GST (18%) (centered)
+        const gstVal = isComp ? '-' : pmiFmt(item.gst_amount);
+        drawTextHelper(page, gstVal, cx + colWs[2] / 2, cellY, { font: fontBold, size: fontSize, color: pmiBlack, align: 'center' });
+        cx += colWs[2];
+        
+        // Col 3: AMOUNT (centered)
+        const amtVal = isComp ? '-' : pmiFmt(item.unit_price);
+        drawTextHelper(page, amtVal, cx + colWs[3] / 2, cellY, { font: fontBold, size: fontSize, color: pmiBlack, align: 'center' });
+        cx += colWs[3];
+        
+        // Col 4: TOTAL (centered)
+        const totVal = isComp ? 'Free' : pmiFmt(item.total_amount);
+        drawTextHelper(page, totVal, cx + colWs[4] / 2, cellY, { font: fontBold, size: fontSize, color: pmiBlack, align: 'center' });
+        
+        // Row bottom border
+        page.drawLine({ start: { x: marginX, y: tableY - rowHeight }, end: { x: width - marginX, y: tableY - rowHeight }, color: pmiBlack, thickness: 1 });
+        
+        tableY -= rowHeight;
+      }
+      
+      // Draw vertical cell border lines
+      const tableBottom = tableY;
+      const tableTop = clientY - 15;
+      let vx = marginX;
+      colWs.forEach((cw, i) => {
+        vx += cw;
+        page.drawLine({ start: { x: vx, y: tableTop }, end: { x: vx, y: tableBottom }, color: pmiBlack, thickness: 1 });
+      });
+      page.drawLine({ start: { x: marginX, y: tableTop }, end: { x: marginX, y: tableBottom }, color: pmiBlack, thickness: 1 });
+
+      // ── TOTALS ─────────────────────────────────────────────────
+      const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
+      const preDiscTotal   = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
+      const paidAmt        = (discountAmount > 0 && Math.abs((invoice.paid_amount || 0) - preDiscTotal) < 0.05)
+        ? (invoice.paid_amount || 0) - discountAmount
+        : (invoice.paid_amount || 0);
+      const dueAmt         = Math.max(0, preDiscTotal - discountAmount - paidAmt);
+
+      const boxW  = 190;
+      const boxX  = width - marginX - boxW;
+      let totY    = tableY - 15;
+
+      // Box 1: Bordered SUB TOTAL + TOTAL GST
+      const box1H = 50;
+      const box1Y = totY - box1H;
+      page.drawRectangle({
+        x: boxX, y: box1Y, width: boxW, height: box1H,
+        borderColor: pmiBlack, borderWidth: 1, color: pmiWhite
+      });
+
+      const row1FontSz = 9.5;
+      const val1FontSz = 9.5;
+
+      // Row 1: SUB TOTAL
+      drawTextHelper(page, 'SUB TOTAL :', boxX + 10, box1Y + 33, { font: fontBold, size: row1FontSz, color: pmiBlack });
+      drawTextHelper(page, pmiFmt(invoice.subtotal, true), boxX + boxW - 10, box1Y + 33, { font: fontBold, size: val1FontSz, color: pmiBlack, align: 'right' });
+      
+      // Underline TOTAL in SUB TOTAL
+      const subWidth = fontBold.widthOfTextAtSize('SUB ', row1FontSz);
+      const totalWidth = fontBold.widthOfTextAtSize('TOTAL', row1FontSz);
+      page.drawLine({
+        start: { x: boxX + 10 + subWidth, y: box1Y + 31.5 },
+        end: { x: boxX + 10 + subWidth + totalWidth, y: box1Y + 31.5 },
+        color: pmiPurple,
+        thickness: 0.8
+      });
+
+      // Row 2: TOTAL GST
+      drawTextHelper(page, 'TOTAL GST :', boxX + 10, box1Y + 13, { font: fontBold, size: row1FontSz, color: pmiBlack });
+      drawTextHelper(page, pmiFmt(invoice.gst_amount), boxX + boxW - 10, box1Y + 13, { font: fontBold, size: val1FontSz, color: pmiBlack, align: 'right' });
+      
+      // Underline GST in TOTAL GST
+      const totalLblWidth = fontBold.widthOfTextAtSize('TOTAL ', row1FontSz);
+      const gstWidth = fontBold.widthOfTextAtSize('GST', row1FontSz);
+      page.drawLine({
+        start: { x: boxX + 10 + totalLblWidth, y: box1Y + 11.5 },
+        end: { x: boxX + 10 + totalLblWidth + gstWidth, y: box1Y + 11.5 },
+        color: pmiPurple,
+        thickness: 0.8
+      });
+
+      totY = box1Y - 10;
+
+      // Box 2: Solid Green — TOTAL / DISCOUNT / PAID / DUE
+      const box2Rows = [
+        { label: 'TOTAL :', val: pmiFmt(invoice.total_amount), underlineWord: 'TOTAL' },
+        ...(discountAmount > 0 ? [{ label: 'DISCOUNT :', val: `-${pmiFmt(discountAmount)}` }] : []),
+        { label: 'PAID :', val: pmiFmt(paidAmt), underlineWord: 'PAID' },
+        { label: 'DUE:', val: pmiFmt(dueAmt) }
+      ];
+      
+      const box2H = box2Rows.length * 22;
+      const box2Y = totY - box2H;
+      page.drawRectangle({ x: boxX, y: box2Y, width: boxW, height: box2H, color: pmiGreen });
+
+      const row2H = box2H / box2Rows.length;
+      box2Rows.forEach((row, i) => {
+        const ry = box2Y + box2H - (i + 1) * row2H + row2H / 2 - 4.5;
+        drawTextHelper(page, row.label, boxX + 10, ry, { font: fontBold, size: 9.5, color: pmiWhite });
+        drawTextHelper(page, row.val, boxX + boxW - 10, ry, { font: fontBold, size: 9.5, color: pmiWhite, align: 'right' });
+        
+        if (row.underlineWord) {
+          let startUnderlineX = boxX + 10;
+          if (row.underlineWord === 'PAID') {
+            // no offset
+          }
+          const wordW = fontBold.widthOfTextAtSize(row.underlineWord, 9.5);
+          page.drawLine({
+            start: { x: startUnderlineX, y: ry - 1.5 },
+            end: { x: startUnderlineX + wordW, y: ry - 1.5 },
+            color: pmiWhite,
+            thickness: 0.8
+          });
+        }
+      });
+
+      // ── FOOTER ─────────────────────────────────────────────────
+      const footerH = 80;
+
+      // Draw Main Purple Banner on Left
+      drawPolygonHelper(page, [
+        { x: 0, y: 0 },
+        { x: 0, y: 80 },
+        { x: 440, y: 80 },
+        { x: 387, y: 0 }
+      ], { color: pmiPurple });
+
+      // Draw Purple Corner Triangle on Bottom-Right
+      drawPolygonHelper(page, [
+        { x: 475, y: 0 },
+        { x: width, y: 0 },
+        { x: width, y: 65 }
+      ], { color: pmiPurple });
+
+      // Draw Green Diagonal Strip
+      drawPolygonHelper(page, [
+        { x: 455, y: 0 },
+        { x: 475, y: 0 },
+        { x: width, y: 65 },
+        { x: width, y: 80 }
+      ], { color: pmiGreen });
+
+      // Draw Orange Dome Shape
+      page.drawRectangle({
+        x: 448,
+        y: 0,
+        width: 55,
+        height: 25,
+        color: pmiOrange
+      });
+      page.drawCircle({
+        x: 475.5,
+        y: 25,
+        radius: 27.5,
+        color: pmiOrange
+      });
+
+      const footerContactTop = 52;
+      const companyPhone = '+91 7969325899';
+      const companyEmail = 'support@pmiservices.in';
+      const companyAddress1 = 'Sarkhej Gandhinagar Service Road Near Wide Angle Cinema Ramdev Nagar,';
+      const companyAddress2 = 'Satellite, Ahmedabad, Gujarat 380015';
+
+      // Phone + Email
+      drawTextHelper(page, `${companyPhone} | ${companyEmail}`, marginX, footerContactTop, {
+        font: fontBold, size: 10, color: pmiWhite
+      });
+
+      // Address
+      const addrLabel = 'Address: ';
+      drawTextHelper(page, addrLabel, marginX, 34, { font: fontBold, size: 9.5, color: pmiWhite });
+      const addrLabelW = fontBold.widthOfTextAtSize(addrLabel, 9.5);
+      drawTextHelper(page, companyAddress1, marginX + addrLabelW, 34, { font: fontRegular, size: 9.5, color: pmiWhite });
+      drawTextHelper(page, companyAddress2, marginX, 18, { font: fontRegular, size: 9.5, color: pmiWhite });
+
+      const pdfBytes = await pdfDoc.save();
+      return pdfBytes;
+    }
+
+    // ── end PMI dedicated path ────────────────────────────────────
+
+    // ============================================================
     // --- ISUCCESSNODE DEDICATED LAYOUT (matches reference image) ---
     // ============================================================
     if (themeKey === 'isuccessnode') {
       const isn_dark = rgb(0, 0, 0);         // Black text
-      const isn_muted = rgb(80/255, 80/255, 80/255); // Dark gray
+      const isn_muted = rgb(100/255, 116/255, 139/255); // Slate-500 to match CSS text-slate-500
       const isn_border = rgb(0, 0, 0);       // Black border lines
       const isn_headerBg = rgb(188/255, 224/255, 253/255); // Light blue table header (#BCE0FD)
 
@@ -931,26 +1305,20 @@ export const generateInvoicePDF = async (invoice, settings) => {
       }
 
       y -= 38;
-      drawTextHelper(page, `Invoice Number: ${invoice.invoice_number}`, lx, y, { font: fontRegular, size: 12, color: isn_muted });
+      drawTextHelper(page, `Invoice Number: ${invoice.invoice_number}`, lx, y, { font: fontRegular, size: 10.5, color: isn_muted });
       y -= 14;
-      drawTextHelper(page, `Invoice Date: ${formatDate(invoice.invoice_date)}`, lx, y, { font: fontRegular, size: 12, color: isn_muted });
+      drawTextHelper(page, `Invoice Date: ${formatDate(invoice.invoice_date)}`, lx, y, { font: fontRegular, size: 10.5, color: isn_muted });
 
       y -= 30;
 
       // --- TWO BORDERED ADDRESS BOXES ---
-      const boxPad = 10;
+      const boxPad = 12;
       const halfW = (rx - lx - 20) / 2;
       const leftBoxX = lx;
       const rightBoxX = lx + halfW + 20;
 
-      // Measure left box height
-      let lLines = 0;
-      lLines += 1; // company name
-      if (companyPhone) lLines++;
-      if (companyWebsite) lLines++;
-      if (companyGst) lLines++;
-      if (companyEmail) lLines++;
-      const boxH = Math.max(lLines * 14 + boxPad * 2 + 16, 80);
+      // Fixed height matching CSS min-h-[110px] (~83pt)
+      const boxH = 85;
 
       // Draw left box border
       page.drawRectangle({ x: leftBoxX, y: y - boxH, width: halfW, height: boxH, borderColor: isn_border, borderWidth: 1, color: rgb(1,1,1) });
@@ -958,44 +1326,44 @@ export const generateInvoicePDF = async (invoice, settings) => {
       page.drawRectangle({ x: rightBoxX, y: y - boxH, width: halfW, height: boxH, borderColor: isn_border, borderWidth: 1, color: rgb(1,1,1) });
 
       // Left box content: Company info
-      let leftY = y - boxPad - 4;
-      drawTextHelper(page, companyNameText, leftBoxX + boxPad, leftY, { font: fontBold, size: 13, color: isn_dark });
-      leftY -= 14;
+      let leftY = y - boxPad - 3;
+      drawTextHelper(page, companyNameText, leftBoxX + boxPad, leftY, { font: fontBold, size: 12.5, color: isn_dark });
+      leftY -= 16;
       if (companyPhone) {
-        drawTextHelper(page, companyPhone, leftBoxX + boxPad, leftY, { font: fontRegular, size: 11.5, color: isn_muted });
-        leftY -= 12;
+        drawTextHelper(page, companyPhone, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
+        leftY -= 13;
       }
       if (companyWebsite) {
-        drawTextHelper(page, companyWebsite, leftBoxX + boxPad, leftY, { font: fontRegular, size: 11.5, color: isn_muted });
-        leftY -= 12;
+        drawTextHelper(page, companyWebsite, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
+        leftY -= 13;
       }
       if (companyGst) {
-        drawTextHelper(page, `GST: ${companyGst}`, leftBoxX + boxPad, leftY, { font: fontRegular, size: 11.5, color: isn_muted });
-        leftY -= 12;
+        drawTextHelper(page, `GST: ${companyGst}`, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
+        leftY -= 13;
       }
       if (companyEmail) {
-        drawTextHelper(page, companyEmail, leftBoxX + boxPad, leftY, { font: fontRegular, size: 11.5, color: isn_muted });
+        drawTextHelper(page, companyEmail, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
       }
 
       // Right box content: Bill To
-      let rightY = y - boxPad - 4;
-      drawTextHelper(page, 'BILL TO', rightBoxX + boxPad, rightY, { font: fontBold, size: 13, color: isn_dark });
+      let rightY = y - boxPad - 3;
+      drawTextHelper(page, 'BILL TO', rightBoxX + boxPad, rightY, { font: fontBold, size: 12.5, color: isn_dark });
+      rightY -= 16;
+      drawTextHelper(page, invoice.customers?.name || 'Client Name', rightBoxX + boxPad, rightY, { font: fontRegular, size: 11, color: isn_dark });
       rightY -= 14;
-      drawTextHelper(page, invoice.customers?.name || 'Client Name', rightBoxX + boxPad, rightY, { font: fontRegular, size: 12, color: isn_muted });
-      rightY -= 12;
       if (invoice.customers?.email) {
-        drawTextHelper(page, invoice.customers.email, rightBoxX + boxPad, rightY, { font: fontRegular, size: 11.5, color: isn_muted });
-        rightY -= 12;
+        drawTextHelper(page, invoice.customers.email, rightBoxX + boxPad, rightY, { font: fontRegular, size: 10, color: isn_muted });
+        rightY -= 13;
       }
       if (invoice.customers?.phone) {
-        drawTextHelper(page, invoice.customers.phone, rightBoxX + boxPad, rightY, { font: fontRegular, size: 11.5, color: isn_muted });
+        drawTextHelper(page, invoice.customers.phone, rightBoxX + boxPad, rightY, { font: fontRegular, size: 10, color: isn_muted });
       }
 
       y -= boxH + 25;
 
       // --- ITEMS TABLE ---
       const tableW = rx - lx;
-      const colW = [220, 90, 75, 120]; // Program Name | Unit Price | GST (18%) | Amount (INR)
+      const colW = [227, 91, 76, 111]; // Program Name (45%) | Unit Price (18%) | GST (15%) | Amount (22%)
       const tHeaders = ['Program Name', 'Unit Price', 'GST (18%)', 'Amount (INR)'];
       const tHdrH = 22;
       const tableTopY = y;
@@ -1009,7 +1377,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         const cw = colW[i];
         const isRight = i > 0;
         const tx = isRight ? hx + cw - 8 : hx + 8;
-        drawTextHelper(page, h, tx, y - tHdrH + 7, { font: fontBold, size: 11.5, color: isn_dark, align: isRight ? 'right' : 'left' });
+        drawTextHelper(page, h, tx, y - tHdrH + 7, { font: fontBold, size: 10.5, color: isn_dark, align: isRight ? 'right' : 'left' });
         hx += cw;
       });
 
@@ -1022,38 +1390,57 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       const items = invoice.invoice_items || [];
       const issnFmt = (num) => new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(num) || 0);
-      const rowH = 24;
-
       items.forEach((item) => {
         const isComp = parseFloat(item.unit_price) === 0;
         let cx = lx;
-        const cellY = y - rowH + 8;
 
-        // Col 0: Program Name
-        drawTextHelper(page, getItemDisplayName(item), cx + 8, cellY, { font: fontRegular, size: 12, color: isn_dark, width: colW[0] - 16 });
+        // Parse description (may be stored as JSON or plain string)
+        let displayDesc = '';
+        if (item.description) {
+          try {
+            if (item.description.startsWith('{') && item.description.endsWith('}')) {
+              const parsedDesc = JSON.parse(item.description);
+              displayDesc = parsedDesc.text || '';
+            } else {
+              displayDesc = item.description;
+            }
+          } catch (e) {
+            displayDesc = item.description;
+          }
+          displayDesc = displayDesc.trim();
+        }
+
+        const hasDesc = displayDesc !== '';
+        const currentRowH = hasDesc ? 36 : 24;
+        const cellY = y - currentRowH / 2 - 4;
+
+        // Col 0: Program Name + optional description on second line
+        if (hasDesc) {
+          drawTextHelper(page, item.program_name, cx + 8, y - 14, { font: fontRegular, size: 10.5, color: isn_dark });
+          drawTextHelper(page, `(${displayDesc})`, cx + 8, y - 26, { font: fontRegular, size: 9.5, color: isn_muted });
+        } else {
+          drawTextHelper(page, item.program_name, cx + 8, cellY, { font: fontRegular, size: 10.5, color: isn_dark });
+        }
         cx += colW[0];
 
         // Col 1: Unit Price
         const upTxt = isComp ? '' : `₹${issnFmt(item.unit_price)}`;
-        drawTextHelper(page, upTxt, cx + colW[1] - 8, cellY, { font: fontRegular, size: 12, color: isn_dark, align: 'right' });
+        drawTextHelper(page, upTxt, cx + colW[1] - 8, cellY, { font: fontRegular, size: 10.5, color: isn_dark, align: 'right' });
         cx += colW[1];
 
         // Col 2: GST
         const gstTxt = isComp ? '' : `₹${issnFmt(item.gst_amount)}`;
-        drawTextHelper(page, gstTxt, cx + colW[2] - 8, cellY, { font: fontRegular, size: 12, color: isn_dark, align: 'right' });
+        drawTextHelper(page, gstTxt, cx + colW[2] - 8, cellY, { font: fontRegular, size: 10.5, color: isn_dark, align: 'right' });
         cx += colW[2];
 
-        // Col 3: Amount
+        // Col 3: Amount (bold for paid items)
         const amtTxt = isComp ? '0.00' : `₹${issnFmt(item.total_amount)}`;
-        drawTextHelper(page, amtTxt, cx + colW[3] - 8, cellY, { font: fontRegular, size: 12, color: isn_dark, align: 'right' });
+        drawTextHelper(page, amtTxt, cx + colW[3] - 8, cellY, { font: fontRegular, size: 10.5, color: isn_dark, align: 'right' });
 
         // Row bottom border
-        page.drawLine({ start: { x: lx, y: y - rowH }, end: { x: rx, y: y - rowH }, color: isn_border, thickness: 0.8 });
-        y -= rowH;
+        page.drawLine({ start: { x: lx, y: y - currentRowH }, end: { x: rx, y: y - currentRowH }, color: isn_border, thickness: 0.8 });
+        y -= currentRowH;
       });
-
-      // Table bottom border
-      page.drawLine({ start: { x: lx, y }, end: { x: rx, y }, color: isn_border, thickness: 0.8 });
 
       // Draw vertical grid lines for the items table
       let vx = lx;
@@ -1103,8 +1490,8 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // Draw vertical separator in totals box
       page.drawLine({
-        start: { x: rx - 85, y },
-        end: { x: rx - 85, y: y - totalBoxH },
+        start: { x: rx - 90, y },
+        end: { x: rx - 90, y: y - totalBoxH },
         color: isn_border,
         thickness: 0.8
       });
