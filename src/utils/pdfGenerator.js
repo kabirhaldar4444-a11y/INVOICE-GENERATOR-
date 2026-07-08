@@ -390,7 +390,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         email: 'support@pmiservices.in',
         website: 'www.pmiservices.in',
         gst_number: '09TRFPS5497N1Z6',
-        cin: 'U16229UP2024PTC199657',
+        cin: '',
         address: 'Sarkhej Gandhinagar Service Road Near Wide Angle Cinema Ramdev Nagar, Satellite, Ahmedabad, Gujarat 380015'
       },
       princeton: {
@@ -398,7 +398,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         email: 'support@princetonprofessional.com',
         website: 'www.princetonprofessional.com',
         gst_number: '09AAOCP5868J1ZI',
-        cin: 'U16229UP2024PTC199657',
+        cin: '',
         address: '1203, Mondeal Heights, Sarkhej Gandhinagar Service Road, Ahmedabad, Gujarat 380015'
       },
       isuccessnode: {
@@ -407,7 +407,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         email: 'support@isuccessnode.com',
         website: 'www.isuccessnode.com',
         gst_number: '09AAHCI9258G1Z3',
-        cin: 'U16229UP2024PTC199657',
+        cin: '',
         address: ''
       }
     };
@@ -419,7 +419,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
     const companyWebsite = brandOverride.website || activeCompany?.website || '';
     const companyGst = brandOverride.gst_number || activeCompany?.gst_number || '';
     const isIssuingNode = isIsNodeName(companyNameText);
-    const companyCin = brandOverride.cin || activeCompany?.cin || 'U16229UP2024PTC199657';
+    const companyCin = brandOverride.cin || activeCompany?.cin || '';
     const companyAddress = brandOverride.address || activeCompany?.address || '';
     const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
     const preDiscountTotal = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);

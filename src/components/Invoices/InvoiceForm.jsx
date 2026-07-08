@@ -508,11 +508,11 @@ export const InvoiceForm = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
-                  Phone Number
+                  CIN Number
                 </label>
                 <input
-                  type="tel"
-                  placeholder="e.g. +91 98765 43210"
+                  type="text"
+                  placeholder="e.g. U16229UP2024PTC199657"
                   value={newCustPhone}
                   onChange={(e) => setNewCustPhone(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
