@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { generateInvoicePDF } from '../../utils/pdfGenerator';
 import { eliteLayout } from '../../utils/eliteLayoutConfig';
+import { PMISFooter } from '../Shared/PMISFooter';
 import { 
   ArrowLeft, 
   Download, 
@@ -294,6 +295,7 @@ export const InvoiceDetails = () => {
       email: 'support@pmiservices.in',
       website: 'www.pmiservices.in',
       gst_number: '09TRFPS5497N1Z6',
+      cin: 'U16229UP2024PTC199657',
       address: 'Sarkhej Gandhinagar Service Road Near Wide Angle Cinema Ramdev Nagar, Satellite, Ahmedabad, Gujarat 380015',
       primary: '#3C0BB5',
       secondary: '#FFC000',
@@ -305,6 +307,7 @@ export const InvoiceDetails = () => {
       email: 'support@princetonprofessional.com',
       website: 'www.princetonprofessional.com',
       gst_number: '09AAOCP5868J1ZI',
+      cin: 'U16229UP2024PTC199657',
       address: '1203, Mondeal Heights, Sarkhej Gandhinagar Service Road, Ahmedabad, Gujarat 380015',
       primary: '#996633',
       secondary: '#102744',
@@ -317,7 +320,7 @@ export const InvoiceDetails = () => {
       email: 'support@isuccessnode.com',
       website: 'www.isuccessnode.com',
       gst_number: '09AAHCI9258G1Z3',
-      cin: '',
+      cin: 'U16229UP2024PTC199657',
       address: '',
       primary: '#6b21a8',
       secondary: '#84cc16',
@@ -438,6 +441,7 @@ export const InvoiceDetails = () => {
                           {companyPhone && <p>{companyPhone}</p>}
                           {companyWebsite && <p>{companyWebsite}</p>}
                           {companyGst && <p>GST: {companyGst}</p>}
+                          {companyCin && <p>CIN: {companyCin}</p>}
                           {companyEmail && <p>{companyEmail}</p>}
                         </div>
                       </div>
@@ -449,7 +453,7 @@ export const InvoiceDetails = () => {
                         <div className="space-y-1 text-slate-500">
                           <p className="font-bold text-slate-800">{resolvedCustomer?.name || 'Client Name'}</p>
                           {resolvedCustomer?.email && <p>{resolvedCustomer.email}</p>}
-                          {resolvedCustomer?.phone && <p>{resolvedCustomer.phone}</p>}
+                          {resolvedCustomer?.phone && <p>Phone: {resolvedCustomer.phone}</p>}
                         </div>
                       </div>
                     </div>
@@ -559,9 +563,8 @@ export const InvoiceDetails = () => {
               {/* Logo & Shield */}
               <div className="absolute left-[45px] top-[24px] flex flex-col items-center">
                 {logoUrlToRender && (
-                  <img src={logoUrlToRender} alt="Logo" className="w-[75px] h-[75px] object-contain" />
+                  <img src={logoUrlToRender} alt="Logo" className="w-[115px] h-[115px] object-contain" />
                 )}
-                <span className="font-extrabold text-[18px] text-[#4A15B7] mt-1 tracking-wider">PMI</span>
               </div>
 
               {/* Purple polygon behind "INVOICE" */}
@@ -574,7 +577,7 @@ export const InvoiceDetails = () => {
               </div>
 
               {/* Orange invoice ribbon */}
-              <div className="absolute right-0 top-[75px] h-[30px] bg-[#F19D12] flex items-center justify-center z-10"
+              <div className="absolute right-0 top-[78px] h-[30px] bg-[#F19D12] flex items-center justify-center z-10"
                    style={{
                      width: '256px',
                      clipPath: 'polygon(14% 0, 100% 0, 100% 100%, 0 100%)'
@@ -583,24 +586,21 @@ export const InvoiceDetails = () => {
               </div>
 
               {/* Green diagonal ribbon */}
-              <div className="absolute right-0 top-[105px] w-[85px] h-[95px] bg-[#1E8457] z-10"
+              <div className="absolute right-0 top-[108px] w-[85px] h-[95px] bg-[#1E8457] z-10"
                    style={{
                      clipPath: 'polygon(100% 0, 100% 100%, 0 0)'
                    }}
               />
-
-              {/* GST Text on the right */}
-              <div className="absolute left-[345px] top-[120px] text-[9px] text-black">
-                <span className="font-bold">GST: </span>
-                <span>{companyGst || '09TRFPS5497N1Z6'}</span>
-              </div>
 
               {/* Content area */}
               <div className="flex-grow flex flex-col justify-between" style={{ paddingTop: '145px', paddingLeft: '45px', paddingRight: '45px', paddingBottom: '90px' }}>
                 <div>
                   {/* BILL TO */}
                   <div className="mt-5 text-[10px] text-black leading-normal text-left">
-                    <p className="font-black text-[10px] tracking-wide mb-1 text-black">BILL TO:</p>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <span className="font-black text-[10px] tracking-wide text-black">BILL TO:</span>
+                      <span className="font-bold text-[9.5px] text-black">GST: {companyGst || '09TRFPS5497N1Z6'}</span>
+                    </div>
                     <p className="text-black"><span className="font-bold">Customer Name: </span>{resolvedCustomer?.name || 'Client Name'}</p>
                     {resolvedCustomer?.email && (
                       <p className="text-black"><span className="font-bold">Customer Email: </span>{resolvedCustomer.email}</p>
@@ -719,40 +719,7 @@ export const InvoiceDetails = () => {
               </div>
 
               {/* Footer */}
-              {(() => {
-                const companyPhone = '+91 7969325899';
-                const companyEmail = 'support@pmiservices.in';
-                const companyAddress1 = 'Sarkhej Gandhinagar Service Road Near Wide Angle Cinema Ramdev Nagar,';
-                const companyAddress2 = 'Satellite, Ahmedabad, Gujarat 380015';
-                return (
-                  <div className="absolute bottom-0 left-0 w-full h-[80px] text-white overflow-hidden z-10 text-left select-none">
-                    {/* Background SVG containing precise shapes matching coordinates exactly */}
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 595.276 80" preserveAspectRatio="none">
-                      {/* Main Purple Banner on Left */}
-                      <polygon points="0,0 440,0 387,80 0,80" fill="#4A15B7" />
-
-                      {/* Purple Corner Triangle on Bottom-Right */}
-                      <polygon points="475,80 595.276,80 595.276,15" fill="#4A15B7" />
-
-                      {/* Green Diagonal Strip */}
-                      <polygon points="455,80 475,80 595.276,15 595.276,0" fill="#1E8457" />
-
-                      {/* Orange Dome Shape */}
-                      <path d="M 448,80 L 448,55 A 27.5,27.5 0 0,1 503,55 L 503,80 Z" fill="#F19D12" />
-                    </svg>
-
-                    {/* Contact Info overlay */}
-                    <div className="absolute bottom-[8px] left-[45px] z-20 text-white flex flex-col justify-end text-left select-none">
-                      <p className="font-bold text-[10px] leading-none mb-1.5">{companyPhone} | {companyEmail}</p>
-                      <p className="text-[9.5px] leading-tight max-w-[345px] mb-1">
-                        <span className="font-bold">Address: </span>
-                        {companyAddress1}
-                      </p>
-                      <p className="text-[9.5px] leading-tight pl-[43px]">{companyAddress2}</p>
-                    </div>
-                  </div>
-                );
-              })()}
+              <PMISFooter />
             </>
           ) : (
             <>
@@ -1275,6 +1242,7 @@ export const InvoiceDetails = () => {
                 {activeCompany?.email && <p>Email: {activeCompany.email}</p>}
                 {activeCompany?.website && <p>Web: {activeCompany.website}</p>}
                 {activeCompany?.gst_number && <p className="font-medium text-slate-700">GST: {activeCompany.gst_number}</p>}
+                {activeCompany?.gst_number && <p className="text-slate-500">CIN: {activeCompany.cin || 'U16229UP2024PTC199657'}</p>}
                 {activeCompany?.address && <p className="pt-1 text-slate-400">{activeCompany.address}</p>}
               </div>
 

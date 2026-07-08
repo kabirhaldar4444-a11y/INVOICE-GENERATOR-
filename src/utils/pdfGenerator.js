@@ -16,10 +16,12 @@ import {
   appendBezierCurve,
   PDFName,
   PDFString,
-  PDFArray
+  PDFArray,
+  degrees
 } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { formatCurrency, formatDate } from './helpers.js';
+import { PMI_FOOTER_CONFIG } from './pmiFooterConfig.js';
 
 // Helper to manually create link annotations in pdf-lib (adds clickable hyperlinks to PDF)
 const addLinkToPdf = (pdfDoc, page, x, y, width, height, url) => {
@@ -388,6 +390,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         email: 'support@pmiservices.in',
         website: 'www.pmiservices.in',
         gst_number: '09TRFPS5497N1Z6',
+        cin: 'U16229UP2024PTC199657',
         address: 'Sarkhej Gandhinagar Service Road Near Wide Angle Cinema Ramdev Nagar, Satellite, Ahmedabad, Gujarat 380015'
       },
       princeton: {
@@ -395,6 +398,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         email: 'support@princetonprofessional.com',
         website: 'www.princetonprofessional.com',
         gst_number: '09AAOCP5868J1ZI',
+        cin: 'U16229UP2024PTC199657',
         address: '1203, Mondeal Heights, Sarkhej Gandhinagar Service Road, Ahmedabad, Gujarat 380015'
       },
       isuccessnode: {
@@ -403,6 +407,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         email: 'support@isuccessnode.com',
         website: 'www.isuccessnode.com',
         gst_number: '09AAHCI9258G1Z3',
+        cin: 'U16229UP2024PTC199657',
         address: ''
       }
     };
@@ -414,7 +419,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
     const companyWebsite = brandOverride.website || activeCompany?.website || '';
     const companyGst = brandOverride.gst_number || activeCompany?.gst_number || '';
     const isIssuingNode = isIsNodeName(companyNameText);
-    const companyCin = brandOverride.cin || activeCompany?.cin || '';
+    const companyCin = brandOverride.cin || activeCompany?.cin || 'U16229UP2024PTC199657';
     const companyAddress = brandOverride.address || activeCompany?.address || '';
     const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
     const preDiscountTotal = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
@@ -631,8 +636,8 @@ export const generateInvoicePDF = async (invoice, settings) => {
         billY -= 13;
       }
       if (invoice.customers?.phone) {
-        drawTextHelper(page, 'Phone: ', marginX, billY, { font: fontBold, size: 9.5, color: eDark });
-        const phoneLabelW = fontBold.widthOfTextAtSize('Phone: ', 9.5);
+        drawTextHelper(page, 'CIN: ', marginX, billY, { font: fontBold, size: 9.5, color: eDark });
+        const phoneLabelW = fontBold.widthOfTextAtSize('CIN: ', 9.5);
         drawTextHelper(page, invoice.customers.phone, marginX + phoneLabelW, billY, { font: fontRegular, size: 9.5, color: eMuted });
       }
 
@@ -914,11 +919,18 @@ export const generateInvoicePDF = async (invoice, settings) => {
     // ===  PMI SERVICES PMIS — EXACT 1:1 REPLICATION  ===========
     // ============================================================
     if (themeKey === 'pmi') {
-      const pmiPurple = rgb(74/255, 21/255, 183/255);    // #4A15B7
-      const pmiOrange = rgb(241/255, 157/255, 18/255);   // #F19D12
-      const pmiGreen  = rgb(30/255, 132/255, 87/255);    // #1E8457
+      const hexToRgbHelper = (hex) => {
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+        return rgb(r, g, b);
+      };
+
+      const pmiPurple = hexToRgbHelper(PMI_FOOTER_CONFIG.pmiPurple);
+      const pmiOrange = hexToRgbHelper(PMI_FOOTER_CONFIG.pmiOrange);
+      const pmiGreen  = hexToRgbHelper(PMI_FOOTER_CONFIG.pmiGreen);
       const pmiBlack  = rgb(0, 0, 0);                    // #000000
-      const pmiWhite  = rgb(1, 1, 1);                    // #FFFFFF
+      const pmiWhite  = hexToRgbHelper(PMI_FOOTER_CONFIG.pmiWhite);
       const pmiLightBg = rgb(242/255, 244/255, 247/255); // #F2F4F7 alternating rows
       const pmiFmt = (num, isSubTotal = false) => {
         const val = parseFloat(num) || 0;
@@ -943,12 +955,11 @@ export const generateInvoicePDF = async (invoice, settings) => {
       if (logoImage) {
         page.drawImage(logoImage, {
           x: marginX,
-          y: height - 110,
-          width: 75,
-          height: 75
+          y: height - 150,
+          width: 115,
+          height: 115
         });
       }
-      drawTextHelper(page, 'PMI', marginX + 37.5, height - 130, { font: fontBold, size: 18, color: pmiPurple, align: 'center' });
 
       // Purple polygon behind "INVOICE"
       drawPolygonHelper(page, [
@@ -962,33 +973,46 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // Orange invoice ribbon
       drawPolygonHelper(page, [
-        { x: width * 0.63, y: height - 75 },
-        { x: width, y: height - 75 },
-        { x: width, y: height - 105 },
-        { x: width * 0.57, y: height - 105 }
+        { x: width * 0.63, y: height - 78 },
+        { x: width, y: height - 78 },
+        { x: width, y: height - 108 },
+        { x: width * 0.57, y: height - 108 }
       ], { color: pmiOrange });
 
-      drawTextHelper(page, invoice.invoice_number, width - 90, height - 96, { font: fontBold, size: 14, color: pmiWhite, align: 'center' });
+      drawTextHelper(page, invoice.invoice_number, width - 90, height - 99, { font: fontBold, size: 14, color: pmiWhite, align: 'center' });
 
       // Green diagonal ribbon
       drawPolygonHelper(page, [
-        { x: width, y: height - 105 },
-        { x: width, y: height - 200 },
-        { x: width - 85, y: height - 105 }
+        { x: width, y: height - 108 },
+        { x: width, y: height - 203 },
+        { x: width - 85, y: height - 108 }
       ], { color: pmiGreen });
 
-      // GST Text on the right
+      // GST and BILL TO inline layout
       const gstLabelText = 'GST: ';
       const gstValText = companyGst || '09TRFPS5497N1Z6';
-      drawTextHelper(page, gstLabelText, width * 0.58, height - 120, { font: fontBold, size: 9, color: pmiBlack });
-      const pmiGstLabelW = fontBold.widthOfTextAtSize(gstLabelText, 9);
-      drawTextHelper(page, gstValText, width * 0.58 + pmiGstLabelW, height - 120, { font: fontRegular, size: 9, color: pmiBlack });
+      const pmiGstLabelW = fontBold.widthOfTextAtSize(gstLabelText, 9.5);
+      const pmiGstValW = fontRegular.widthOfTextAtSize(gstValText, 9.5);
+      const pmiGstW = pmiGstLabelW + pmiGstValW;
 
-      let currentY = height - 145;
+      let clientY = height - 185;
 
-      // ── BILL TO SECTION ─────────────────────────────────────────
-      let clientY = currentY - 20;
+      // BILL TO on left
       drawTextHelper(page, 'BILL TO:', marginX, clientY, { font: fontBold, size: 10, color: pmiBlack });
+      
+      // GST on right
+      drawTextHelper(page, gstLabelText, width - marginX - pmiGstW, clientY, { font: fontBold, size: 9.5, color: pmiBlack });
+      drawTextHelper(page, gstValText, width - marginX - pmiGstW + pmiGstLabelW, clientY, { font: fontRegular, size: 9.5, color: pmiBlack });
+
+      // CIN on right, below GST
+      const cinLabelText = 'CIN: ';
+      const cinValText = companyCin || 'U16229UP2024PTC199657';
+      const pmiCinLabelW = fontBold.widthOfTextAtSize(cinLabelText, 9.5);
+      const pmiCinValW = fontRegular.widthOfTextAtSize(cinValText, 9.5);
+      const pmiCinW = pmiCinLabelW + pmiCinValW;
+      drawTextHelper(page, cinLabelText, width - marginX - pmiCinW, clientY - 12, { font: fontBold, size: 9.5, color: pmiBlack });
+      drawTextHelper(page, cinValText, width - marginX - pmiCinW + pmiCinLabelW, clientY - 12, { font: fontRegular, size: 9.5, color: pmiBlack });
+      
       clientY -= 15;
       
       const cNameLabel = 'Customer Name: ';
@@ -1004,6 +1028,15 @@ export const generateInvoicePDF = async (invoice, settings) => {
         drawTextHelper(page, cEmailLabel, marginX, clientY, { font: fontBold, size: 10, color: pmiBlack });
         const cEmailLabelW = fontBold.widthOfTextAtSize(cEmailLabel, 10);
         drawTextHelper(page, cEmailVal, marginX + cEmailLabelW, clientY, { font: fontRegular, size: 10, color: pmiBlack });
+        clientY -= 15;
+      }
+
+      if (invoice.customers?.phone) {
+        const cPhoneLabel = 'Customer CIN: ';
+        const cPhoneVal = invoice.customers.phone;
+        drawTextHelper(page, cPhoneLabel, marginX, clientY, { font: fontBold, size: 10, color: pmiBlack });
+        const cPhoneLabelW = fontBold.widthOfTextAtSize(cPhoneLabel, 10);
+        drawTextHelper(page, cPhoneVal, marginX + cPhoneLabelW, clientY, { font: fontRegular, size: 10, color: pmiBlack });
         clientY -= 15;
       }
 
@@ -1207,63 +1240,50 @@ export const generateInvoicePDF = async (invoice, settings) => {
       });
 
       // ── FOOTER ─────────────────────────────────────────────────
-      const footerH = 80;
+      const {
+        phone,
+        email,
+        addressLine1,
+        addressLine2,
+        leftPadding,
+        phoneY,
+        address1Y,
+        address2Y,
+        shapes
+      } = PMI_FOOTER_CONFIG;
 
-      // Draw Main Purple Banner on Left
-      drawPolygonHelper(page, [
-        { x: 0, y: 0 },
-        { x: 0, y: 80 },
-        { x: 440, y: 80 },
-        { x: 387, y: 0 }
-      ], { color: pmiPurple });
-
-      // Draw Purple Corner Triangle on Bottom-Right
-      drawPolygonHelper(page, [
-        { x: 475, y: 0 },
-        { x: width, y: 0 },
-        { x: width, y: 65 }
-      ], { color: pmiPurple });
-
-      // Draw Green Diagonal Strip
-      drawPolygonHelper(page, [
-        { x: 455, y: 0 },
-        { x: 475, y: 0 },
-        { x: width, y: 65 },
-        { x: width, y: 80 }
-      ], { color: pmiGreen });
-
-      // Draw Orange Dome Shape
-      page.drawRectangle({
-        x: 448,
-        y: 0,
-        width: 55,
-        height: 25,
-        color: pmiOrange
+      shapes.forEach(shape => {
+        const hexColor = PMI_FOOTER_CONFIG[shape.colorKey];
+        const pdfColor = hexToRgbHelper(hexColor);
+        
+        if (shape.type === 'polygon') {
+          drawPolygonHelper(page, shape.points, { color: pdfColor });
+        } else if (shape.type === 'circle') {
+          const { cx, cy, r } = shape;
+          drawRoundedRectangleHelper(
+            page,
+            cx - r,
+            cy - r,
+            2 * r,
+            2 * r,
+            r,
+            { color: pdfColor }
+          );
+        }
       });
-      page.drawCircle({
-        x: 475.5,
-        y: 25,
-        radius: 27.5,
-        color: pmiOrange
-      });
-
-      const footerContactTop = 52;
-      const companyPhone = '+91 7969325899';
-      const companyEmail = 'support@pmiservices.in';
-      const companyAddress1 = 'Sarkhej Gandhinagar Service Road Near Wide Angle Cinema Ramdev Nagar,';
-      const companyAddress2 = 'Satellite, Ahmedabad, Gujarat 380015';
 
       // Phone + Email
-      drawTextHelper(page, `${companyPhone} | ${companyEmail}`, marginX, footerContactTop, {
+      drawTextHelper(page, `${phone} | ${email}`, leftPadding, phoneY, {
         font: fontBold, size: 10, color: pmiWhite
       });
 
       // Address
-      const addrLabel = 'Address: ';
-      drawTextHelper(page, addrLabel, marginX, 34, { font: fontBold, size: 9.5, color: pmiWhite });
-      const addrLabelW = fontBold.widthOfTextAtSize(addrLabel, 9.5);
-      drawTextHelper(page, companyAddress1, marginX + addrLabelW, 34, { font: fontRegular, size: 9.5, color: pmiWhite });
-      drawTextHelper(page, companyAddress2, marginX, 18, { font: fontRegular, size: 9.5, color: pmiWhite });
+      drawTextHelper(page, addressLine1, leftPadding, address1Y, { 
+        font: fontBold, size: 9.5, color: pmiWhite 
+      });
+      drawTextHelper(page, addressLine2, leftPadding, address2Y, { 
+        font: fontBold, size: 9.5, color: pmiWhite 
+      });
 
       const pdfBytes = await pdfDoc.save();
       return pdfBytes;
@@ -1339,6 +1359,8 @@ export const generateInvoicePDF = async (invoice, settings) => {
       }
       if (companyGst) {
         drawTextHelper(page, `GST: ${companyGst}`, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
+        leftY -= 13;
+        drawTextHelper(page, `CIN: ${companyCin || 'U16229UP2024PTC199657'}`, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
         leftY -= 13;
       }
       if (companyEmail) {
@@ -1864,7 +1886,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
       drawTextHelper(page, invoice.customers?.name || 'Client Name', rightColX, rightY, { font: fontBold, size: 10, color: colorDark });
       rightY -= 13;
       if (invoice.customers?.phone) {
-        drawTextHelper(page, `Phone: ${invoice.customers.phone}`, rightColX, rightY, { font: fontRegular, size: 8.5, color: colorMuted });
+        drawTextHelper(page, `CIN: ${invoice.customers.phone}`, rightColX, rightY, { font: fontRegular, size: 8.5, color: colorMuted });
         rightY -= 12;
       }
       if (invoice.customers?.email) {

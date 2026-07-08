@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PMI Invoice Template</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* RESET & PAGE CONFIG */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background-color: #F3F4F6;
+      font-family: 'Inter', Arial, Helvetica, sans-serif;
+      color: #1A1A2E;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    /* Fixed A4 Page Size */
+    .invoice-page {
+      width: 210mm;
+      height: 297mm;
+      background-color: #FFFFFF;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .content-area {
+      padding: 40px 40px 140px 40px; /* 140px bottom padding protects the footer */
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* PRINT STYLES */
+    @media print {
+      body {
+        background-color: #FFFFFF;
+        padding: 0;
+        margin: 0;
+      }
+      .invoice-page {
+        box-shadow: none;
+        width: 210mm;
+        height: 297mm;
+        margin: 0;
+        page-break-after: avoid;
+      }
+    }
+
+    /* HEADER STYLES */
+    .top-strip {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 52%;
+      height: 25px;
+      background-color: #4B2E9E;
+      clip-path: polygon(0 0, 100% 0, 90% 100%, 0 100%);
+      z-index: 10;
+    }
+
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-top: 15px; /* Clear the top strip */
+      margin-bottom: 25px;
+    }
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 115px; /* Align with SVG width */
+    }
+
+    .logo-text {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 28px;
+      color: #4B2E9E;
+      margin-top: 2px;
+      letter-spacing: 1px;
+      text-align: center;
+      line-height: 1;
+    }
+
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      position: relative;
+    }
+
+    .invoice-banner {
+      background-color: #4B2E9E;
+      color: #FFFFFF;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 900;
+      font-size: 48px;
+      line-height: 75px;
+      height: 75px;
+      width: 320px;
+      text-align: right;
+      padding-right: 40px;
+      clip-path: polygon(15% 0, 100% 0, 100% 100%, 0 100%);
+      box-sizing: border-box;
+    }
+
+    .invoice-number-banner {
+      background-color: #F2A814;
+      color: #FFFFFF;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      line-height: 32px;
+      height: 32px;
+      width: 270px;
+      text-align: center;
+      padding-right: 15px; /* Offset visual center for slant */
+      clip-path: polygon(8% 0, 100% 0, 100% 100%, 0 100%);
+      box-sizing: border-box;
+      margin-top: 3px; /* Gap between violet and orange object */
+    }
+
+    .bill-to-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 5px;
+    }
+
+    .gst-number-inline {
+      color: #1A1A2E;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+
+    /* Green diagonal ribbon on the right */
+    .green-stripe {
+      position: absolute;
+      right: 0;
+      top: 125px; /* Aligns with bottom of orange banner */
+      width: 85px;
+      height: 95px;
+      background-color: #2E9E5B;
+      clip-path: polygon(100% 0, 100% 100%, 0 0);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* BILL TO SECTION */
+    .bill-to-section {
+      margin-top: 15px;
+      margin-bottom: 25px;
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+
+    .bill-to-title {
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 5px;
+      letter-spacing: 0.5px;
+    }
+
+    .bill-to-row {
+      margin-bottom: 1px;
+    }
+
+    .bill-to-row .label {
+      font-weight: bold;
+    }
+
+    .bill-to-row .value {
+      font-weight: normal;
+    }
+
+    /* ITEMS TABLE */
+    .table-container {
+      width: 100%;
+      margin-bottom: 20px;
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #DADADA;
+      font-size: 13px;
+    }
+
+    .items-table th {
+      color: #FFFFFF;
+      font-weight: bold;
+      font-size: 12px;
+      text-transform: uppercase;
+      padding: 12px 10px;
+      border: 1px solid #DADADA;
+      text-align: center;
+    }
+
+    .items-table th.col-item {
+      background-color: #4B2E9E;
+      width: 10%;
+    }
+
+    .items-table th.col-desc {
+      background-color: #4B2E9E;
+      width: 50%;
+      text-align: left;
+    }
+
+    .items-table th.col-gst {
+      background-color: #F2A814;
+      width: 13%;
+    }
+
+    .items-table th.col-amount {
+      background-color: #4B2E9E;
+      width: 13%;
+    }
+
+    .items-table th.col-total {
+      background-color: #4B2E9E;
+      width: 14%;
+    }
+
+    .items-table td {
+      padding: 12px 10px;
+      border: 1px solid #DADADA;
+      color: #1A1A2E;
+    }
+
+    .items-table td.cell-item {
+      text-align: center;
+    }
+
+    .items-table td.cell-desc {
+      text-align: left;
+      font-weight: bold;
+    }
+
+    .items-table td.cell-gst,
+    .items-table td.cell-amount,
+    .items-table td.cell-total {
+      text-align: center;
+      font-weight: normal;
+    }
+
+    .items-table tr:nth-child(even) {
+      background-color: #F9FAFB; /* Subtle alternate row */
+    }
+
+    /* SUMMARY BOX */
+    .summary-box-container {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .summary-box {
+      width: 40%;
+      min-width: 250px;
+      font-size: 13px;
+    }
+
+    .summary-top {
+      border: 1px solid #DADADA;
+      background-color: #FFFFFF;
+      padding: 8px 12px;
+      color: #1A1A2E;
+      margin-bottom: 8px;
+    }
+
+    .summary-bottom {
+      background-color: #2E9E5B;
+      color: #FFFFFF;
+      padding: 10px 12px;
+      font-weight: bold;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+    }
+
+    .summary-top .label {
+      font-weight: bold;
+    }
+
+    .summary-top .value {
+      font-weight: normal;
+    }
+
+    .summary-bottom .label {
+      text-transform: uppercase;
+    }
+
+    /* Micro styling underline details matching reference */
+    .underline-pmi {
+      border-bottom: 1.5px solid #4B2E9E;
+      display: inline-block;
+      line-height: 0.95;
+    }
+
+    .underline-white {
+      border-bottom: 1.5px solid #FFFFFF;
+      display: inline-block;
+      line-height: 0.95;
+    }
+
+    /* FOOTER */
+    .footer-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 140px;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .footer-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 140px;
+      z-index: 1;
+    }
+
+    .footer-content {
+      position: absolute;
+      bottom: 12px;
+      left: 45px;
+      z-index: 2;
+      color: #FFFFFF;
+      font-weight: bold;
+      font-size: 13.5px;
+      line-height: 1.45;
+      text-align: left;
+    }
+
+    .contact-info {
+      font-size: 14px;
+      margin-bottom: 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .address-info {
+      max-width: 440px; /* Kept within the purple band boundary */
+      font-size: 12.5px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="invoice-page">
+    <!-- Top left purple strip -->
+    <div class="top-strip"></div>
+
+    <!-- Green diagonal ribbon on the right -->
+    <div class="green-stripe"></div>
+
+    <div class="content-area">
+      <!-- HEADER -->
+      <header class="header-container">
+        <!-- Logo block -->
+        <div class="header-left">
+          <!-- Shield + Badge Vector -->
+          <svg width="115" height="151" viewBox="0 0 80 105" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Purple Shield -->
+            <path d="M40 6 L74 20 V63 C74 79 58 92 40 96 C22 92 6 79 6 63 V20 L40 6 Z" fill="#4B2E9E" />
+            <!-- Upward Arrow inside Shield (Green) -->
+            <path d="M40 20 L54 34 H46 V54 H34 V34 H26 L40 20 Z" fill="#2E9E5B" />
+            <!-- Checkmark Overlay (White) -->
+            <path d="M32 44 L37 49 L48 38" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+            <!-- Green Badge Circle overlapping bottom of shield -->
+            <circle cx="40" cy="85" r="16" fill="#2E9E5B" stroke="#FFFFFF" stroke-width="2.5" />
+            <!-- White Star inside Badge -->
+            <polygon points="40,77 42.5,82.5 48.5,82.5 44,86.5 46,92.5 40,89 34,92.5 36,86.5 31.5,82.5 37.5,82.5" fill="#FFFFFF" />
+          </svg>
+          <div class="logo-text">PMI</div>
+        </div>
+
+        <!-- Invoice & Banners block -->
+        <div class="header-right">
+          <div class="invoice-banner">INVOICE</div>
+          <div class="invoice-number-banner">{{INVOICE_NUMBER}}</div>
+        </div>
+      </header>
+
+      <!-- BILL TO SECTION -->
+      <section class="bill-to-section">
+        <div class="bill-to-header">
+          <div class="bill-to-title">BILL TO:</div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; color: #102744;">
+            <div class="gst-number-inline">GST: {{COMPANY_GST}}</div>
+            <div class="cin-number-inline" style="font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; margin-top: 2px;">CIN: {{COMPANY_CIN}}</div>
+          </div>
+        </div>
+        <div class="bill-to-row">
+          <span class="label">Customer Name:</span> 
+          <span class="value" data-field="customer-name">{{CUSTOMER_NAME}}</span>
+        </div>
+        <div class="bill-to-row">
+          <span class="label">Customer Email:</span> 
+          <span class="value" data-field="customer-email">{{CUSTOMER_EMAIL}}</span>
+        </div>
+        <div class="bill-to-row">
+          <span class="label">Customer Phone:</span> 
+          <span class="value" data-field="customer-phone">{{CUSTOMER_PHONE}}</span>
+        </div>
+      </section>
+
+      <!-- ITEMS TABLE -->
+      <section class="table-container">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th class="col-item">ITEM</th>
+              <th class="col-desc">DESCRIPTION</th>
+              <th class="col-gst">GST (18%)</th>
+              <th class="col-amount">AMOUNT</th>
+              <th class="col-total">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody id="invoice-items-body">
+            <!-- Row 1 Placeholder -->
+            <tr data-row-index="1">
+              <td class="cell-item">01</td>
+              <td class="cell-desc">{{ITEM1_DESC}}</td>
+              <td class="cell-gst">{{ITEM1_GST}}</td>
+              <td class="cell-amount">{{ITEM1_AMOUNT}}</td>
+              <td class="cell-total">{{ITEM1_TOTAL}}</td>
+            </tr>
+            <!-- Row 2 Placeholder -->
+            <tr data-row-index="2">
+              <td class="cell-item">02</td>
+              <td class="cell-desc">{{ITEM2_DESC}}</td>
+              <td class="cell-gst">{{ITEM2_GST}}</td>
+              <td class="cell-amount">{{ITEM2_AMOUNT}}</td>
+              <td class="cell-total">{{ITEM2_TOTAL}}</td>
+            </tr>
+            <!-- Standard dynamic templating repeat reference block:
+            <tr>
+              <td class="cell-item">{{ITEM_INDEX}}</td>
+              <td class="cell-desc">{{ITEM_DESCRIPTION}}</td>
+              <td class="cell-gst">{{ITEM_GST}}</td>
+              <td class="cell-amount">{{ITEM_AMOUNT}}</td>
+              <td class="cell-total">{{ITEM_TOTAL}}</td>
+            </tr>
+            -->
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SUMMARY BOX -->
+      <section class="summary-box-container">
+        <div class="summary-box">
+          <!-- Upper Box -->
+          <div class="summary-top">
+            <div class="summary-row">
+              <span class="label">SUB <span class="underline-pmi">TOTAL</span> :</span>
+              <span class="value" data-field="subtotal">{{SUB_TOTAL}}</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">TOTAL <span class="underline-pmi">GST</span> :</span>
+              <span class="value" data-field="total-gst">{{TOTAL_GST}}</span>
+            </div>
+          </div>
+          <!-- Lower Box -->
+          <div class="summary-bottom">
+            <div class="summary-row">
+              <span class="label"><span class="underline-white">TOTAL</span> :</span>
+              <span class="value" data-field="grand-total">{{TOTAL_AMOUNT}}</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">DISCOUNT :</span>
+              <span class="value" data-field="discount">{{DISCOUNT_AMOUNT}}</span>
+            </div>
+            <div class="summary-row">
+              <span class="label"><span class="underline-white">PAID</span> :</span>
+              <span class="value" data-field="paid">{{PAID_AMOUNT}}</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">DUE:</span>
+              <span class="value" data-field="due">{{DUE_AMOUNT}}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer-container" style="height: 140px;">
+      <svg class="footer-svg" viewBox="0 0 595.276 140" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Main Purple Banner on Left -->
+        <polygon points="0,140 0,90 420,90 370,140" fill="#4B2E9E" />
+        
+        <!-- White Separator Mask -->
+        <circle cx="451.2" cy="80" r="35" fill="#FFFFFF" />
+        
+        <!-- Orange Stripe -->
+        <polygon points="391.2,140 465.3,65.9 482.3,65.9 408.2,140" fill="#F2A814" />
+        
+        <!-- Orange Circle (the dome) -->
+        <circle cx="451.2" cy="80" r="20" fill="#F2A814" />
+        
+        <!-- Green Diagonal Ribbon -->
+        <polygon points="430,140 570,0 595.276,0 595.276,10 465.3,140" fill="#2E9E5B" />
+        
+        <!-- Right Purple Corner -->
+        <polygon points="486.5,140 595.276,31.23 595.276,140" fill="#4B2E9E" />
+      </svg>
+      
+      <div class="footer-content">
+        <div class="contact-info">
+          <span data-field="company-phone">{{COMPANY_PHONE}}</span> | <span data-field="company-email">{{COMPANY_EMAIL}}</span>
+        </div>
+        <div class="address-info" data-field="company-address">
+          {{COMPANY_ADDRESS}}
+        </div>
+      </div>
+    </footer>
+  </div>
+
+</body>
+</html>
