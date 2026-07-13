@@ -564,7 +564,7 @@ export const InvoiceDetails = () => {
               {/* Logo & Shield */}
               <div className="absolute left-[45px] top-[24px] flex flex-col items-center">
                 {logoUrlToRender && (
-                  <img src={logoUrlToRender} alt="Logo" className="w-[115px] h-[115px] object-contain" />
+                  <img src={logoUrlToRender} alt="Logo" className="w-[130px] h-[130px] object-contain" />
                 )}
               </div>
 

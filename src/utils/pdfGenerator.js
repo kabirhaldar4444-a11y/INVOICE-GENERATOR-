@@ -1342,9 +1342,9 @@ export const generateInvoicePDF = async (invoice, settings) => {
       if (logoImage) {
         page.drawImage(logoImage, {
           x: marginX,
-          y: height - 150,
-          width: 115,
-          height: 115
+          y: height - 165,
+          width: 130,
+          height: 130
         });
       }
 
