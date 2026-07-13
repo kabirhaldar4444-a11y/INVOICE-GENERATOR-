@@ -4,6 +4,8 @@ import { useApp } from '../../context/AppContext';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { generateInvoicePDF } from '../../utils/pdfGenerator';
 import { eliteLayout } from '../../utils/eliteLayoutConfig';
+import { harvardLayout } from '../../../shared/harvardInvoiceLayout.ts';
+import { princetonLayout } from '../../utils/princetonLayoutConfig';
 import { PMISFooter } from '../Shared/PMISFooter';
 import { 
   ArrowLeft, 
@@ -115,7 +117,7 @@ export const InvoiceDetails = () => {
 
       setMessage(formattedMessage);
     }
-  }, [id, invoices, settings]);
+  }, [id, invoices, settings, customers]);
 
   if (!invoice) {
     return (
@@ -130,9 +132,7 @@ export const InvoiceDetails = () => {
     try {
       showToast('Generating PDF Document...', 'info');
       // Resolve customer with fallback so PDF always has the name
-      const resolvedCust = invoice.customers?.name
-        ? invoice.customers
-        : (customers || []).find(c => c.id === invoice.customer_id) || invoice.customers || null;
+      const resolvedCust = (customers || []).find(c => c.id === invoice.customer_id) || invoice.customers || null;
       const pdfBytes = await generateInvoicePDF({ ...invoice, customers: resolvedCust }, settings);
       
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -141,9 +141,9 @@ export const InvoiceDetails = () => {
       link.href = url;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      // Sanitize filename to prevent browser crashes when invoice number contains "/"
-      const safeFilename = invoice.invoice_number.replace(/[^a-zA-Z0-9-_]/g, '_');
-      link.download = `${safeFilename}.pdf`;
+      const cxName = resolvedCustomer?.name || invoice.customers?.name || 'Customer';
+      const safeCxName = cxName.replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/\s+/g, '_');
+      link.download = `${safeCxName}_GST.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -213,9 +213,7 @@ export const InvoiceDetails = () => {
 
   // ── Customer resolution: always resolve from multiple sources so name never disappears
   // Priority: invoice.customers join → customers[] array lookup by customer_id → null
-  const resolvedCustomer = invoice.customers?.name
-    ? invoice.customers
-    : (customers || []).find(c => c.id === invoice.customer_id) || invoice.customers || null;
+  const resolvedCustomer = (customers || []).find(c => c.id === invoice.customer_id) || invoice.customers || null;
 
   const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
   const preDiscountTotal = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
@@ -295,7 +293,7 @@ export const InvoiceDetails = () => {
       email: 'support@pmiservices.in',
       website: 'www.pmiservices.in',
       gst_number: '09TRFPS5497N1Z6',
-      cin: '',
+      cin: 'U16229UP2024PTC199657',
       address: 'Sarkhej Gandhinagar Service Road Near Wide Angle Cinema Ramdev Nagar, Satellite, Ahmedabad, Gujarat 380015',
       primary: '#3C0BB5',
       secondary: '#FFC000',
@@ -307,7 +305,7 @@ export const InvoiceDetails = () => {
       email: 'support@princetonprofessional.com',
       website: 'www.princetonprofessional.com',
       gst_number: '09AAOCP5868J1ZI',
-      cin: '',
+      cin: 'U16229UP2024PTC199657',
       address: '1203, Mondeal Heights, Sarkhej Gandhinagar Service Road, Ahmedabad, Gujarat 380015',
       primary: '#996633',
       secondary: '#102744',
@@ -404,9 +402,9 @@ export const InvoiceDetails = () => {
           className="bg-white text-slate-900 border border-slate-200 rounded-2xl mx-auto shadow-md relative overflow-hidden transition-colors flex flex-col justify-between" 
           style={{ 
             fontFamily: 'Inter, sans-serif',
-            width: (themeKey === 'elite' || themeKey === 'pmi') ? '595.276px' : '100%',
-            maxWidth: (themeKey === 'elite' || themeKey === 'pmi') ? '595.276px' : '56rem',
-            minHeight: (themeKey === 'elite' || themeKey === 'pmi') ? '841.89px' : '1050px',
+            width: (themeKey === 'elite' || themeKey === 'pmi' || themeKey === 'harvard' || themeKey === 'princeton') ? '595.276px' : '100%',
+            maxWidth: (themeKey === 'elite' || themeKey === 'pmi' || themeKey === 'harvard' || themeKey === 'princeton') ? '595.276px' : '56rem',
+            minHeight: (themeKey === 'elite' || themeKey === 'pmi' || themeKey === 'harvard' || themeKey === 'princeton') ? '841.89px' : '1050px',
           }}
         >
           {themeKey === 'isuccessnode' ? (
@@ -440,7 +438,6 @@ export const InvoiceDetails = () => {
                         <div className="space-y-1 text-slate-500">
                           {companyPhone && <p>{companyPhone}</p>}
                           {companyWebsite && <p>{companyWebsite}</p>}
-                          {companyGst && <p>GST: {companyGst}</p>}
                           {companyCin && <p>CIN: {companyCin}</p>}
                           {companyEmail && <p>{companyEmail}</p>}
                         </div>
@@ -451,9 +448,13 @@ export const InvoiceDetails = () => {
                       <div>
                         <p className="font-bold text-black text-base mb-2">BILL TO</p>
                         <div className="space-y-1 text-slate-500">
-                          <p className="font-bold text-slate-800">{resolvedCustomer?.name || 'Client Name'}</p>
-                          {resolvedCustomer?.email && <p>{resolvedCustomer.email}</p>}
-                          {resolvedCustomer?.phone && <p>CIN: {resolvedCustomer.phone}</p>}
+                          <p className="font-bold text-slate-800">{resolvedCustomer?.name || invoice.customers?.name || 'Client Name'}</p>
+                          {(resolvedCustomer?.email || invoice.customers?.email) && <p>{resolvedCustomer?.email || invoice.customers?.email}</p>}
+                          {/* GST above CIN */}
+                          <p>GST: {resolvedCustomer?.gst_number || '09AAHCI9258G1Z3'}</p>
+                          {(resolvedCustomer?.phone || invoice.customers?.phone) && (
+                            <p>CIN: {resolvedCustomer?.phone || invoice.customers?.phone}</p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -517,10 +518,10 @@ export const InvoiceDetails = () => {
                           </span>
                         </div>
                       )}
-                      {/* Row Total (Post-Discount Total) */}
+                      {/* Row Total (Pre-Discount Total) */}
                       <div className="flex justify-between items-center border-b border-black">
                         <span className="p-2 font-bold text-slate-800 border-r border-black w-[110px]">Total</span>
-                        <span className="p-2 text-right font-mono font-bold flex-grow">₹{formatNumber(invoice.total_amount)}</span>
+                        <span className="p-2 text-right font-mono font-bold flex-grow">₹{formatNumber(preDiscountTotal)}</span>
                       </div>
                       {/* Row Paid */}
                       <div className={`flex justify-between items-center ${netBalance > 0 ? 'border-b border-black' : ''}`}>
@@ -597,9 +598,13 @@ export const InvoiceDetails = () => {
                 <div>
                   {/* BILL TO */}
                   <div className="mt-5 text-[10px] text-black leading-normal text-left">
-                    <div className="flex justify-between items-baseline mb-1">
+                    <div className="flex justify-between items-start mb-1">
                       <span className="font-black text-[10px] tracking-wide text-black">BILL TO:</span>
-                      <span className="font-bold text-[9.5px] text-black">GST: {companyGst || '09TRFPS5497N1Z6'}</span>
+                      <div className="flex flex-col items-start text-black font-bold text-[9.5px]">
+                        <span>CIN: {resolvedCustomer?.phone || companyCin || 'U16229UP2024PTC199657'}</span>
+                        <span className="mt-0.5">GST: {companyGst || '09TRFPS5497N1Z6'}</span>
+                        <span className="mt-0.5">Date: {formatDate(invoice.invoice_date)}</span>
+                      </div>
                     </div>
                     <p className="text-black"><span className="font-bold">Customer Name: </span>{resolvedCustomer?.name || 'Client Name'}</p>
                     {resolvedCustomer?.email && (
@@ -647,9 +652,9 @@ export const InvoiceDetails = () => {
                               <tr key={rIdx} className="font-bold text-black border-b border-black" style={{ backgroundColor: isAlt ? '#F2F4F7' : '#FFFFFF', minHeight: '30px' }}>
                                 <td className="border border-black p-2 text-center">{String(rIdx + 1).padStart(2, '0')}</td>
                                 <td className="border border-black p-2 text-left leading-tight break-words">{getItemDisplayName(item)}</td>
-                                <td className="border border-black p-2 text-center">{isComp ? '-' : pmiFmt(item.gst_amount)}</td>
-                                <td className="border border-black p-2 text-center">{isComp ? '-' : pmiFmt(item.unit_price)}</td>
-                                <td className="border border-black p-2 text-center">{isComp ? 'Free' : pmiFmt(item.total_amount)}</td>
+                                <td className="border border-black p-2 text-center">{isComp ? '₹0.00' : `₹${pmiFmt(item.gst_amount)}`}</td>
+                                <td className="border border-black p-2 text-center">{isComp ? '₹0.00' : `₹${pmiFmt(item.unit_price)}`}</td>
+                                <td className="border border-black p-2 text-center">{isComp ? '₹0.00' : `₹${pmiFmt(item.total_amount)}`}</td>
                               </tr>
                             );
                           });
@@ -681,34 +686,33 @@ export const InvoiceDetails = () => {
                           {/* Upper Box */}
                           <div className="border border-black p-2 space-y-1.5 bg-white text-black font-bold">
                             <div className="flex justify-between">
-                              <span>SUB <span className="border-b border-[#4A15B7] leading-none inline-block">TOTAL</span> :</span>
-                              <span className="font-bold">{pmiFmt(invoice.subtotal, true)}</span>
+                              <span>SUB TOTAL :</span>
+                              <span className="font-bold">₹{pmiFmt(invoice.subtotal, true)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span>TOTAL <span className="border-b border-[#4A15B7] leading-none inline-block">GST</span> :</span>
-                              <span className="font-bold">{pmiFmt(invoice.gst_amount)}</span>
+                              <span>TOTAL GST :</span>
+                              <span className="font-bold">₹{pmiFmt(invoice.gst_amount)}</span>
                             </div>
                           </div>
-
                           {/* Lower Box */}
                           <div className="bg-[#1E8457] text-white p-2 space-y-1.5 font-bold">
                             <div className="flex justify-between">
-                              <span><span className="border-b border-white leading-none inline-block">TOTAL</span> :</span>
-                              <span>{pmiFmt(invoice.total_amount)}</span>
+                              <span>TOTAL :</span>
+                              <span>₹{pmiFmt(preDiscTotal)}</span>
                             </div>
                             {discountAmount > 0 && (
                               <div className="flex justify-between">
                                 <span>DISCOUNT :</span>
-                                <span>-{pmiFmt(discountAmount)}</span>
+                                <span>-₹{pmiFmt(discountAmount)}</span>
                               </div>
                             )}
                             <div className="flex justify-between">
-                              <span><span className="border-b border-white leading-none inline-block">PAID</span> :</span>
-                              <span>{pmiFmt(paidAmt)}</span>
+                              <span>PAID :</span>
+                              <span>₹{pmiFmt(paidAmt)}</span>
                             </div>
                             <div className="flex justify-between">
                               <span>DUE:</span>
-                              <span>{pmiFmt(dueAmt)}</span>
+                              <span>₹{pmiFmt(dueAmt)}</span>
                             </div>
                           </div>
                         </div>
@@ -720,6 +724,330 @@ export const InvoiceDetails = () => {
 
               {/* Footer */}
               <PMISFooter />
+            </>
+          ) : themeKey === 'harvard' ? (
+            <>
+              {/* Top Header Section */}
+              <div 
+                className="absolute top-0 left-0 w-full overflow-hidden bg-white" 
+                style={{ height: '147px' }}
+              >
+                {/* SVG for slanted ribbons and decorations */}
+                <svg className="absolute top-0 right-0 pointer-events-none" width={harvardLayout.width} height="147" style={{ zIndex: 1 }}>
+                  {/* Burgundy Ribbon */}
+                  <polygon 
+                    points={harvardLayout.header.ribbon.points.map(p => `${p.x},${harvardLayout.height - p.y}`).join(' ')} 
+                    fill={harvardLayout.colors.burgundy} 
+                  />
+                  {/* Blue Strip */}
+                  <polygon 
+                    points={harvardLayout.header.strip.points.map(p => `${p.x},${harvardLayout.height - p.y}`).join(' ')} 
+                    fill={harvardLayout.colors.navy} 
+                  />
+                  {/* Top-Right Decorations */}
+                  {harvardLayout.header.decorations.map(dec => (
+                    <polygon 
+                      key={dec.id}
+                      points={dec.points.map(p => `${p.x},${harvardLayout.height - p.y}`).join(' ')} 
+                      fill={harvardLayout.colors[dec.colorKey]} 
+                    />
+                  ))}
+                </svg>
+
+                {/* Left Logo */}
+                <div 
+                  className="absolute" 
+                  style={{ 
+                    left: `${harvardLayout.logo.x}px`, 
+                    top: `${harvardLayout.height - harvardLayout.logo.y - harvardLayout.logo.height}px`,
+                    width: `${harvardLayout.logo.width}px`, 
+                    height: `${harvardLayout.logo.height}px`,
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {logoUrlToRender && (
+                    <img 
+                      src={logoUrlToRender} 
+                      alt="Harvard Learning" 
+                      style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: '100%', 
+                        objectFit: 'contain' 
+                      }} 
+                    />
+                  )}
+                </div>
+
+                {/* INVOICE Title Text */}
+                <div 
+                  className="absolute font-serif font-extrabold text-white flex items-center"
+                  style={{ 
+                    left: `${harvardLayout.header.ribbon.textX}px`, 
+                    top: `${harvardLayout.height - 792}px`,
+                    height: `${792 - 742}px`,
+                    fontSize: `${harvardLayout.header.ribbon.textSize}px`,
+                    letterSpacing: '0.05em',
+                    fontFamily: 'Georgia, serif',
+                    zIndex: 2
+                  }}
+                >
+                  {harvardLayout.header.ribbon.text}
+                </div>
+
+                {/* Invoice Number Strip Text */}
+                <div 
+                  className="absolute font-sans font-bold text-white flex items-center justify-center text-center"
+                  style={{ 
+                    left: `${harvardLayout.header.strip.textX}px`,
+                    width: '215px',
+                    top: `${harvardLayout.height - 737}px`,
+                    height: `${737 - 705}px`,
+                    fontSize: `${harvardLayout.header.strip.textSize}px`,
+                    zIndex: 2
+                  }}
+                >
+                  {invoice.invoice_number}
+                </div>
+              </div>
+
+              {/* Customer Details Section */}
+              <div 
+                className="absolute text-left"
+                style={{ 
+                  left: `${harvardLayout.customer.leftX}px`, 
+                  top: `${harvardLayout.height - harvardLayout.customer.topY}px`,
+                  width: `${harvardLayout.width - harvardLayout.customer.leftX * 2}px`,
+                  fontSize: `${harvardLayout.customer.fontSize}px`,
+                  color: harvardLayout.colors.textDark,
+                  fontFamily: 'sans-serif'
+                }}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1" style={{ width: '300px' }}>
+                    <p className="font-extrabold" style={{ color: harvardLayout.colors.navy, fontSize: '11px', letterSpacing: '0.5px' }}>BILL TO:</p>
+                    <p className="text-black font-semibold mt-1">
+                      <span className="font-extrabold">Customer Name: </span>{resolvedCustomer?.name || 'Client Name'}
+                    </p>
+                    {resolvedCustomer?.email && (
+                      <p className="text-black font-semibold">
+                        <span className="font-extrabold">Customer Email: </span>{resolvedCustomer.email}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-left" style={{ width: '200px' }}>
+                    <p className="text-black font-semibold">
+                      <span className="font-extrabold">GST: </span>{resolvedCustomer?.gst_number || '09AAOCP5868J1ZI'}
+                    </p>
+                    {resolvedCustomer?.phone && themeKey !== 'elite' && (
+                      <p className="text-black font-semibold mt-1">
+                        <span className="font-extrabold">CIN: </span>{resolvedCustomer.phone}
+                      </p>
+                    )}
+                    <p className="text-black font-semibold mt-1">
+                      <span className="font-extrabold">Date: </span>{formatDate(invoice.invoice_date)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items Table Section */}
+              <div 
+                className="absolute"
+                style={{ 
+                  left: `${harvardLayout.marginX}px`, 
+                  top: `${harvardLayout.height - harvardLayout.table.topY}px`,
+                  width: `${harvardLayout.width - harvardLayout.marginX * 2}px`
+                }}
+              >
+                {(() => {
+                  const items = invoice.invoice_items || [];
+                  const hasGst = parseFloat(invoice.gst_amount) > 0 || items.some(item => (parseFloat(item.gst_amount) || 0) > 0);
+
+                  const tHeaders = hasGst 
+                    ? ['ITEM', 'Unit Price', 'GST (18%)', 'AMMOUNT'] 
+                    : ['ITEM', 'Unit Price', 'AMMOUNT'];
+                  
+                  const tColWidths = hasGst 
+                    ? [180, 105, 105, 115] 
+                    : [275, 115, 115];
+
+                  const tHeaderColors = hasGst 
+                    ? ['burgundy', 'navy', 'navy', 'navy'] 
+                    : ['burgundy', 'navy', 'navy'];
+
+                  return (
+                    <table className="w-full border-collapse border border-black text-center" style={{ tableLayout: 'fixed', borderColor: harvardLayout.colors.black }}>
+                      <thead>
+                        <tr style={{ height: `${harvardLayout.table.headerHeight}px` }}>
+                          {tHeaders.map((header, idx) => {
+                            const bgKey = tHeaderColors[idx];
+                            const bgVal = harvardLayout.colors[bgKey];
+                            const widthVal = tColWidths[idx];
+                            return (
+                              <th 
+                                key={header}
+                                className="border border-black text-white font-extrabold text-center uppercase" 
+                                style={{ 
+                                  width: `${widthVal}px`, 
+                                  backgroundColor: bgVal, 
+                                  borderColor: harvardLayout.colors.black,
+                                  fontSize: `${harvardLayout.table.fontSize}px`,
+                                  verticalAlign: 'middle'
+                                }}
+                              >
+                                {header}
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((item, i) => {
+                          const unitPrice = parseFloat(item.unit_price) || 0;
+                          const gstAmount = parseFloat(item.gst_amount) || 0;
+                          const totalAmount = parseFloat(item.total_amount) || 0;
+                          const isComp = unitPrice === 0;
+
+                          const formatVal = (val, forceZero = false) => {
+                            if (forceZero && val === 0) return '₹0.00';
+                            if (val === 0) return '-';
+                            return '₹' + new Intl.NumberFormat('en-IN', {
+                              minimumFractionDigits: val % 1 === 0 ? 0 : 2,
+                              maximumFractionDigits: 2
+                            }).format(val);
+                          };
+
+                          return (
+                            <tr key={item.id || i} style={{ height: `${harvardLayout.table.rowHeight}px` }}>
+                              <td className="border border-black font-extrabold text-black text-center" style={{ fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
+                                {item.program_name}
+                              </td>
+                              <td className="border border-black font-extrabold text-black text-center font-mono" style={{ fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
+                                {formatVal(unitPrice)}
+                              </td>
+                              {hasGst && (
+                                <td className="border border-black font-extrabold text-black text-center font-mono" style={{ fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
+                                  {formatVal(gstAmount)}
+                                </td>
+                              )}
+                              <td className="border border-black font-extrabold text-black text-center font-mono" style={{ fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
+                                {isComp ? '₹0.00' : formatVal(totalAmount)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
+
+              {/* Summary Box Section */}
+              <div 
+                className="absolute text-white"
+                style={{ 
+                  right: `${harvardLayout.marginX}px`, 
+                  top: `${harvardLayout.height - harvardLayout.summary.bottomY - (harvardLayout.summary.topSection.height + harvardLayout.summary.bottomSection.height)}px`,
+                  width: `${harvardLayout.summary.width}px`,
+                  fontFamily: 'sans-serif',
+                  fontSize: `${harvardLayout.summary.fontSize}px`,
+                  fontWeight: 'bold'
+                }}
+              >
+                {/* Burgundy Top Section */}
+                <div 
+                  className="flex flex-col justify-center px-4"
+                  style={{ 
+                    height: `${harvardLayout.summary.topSection.height}px`,
+                    backgroundColor: harvardLayout.colors.burgundy,
+                    gap: '4px'
+                  }}
+                >
+                  <div className="flex justify-between items-center">
+                    <span>SUB TOTAL :</span>
+                    <span className="font-mono">₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(invoice.subtotal || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>TOTAL GST :</span>
+                    <span className="font-mono">₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(invoice.gst_amount || 0)}</span>
+                  </div>
+                </div>
+
+                {/* Navy Bottom Section */}
+                <div 
+                  className="flex flex-col justify-center px-4"
+                  style={{ 
+                    height: `${harvardLayout.summary.bottomSection.height}px`,
+                    backgroundColor: harvardLayout.colors.navy,
+                    gap: '4px'
+                  }}
+                >
+                  <div className="flex justify-between items-center">
+                    <span>TOTAL :</span>
+                    <span className="font-mono">₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(preDiscountTotal || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>DISCOUNT:</span>
+                    <span className="font-mono">{discountAmount > 0 ? '-' : ''}₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(discountAmount || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>PAID :</span>
+                    <span className="font-mono">₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayPaidAmount || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>DUE:</span>
+                    <span className="font-mono">₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(netBalance || 0)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Section */}
+              <div 
+                className="absolute bottom-0 left-0 w-full overflow-hidden text-white text-left font-sans"
+                style={{ 
+                  height: `${harvardLayout.footer.height}px`,
+                  backgroundColor: harvardLayout.colors.navy
+                }}
+              >
+                {/* SVG for slanted decorations */}
+                <svg className="absolute bottom-0 right-0 pointer-events-none" width={harvardLayout.width} height={harvardLayout.footer.height} style={{ zIndex: 1 }}>
+                  {/* Top gold border line */}
+                  <line 
+                    x1={harvardLayout.footer.topBorder.x1} 
+                    y1={harvardLayout.footer.height - harvardLayout.footer.topBorder.y1 + 1} 
+                    x2={harvardLayout.footer.topBorder.x2} 
+                    y2={harvardLayout.footer.height - harvardLayout.footer.topBorder.y2 + 1} 
+                    stroke={harvardLayout.colors.gold} 
+                    strokeWidth={harvardLayout.footer.topBorder.thickness} 
+                  />
+                  {/* Diagonal shapes */}
+                  {harvardLayout.footer.decorations.map(dec => (
+                    <polygon 
+                      key={dec.id}
+                      points={dec.points.map(p => `${p.x},${harvardLayout.footer.height - p.y}`).join(' ')} 
+                      fill={harvardLayout.colors[dec.colorKey]} 
+                    />
+                  ))}
+                </svg>
+
+                {/* Left Contact details */}
+                <div 
+                  className="absolute z-10 space-y-1 font-semibold"
+                  style={{ 
+                    left: `${harvardLayout.footer.textX}px`,
+                    bottom: '10px',
+                    fontSize: `${harvardLayout.footer.fontSize}px`,
+                    lineHeight: '1.4'
+                  }}
+                >
+                  <p>{harvardLayout.footer.phone}</p>
+                  <p>
+                    <a href={`mailto:${harvardLayout.footer.email}`} className="hover:underline">{harvardLayout.footer.email}</a>
+                  </p>
+                  <p>{harvardLayout.footer.address}</p>
+                </div>
+              </div>
             </>
           ) : (
             <>
@@ -740,7 +1068,13 @@ export const InvoiceDetails = () => {
                       <div className="flex-shrink-0 z-10" style={{ width: `${eliteLayout.header.logoWidth}px` }}>
                         {logoUrlToRender ? (
                           <img src={logoUrlToRender} alt="ELITETOOLISTIC" className="object-contain"
-                            style={{ width: '155px', height: '80px', objectFit: 'contain', objectPosition: 'left center' }} />
+                            style={{ 
+                              width: `${eliteLayout.header.logoWidth - 5}px`, 
+                              height: `${eliteLayout.header.logoHeight - 10}px`, 
+                              objectFit: 'contain', 
+                              objectPosition: 'left center' 
+                            }} 
+                          />
                         ) : (
                           <div>
                             <p className="font-extrabold text-sm leading-tight" style={{ color: eliteLayout.colors.dark }}>ELITETOOLISTIC</p>
@@ -752,8 +1086,8 @@ export const InvoiceDetails = () => {
                       {/* CENTER: Vertical divider */}
                       <div className="flex-shrink-0 mx-4 self-stretch" style={{ width: '1px', background: eliteLayout.colors.border }} />
 
-                      {/* RIGHT: INVOICE + badge */}
-                      <div className="flex-1 flex flex-col items-start justify-center z-10 pl-4" style={{ paddingRight: '100px' }}>
+                      {/* RIGHT: INVOICE + badge — right-aligned */}
+                      <div className="flex-1 flex flex-col items-end justify-center z-10" style={{ paddingRight: '115px' }}>
                         <h1 className="font-extrabold leading-none" style={{ fontSize: `${eliteLayout.header.invoiceTitleSize}px`, color: eliteLayout.colors.dark, letterSpacing: '-0.5px' }}>INVOICE</h1>
                         <div className="mt-2 px-5 py-1.5 rounded" style={{ backgroundColor: eliteLayout.colors.primary, display: 'inline-block' }}>
                           <span className="font-bold text-white" style={{ fontSize: `${eliteLayout.header.badgeTextSize}px`, letterSpacing: '0.3px' }}>{invoice.invoice_number}</span>
@@ -770,7 +1104,7 @@ export const InvoiceDetails = () => {
                         <p className="font-extrabold text-[11px] uppercase tracking-wide" style={{ color: eliteLayout.colors.dark }}>BILL TO:</p>
                         <p className="" style={{ color: eliteLayout.colors.dark }}>{resolvedCustomer?.name || 'Client Name'}</p>
                         {resolvedCustomer?.email && <p style={{ color: eliteLayout.colors.dark }}>{resolvedCustomer.email}</p>}
-                        {resolvedCustomer?.phone && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">CIN: </span>{resolvedCustomer.phone}</p>}
+                        <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">Date: </span>{formatDate(invoice.invoice_date)}</p>
                       </div>
                       <div className="space-y-1 text-left">
                         {companyGst && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">GST: </span>{companyGst}</p>}
@@ -778,6 +1112,18 @@ export const InvoiceDetails = () => {
                       </div>
                     </div>
                   </div>
+                ) : themeKey === 'princeton' ? (
+                  <div
+                    className="relative overflow-hidden"
+                    style={{
+                      height: `${princetonLayout.header.height}px`,
+                      width: '100%',
+                      backgroundImage: "url('/princeton-header-bg.png')",
+                      backgroundSize: '100% 100%',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'center'
+                    }}
+                  />
                 ) : (
                 <div 
                   className="px-8 py-5 flex justify-between items-center text-white relative overflow-hidden"
@@ -814,105 +1160,223 @@ export const InvoiceDetails = () => {
                 )}
 
             {/* Content area */}
-            <div className="p-8 sm:p-12">
+            <div className={themeKey === 'princeton' ? 'relative pb-10 min-h-[680px]' : 'p-8 sm:p-12'}>
               {themeKey === 'princeton' ? (
-                // PRINCETON SIDE-BY-SIDE PREVIEW
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-8 text-xs leading-relaxed">
-                  {/* Left Column (40% width) */}
-                  <div className="md:col-span-2 space-y-5">
-                    <div>
-                      <p className="font-bold text-slate-800 text-sm">{companyNameText}</p>
-                      <p className="italic text-[10px] text-slate-400">Aesthetic Accounting & Consulting</p>
-                    </div>
-                    
-                    <div className="space-y-1 text-slate-500">
-                      <p className="font-bold text-[10px] uppercase tracking-wider text-slate-400">BILL TO:</p>
-                      <p className="font-bold text-slate-800">{resolvedCustomer?.name || 'Client Name'}</p>
-                      {resolvedCustomer?.email && <p>{resolvedCustomer.email}</p>}
-                      {resolvedCustomer?.phone && <p>CIN: {resolvedCustomer.phone}</p>}
-                      {resolvedCustomer?.address && <p className="text-slate-400">{resolvedCustomer.address}</p>}
-                    </div>
+                // ── PRINCETON PROFESSIONALS — PIXEL-PERFECT PREVIEW ──
+                (() => {
+                  const pFmt = (num) => `₹${formatNumber(num)}`;
+                  const pDisc = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
+                  const pPreDiscTotal = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
+                  const pPaid = (pDisc > 0 && Math.abs(invoice.paid_amount - pPreDiscTotal) < 0.05)
+                    ? invoice.paid_amount - pDisc
+                    : (invoice.paid_amount || 0);
+                  const pDue = Math.max(0, pPreDiscTotal - pDisc - pPaid);
+                  const pl = princetonLayout;
+                  const tableW = pl.page.width - pl.marginX * 2; // 505.276px
+                  const [cw0, cw1, cw2, cw3] = pl.table.colWidths; // ITEM | Unit Price | GST (18%) | AMMOUNT
+                  return (
+                    <div style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {/* Left vertical border strip — full content height */}
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: '30px',
+                          backgroundImage: "url('/princeton-side-bg.png')",
+                          backgroundSize: '100% 100%',
+                          backgroundRepeat: 'no-repeat',
+                          pointerEvents: 'none',
+                          zIndex: 5
+                        }}
+                      />
+                      
+                      {/* Right vertical border strip (mirrored) */}
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: '30px',
+                          backgroundImage: "url('/princeton-side-bg.png')",
+                          backgroundSize: '100% 100%',
+                          backgroundRepeat: 'no-repeat',
+                          transform: 'scaleX(-1)',
+                          pointerEvents: 'none',
+                          zIndex: 5
+                        }}
+                      />
 
-                    <div className="space-y-1 text-slate-500">
-                      <p className="font-bold text-[10px] uppercase tracking-wider text-slate-400">SHIP TO:</p>
-                      <p className="font-bold text-slate-800">{resolvedCustomer?.name || 'Client Name'}</p>
-                      {resolvedCustomer?.address && <p className="text-slate-400">{resolvedCustomer.address}</p>}
-                    </div>
-                  </div>
 
-                  {/* Right Column (60% width) */}
-                  <div className="md:col-span-3 space-y-4">
-                    <h3 className="font-bold text-sm text-slate-800 tracking-wider">TAX INVOICE</h3>
-                    
-                    {/* Items table */}
-                    <div className="border border-slate-100 rounded-lg overflow-hidden shadow-sm">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="text-[10px] font-bold text-white" style={{ backgroundColor: activeTheme.dark }}>
-                            <th className="p-2">Description</th>
-                            <th className="p-2 text-right">Qty</th>
-                            <th className="p-2 text-right">Unit Price</th>
-                            <th className="p-2 text-right">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {invoice.invoice_items?.map((item, idx) => {
-                            const isComp = parseFloat(item.unit_price) === 0;
-                            return (
-                              <tr key={item.id || idx} className="border-b border-slate-50 text-[10px]">
-                                <td className="p-2 text-slate-800 font-medium">
-                                  {item.program_name}
-                                  {renderItemDescription(item)}
-                                </td>
-                                <td className="p-2 text-right text-slate-650 font-mono">{item.quantity || 1}</td>
-                                <td className="p-2 text-right text-slate-600 font-mono">
-                                  {isComp ? '-' : formatCurrency(item.unit_price)}
-                                </td>
-                                <td className={`p-2 text-right font-mono font-bold ${isComp ? 'text-amber-600 italic' : 'text-slate-850'}`}>
-                                  {isComp ? 'Free' : formatCurrency(item.total_amount)}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                      {/* ── Details row (BILL TO left, Invoice details right) ── */}
+                      <div
+                        className="flex justify-between items-start"
+                        style={{
+                          backgroundColor: '#FFFFFF',
+                          color: '#102744',
+                          paddingLeft: `${pl.marginX}px`,
+                          paddingRight: `${pl.marginX}px`,
+                          paddingTop: '25px',
+                          paddingBottom: '20px',
+                          fontSize: `${pl.subheader.fontSize}px`,
+                        }}
+                      >
+                        {/* Left: BILL TO info */}
+                        <div className="space-y-1 text-[10px]" style={{ color: '#102744' }}>
+                          <p className="font-extrabold text-[#102744] tracking-wider text-[10.5px] mb-2 uppercase">BILL TO:</p>
+                          <p><span className="font-bold">Customer Name:</span> {resolvedCustomer?.name || 'Client Name'}</p>
+                          <p><span className="font-bold">Customer Email:</span> {resolvedCustomer?.email || 'Client Email'}</p>
+                          <p><span className="font-bold">Date:</span> {formatDate(invoice.invoice_date)}</p>
+                        </div>
 
-                    {/* Calculations */}
-                    <div className="flex justify-end text-[10px]">
-                      <div className="w-48 space-y-2 py-1">
-                        <div className="flex justify-between text-slate-500">
-                          <span>Sub-Total</span>
-                          <span className="font-mono">{formatCurrency(invoice.subtotal)}</span>
+                        {/* Right: Invoice details (positioned on the right, but text is left-aligned) */}
+                        <div className="space-y-1 text-[10px] w-[180px]" style={{ color: '#102744' }}>
+                          <p><span className="font-bold">Invoice No:</span> {invoice.invoice_number}</p>
+                          <p><span className="font-bold">GST:</span> {companyGst || '09AAOCP5868J1ZI'}</p>
+                          <p><span className="font-bold">CIN:</span> {companyCin || 'U16229UP2024PTC199657'}</p>
                         </div>
-                        <div className="flex justify-between text-slate-500">
-                          <span>GST (18%)</span>
-                          <span className="font-mono">{formatCurrency(invoice.gst_amount)}</span>
-                        </div>
-                        {parseFloat(invoice.invoice_profile?.discount_amount) > 0 && (
-                          <div className="flex justify-between text-rose-600">
-                            <span>Discount {invoice.invoice_profile?.discount_type === 'percentage' && `(${invoice.invoice_profile?.discount_value}%)`}</span>
-                            <span className="font-mono">-{formatCurrency(invoice.invoice_profile?.discount_amount)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between pt-1 border-t border-slate-100 font-bold text-slate-800">
-                          <span>Total</span>
-                          <span className="font-mono" style={{ color: activeTheme.primary }}>{formatCurrency(invoice.total_amount)}</span>
-                        </div>
-                        <div className="flex justify-between font-bold text-emerald-600">
-                          <span>Paid</span>
-                          <span className="font-mono">{formatCurrency(displayPaidAmount)}</span>
-                        </div>
-                        {netBalance > 0 && (
-                          <div className="flex justify-between font-bold text-amber-600 pt-1 border-t border-dashed border-slate-100">
-                            <span>Balance Due</span>
-                            <span className="font-mono">{formatCurrency(netBalance)}</span>
-                          </div>
-                        )}
                       </div>
+
+                      {/* ── Items Table ── */}
+                      <div style={{ paddingLeft: `${pl.marginX}px`, paddingRight: `${pl.marginX}px`, paddingTop: '5px' }}>
+                        <table
+                          className="border-collapse"
+                          style={{
+                            width: `${tableW}px`,
+                            tableLayout: 'fixed',
+                            borderCollapse: 'collapse',
+                            fontSize: `${pl.table.fontSize}px`,
+                          }}
+                        >
+                          <colgroup>
+                            <col style={{ width: `${cw0}px` }} />
+                            <col style={{ width: `${cw1}px` }} />
+                            <col style={{ width: `${cw2}px` }} />
+                            <col style={{ width: `${cw3}px` }} />
+                          </colgroup>
+
+                          {/* Header row */}
+                          <thead>
+                            <tr
+                              style={{
+                                backgroundColor: pl.table.headerBg,
+                                color: pl.table.headerText,
+                                height: `${pl.table.headerHeight}px`,
+                                fontSize: `${pl.table.headerFontSize}px`,
+                              }}
+                            >
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>ITEM</th>
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>Unit Price</th>
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>GST (18%)</th>
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>AMMOUNT</th>
+                            </tr>
+                          </thead>
+
+                          {/* Data rows — dynamic only */}
+                          <tbody>
+                            {(invoice.invoice_items || []).map((item, idx) => {
+                              const isComp = parseFloat(item.unit_price) === 0;
+                              return (
+                                <tr
+                                  key={item.id || idx}
+                                  style={{
+                                    backgroundColor: '#FFFFFF',
+                                    height: `${pl.table.rowHeight}px`,
+                                    color: pl.colors.darkText,
+                                  }}
+                                >
+                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `${pl.table.cellPaddingY}px ${pl.table.cellPaddingX}px`, verticalAlign: 'middle', fontWeight: 700 }}>
+                                    {item.program_name}
+                                  </td>
+                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'right', padding: `${pl.table.cellPaddingY}px ${pl.table.cellPaddingX}px`, verticalAlign: 'middle', fontWeight: 700 }}>
+                                    {isComp ? '₹0.00' : `₹${formatNumber(item.unit_price)}`}
+                                  </td>
+                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'right', padding: `${pl.table.cellPaddingY}px ${pl.table.cellPaddingX}px`, verticalAlign: 'middle', fontWeight: 700 }}>
+                                    {isComp ? '₹0.00' : `₹${formatNumber(item.gst_amount)}`}
+                                  </td>
+                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'right', padding: `${pl.table.cellPaddingY}px ${pl.table.cellPaddingX}px`, verticalAlign: 'middle', fontWeight: 700 }}>
+                                    {isComp ? '₹0.00' : `₹${formatNumber(item.total_amount)}`}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* ── Bottom Section (Contact on left, Summaries on right) ── */}
+                      <div className="flex justify-between items-start" style={{ paddingLeft: `${pl.marginX}px`, paddingRight: `${pl.marginX}px`, paddingTop: '30px' }}>
+                        {/* Left: Contact Info — regular weight */}
+                        <div className="space-y-4 max-w-[250px] text-[10px]" style={{ color: '#102744', paddingTop: '10px' }}>
+                          <div className="flex items-center gap-2">
+                            <img src="/princeton-email-icon.png" alt="Email" className="w-3.5 h-3.5 object-contain flex-shrink-0" />
+                            <span className="font-normal">{companyEmail}</span>
+                          </div>
+                          
+                          <div className="flex items-start gap-2">
+                            <img src="/princeton-address-icon.png" alt="Address" className="w-3.5 h-3.5 object-contain mt-0.5 flex-shrink-0" />
+                            <span className="font-normal leading-normal">{companyAddress}</span>
+                          </div>
+                        </div>
+
+                        {/* Right: Summary Panels */}
+                        <div style={{ width: `${pl.summary.width}px` }}>
+                          {/* Upper Grey Box: SUB TOTAL + TOTAL GST — regular weight */}
+                          <div
+                            style={{
+                              backgroundColor: pl.summary.upperBg,
+                              border: `1.5px solid ${pl.colors.navy}`,
+                              padding: `${pl.summary.upperBoxPaddingY}px ${pl.summary.paddingX}px`,
+                              fontSize: `${pl.summary.fontSize}px`,
+                              lineHeight: '1.8',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#000000', fontWeight: 500 }}>
+                              <span>SUB TOTAL :</span>
+                              <span>₹{formatNumber(invoice.subtotal)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#000000', fontWeight: 500 }}>
+                              <span>TOTAL GST :</span>
+                              <span>₹{formatNumber(invoice.gst_amount)}</span>
+                            </div>
+                          </div>
+
+                          {/* Lower Navy Box: TOTAL, DISCOUNT, PAID, DUE — Labels bold, values regular */}
+                          <div
+                            style={{
+                              backgroundColor: pl.summary.lowerBg,
+                              color: pl.summary.lowerText,
+                              padding: `${pl.summary.lowerBoxPaddingY}px ${pl.summary.paddingX}px`,
+                              fontSize: `${pl.summary.fontSize}px`,
+                              lineHeight: '1.8',
+                              marginTop: '8px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span className="font-bold">TOTAL:</span>
+                              <span className="font-normal">{pFmt(pPreDiscTotal)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span className="font-bold">DISCOUNT:</span>
+                              <span className="font-normal">{pDisc > 0 ? `-${pFmt(pDisc)}` : pFmt(0)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span className="font-bold">PAID:</span>
+                              <span className="font-normal">{pFmt(pPaid)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span className="font-bold">DUE:</span>
+                              <span className="font-normal">{pFmt(pDue)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                     </div>
-                  </div>
-                </div>
+                  );
+                })()
               ) : (
                 // STANDARD STACKED LAYOUTS (Elite, Harvard, PMI)
                 <div className="space-y-8">
@@ -998,9 +1462,9 @@ export const InvoiceDetails = () => {
                                       {item.program_name}
                                       {renderItemDescription(item, true)}
                                     </td>
-                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '-' : `₹${formatNumber(item.unit_price)}`}</td>
-                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '-' : `₹${formatNumber(item.gst_amount)}`}</td>
-                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18.5%', verticalAlign: 'middle' }}>{isComp ? 'Free' : `₹${formatNumber(item.total_amount)}`}</td>
+                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '₹0.00' : `₹${formatNumber(item.unit_price)}`}</td>
+                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '₹0.00' : `₹${formatNumber(item.gst_amount)}`}</td>
+                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18.5%', verticalAlign: 'middle' }}>{isComp ? '₹0.00' : `₹${formatNumber(item.total_amount)}`}</td>
                                   </tr>
                                 );
                               }
@@ -1020,10 +1484,10 @@ export const InvoiceDetails = () => {
                                     </td>
                                     <td className="p-3.5 text-right text-slate-600 font-mono">{item.quantity || 1}</td>
                                     <td className="p-3.5 text-right text-slate-600 font-mono">
-                                      {isComp ? '-' : formatCurrency(item.unit_price)}
+                                      {isComp ? '₹0.00' : formatCurrency(item.unit_price)}
                                     </td>
                                     <td className={`p-3.5 pr-4 text-right font-mono font-bold ${isComp ? 'text-emerald-600 italic' : 'text-slate-850'}`}>
-                                      {isComp ? 'Free' : formatCurrency(item.total_amount)}
+                                      {isComp ? '₹0.00' : formatCurrency(item.total_amount)}
                                     </td>
                                   </>
                                 ) : (
@@ -1035,13 +1499,13 @@ export const InvoiceDetails = () => {
                                     </td>
                                     <td className="p-3.5 text-right text-slate-600 font-mono">{item.quantity || 1}</td>
                                     <td className="p-3.5 text-right text-slate-600 font-mono">
-                                      {isComp ? '-' : formatCurrency(item.unit_price)}
+                                      {isComp ? '₹0.00' : formatCurrency(item.unit_price)}
                                     </td>
                                     <td className="p-3.5 text-right text-slate-600 font-mono">
-                                      {isComp ? '-' : formatCurrency(item.gst_amount)}
+                                      {isComp ? '₹0.00' : formatCurrency(item.gst_amount)}
                                     </td>
                                     <td className={`p-3.5 pr-4 text-right font-mono font-bold ${isComp ? 'text-primary-600 italic' : 'text-slate-800'}`}>
-                                      {isComp ? 'Free' : formatCurrency(item.total_amount)}
+                                      {isComp ? '₹0.00' : formatCurrency(item.total_amount)}
                                     </td>
                                   </>
                                 )}
@@ -1073,7 +1537,7 @@ export const InvoiceDetails = () => {
                         <div className="text-white p-3 space-y-2 rounded-none text-xs" style={{ backgroundColor: eliteLayout.colors.primary }}>
                           <div className="flex justify-between">
                             <span className="font-bold">TOTAL:</span>
-                            <span className="font-mono">₹{formatNumber(invoice.total_amount)}</span>
+                            <span className="font-mono">₹{formatNumber(preDiscountTotal)}</span>
                           </div>
                           {discountAmount > 0 && (
                             <div className="flex justify-between text-yellow-300">
@@ -1111,7 +1575,7 @@ export const InvoiceDetails = () => {
                         )}
                         <div className="flex justify-between pt-2 border-t border-slate-100 text-sm font-bold" style={{ color: activeTheme.primary }}>
                           <span>Total</span>
-                          <span className="font-mono">{formatCurrency(invoice.total_amount)}</span>
+                          <span className="font-mono">{formatCurrency(preDiscountTotal)}</span>
                         </div>
                         <div className="flex justify-between text-xs font-bold text-emerald-600">
                           <span>Paid</span>
@@ -1131,62 +1595,64 @@ export const InvoiceDetails = () => {
             </div>
           </div>
 
-          <div 
-            className="px-8 py-5 text-white text-xs relative mt-auto overflow-hidden"
-            style={{ 
-              backgroundColor: themeKey === 'elite' ? '#101838' : (themeKey === 'harvard' ? activeTheme.secondary : activeTheme.primary),
-              textAlign: themeKey === 'elite' ? 'left' : 'center',
-              borderTop: themeKey === 'elite' ? '3px solid #2E41B4' : 'none'
-            }}
-          >
-            {/* Top accent border */}
-            {themeKey !== 'elite' && (themeKey === 'harvard' || themeKey === 'pmi') && (
-              <div 
-                className="absolute left-0 right-0 top-0 h-1" 
-                style={{ backgroundColor: themeKey === 'harvard' ? activeTheme.primary : activeTheme.secondary }} 
-              />
-            )}
+          {themeKey !== 'princeton' && (
+            <div 
+              className="px-8 py-5 text-white text-xs relative mt-auto overflow-hidden"
+              style={{ 
+                backgroundColor: themeKey === 'elite' ? '#101838' : (themeKey === 'harvard' ? activeTheme.secondary : activeTheme.primary),
+                textAlign: themeKey === 'elite' ? 'left' : 'center',
+                borderTop: themeKey === 'elite' ? '3px solid #2E41B4' : 'none'
+              }}
+            >
+              {/* Top accent border */}
+              {themeKey !== 'elite' && (themeKey === 'harvard' || themeKey === 'pmi') && (
+                <div 
+                  className="absolute left-0 right-0 top-0 h-1" 
+                  style={{ backgroundColor: themeKey === 'harvard' ? activeTheme.primary : activeTheme.secondary }} 
+                />
+              )}
 
-            {/* Contact details */}
-            {themeKey === 'elite' ? (
-              <div className="flex justify-between items-start gap-4 z-10 relative w-full pt-1.5">
-                {/* Left Column */}
-                <div className="space-y-1">
-                  <p className="font-bold text-xs">Phone: {companyPhone}</p>
-                  <p className="font-bold text-xs">
-                    Email: <a href={`mailto:${companyEmail}`} className="underline hover:text-blue-200 transition-colors">{companyEmail}</a>
-                  </p>
-                  <p className="font-bold text-xs">
-                    Web: <a href={(companyWebsite || 'www.elitetoolistic.com').startsWith('http') ? (companyWebsite || 'www.elitetoolistic.com') : `https://${companyWebsite || 'www.elitetoolistic.com'}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200 transition-colors">{companyWebsite || 'www.elitetoolistic.com'}</a>
-                  </p>
+              {/* Contact details */}
+              {themeKey === 'elite' ? (
+                <div className="flex justify-between items-start gap-4 z-10 relative w-full pt-1.5">
+                  {/* Left Column */}
+                  <div className="space-y-1">
+                    <p className="font-bold text-xs">Phone: {companyPhone}</p>
+                    <p className="font-bold text-xs">
+                      Email: <a href={`mailto:${companyEmail}`} className="underline hover:text-blue-200 transition-colors">{companyEmail}</a>
+                    </p>
+                    <p className="font-bold text-xs">
+                      Web: <a href={(companyWebsite || 'www.elitetoolistic.com').startsWith('http') ? (companyWebsite || 'www.elitetoolistic.com') : `https://${companyWebsite || 'www.elitetoolistic.com'}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200 transition-colors">{companyWebsite || 'www.elitetoolistic.com'}</a>
+                    </p>
+                  </div>
+                  {/* Right Column */}
+                  <div className="text-right max-w-sm mr-16">
+                    <p className="font-bold text-[10px] uppercase text-slate-400 tracking-wider">ADDRESS</p>
+                    <p className="text-[10px] text-slate-300 font-normal mt-0.5 leading-normal">{companyAddress}</p>
+                  </div>
+                  
+                  {/* Bottom-right corner accent triangles */}
+                  <svg className="absolute right-0 bottom-0 pointer-events-none" width="80" height="50" viewBox="0 0 80 50">
+                    <polygon points="80,50 0,50 80,0" fill="#2E41B4" />
+                    <polygon points="80,50 40,50 80,20" fill="#6482DC" />
+                  </svg>
                 </div>
-                {/* Right Column */}
-                <div className="text-right max-w-sm mr-16">
-                  <p className="font-bold text-[10px] uppercase text-slate-400 tracking-wider">ADDRESS</p>
-                  <p className="text-[10px] text-slate-300 font-normal mt-0.5 leading-normal">{companyAddress}</p>
+              ) : themeKey === 'harvard' ? (
+                <p className="opacity-90 text-[10px]">
+                  Address: {companyAddress}  |  Phone: {companyPhone}  |  Email: {companyEmail}
+                </p>
+              ) : themeKey === 'pmi' ? (
+                <div className="space-y-1 opacity-90 text-[10px]">
+                  <p>Address: {companyAddress}</p>
+                  <p>Phone: {companyPhone}  |  Email: {companyEmail}  |  Web: {companyWebsite}</p>
                 </div>
-                
-                {/* Bottom-right corner accent triangles */}
-                <svg className="absolute right-0 bottom-0 pointer-events-none" width="80" height="50" viewBox="0 0 80 50">
-                  <polygon points="80,50 0,50 80,0" fill="#2E41B4" />
-                  <polygon points="80,50 40,50 80,20" fill="#6482DC" />
-                </svg>
-              </div>
-            ) : themeKey === 'harvard' ? (
-              <p className="opacity-90 text-[10px]">
-                Address: {companyAddress}  |  Phone: {companyPhone}  |  Email: {companyEmail}
-              </p>
-            ) : themeKey === 'pmi' ? (
-              <div className="space-y-1 opacity-90 text-[10px]">
-                <p>Address: {companyAddress}</p>
-                <p>Phone: {companyPhone}  |  Email: {companyEmail}  |  Web: {companyWebsite}</p>
-              </div>
-            ) : (
-              <p className="opacity-90 text-[10px]">
-                Address: {companyAddress}  |  Email: {companyEmail}
-              </p>
-            )}
-          </div>
+              ) : (
+                <p className="opacity-90 text-[10px]">
+                  Address: {companyAddress}  |  Email: {companyEmail}
+                </p>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -1249,15 +1715,20 @@ export const InvoiceDetails = () => {
               {/* BILL TO Column */}
               <div className="space-y-1 text-slate-500">
                 <p className="font-bold text-[10px] uppercase tracking-wider text-slate-400">BILL TO</p>
-                <p className="font-bold text-slate-800 text-sm">{resolvedCustomer?.name || 'Client Name'}</p>
-                {resolvedCustomer?.phone && <p>CIN: {resolvedCustomer.phone}</p>}
-                {resolvedCustomer?.email && <p>Email: {resolvedCustomer.email}</p>}
+                <p className="font-bold text-slate-800 text-sm">{resolvedCustomer?.name || invoice.customers?.name || 'Client Name'}</p>
+                {(resolvedCustomer?.email || invoice.customers?.email) && <p>Email: {resolvedCustomer?.email || invoice.customers?.email}</p>}
+                {/* GST above CIN */}
                 {(isIsNodeName(activeCompany?.company_name || 'I-SUCCESSNODE') || resolvedCustomer?.gst_number) && (
-                  <p className="font-medium text-slate-700">
-                    GSTIN: {isIsNodeName(activeCompany?.company_name || 'I-SUCCESSNODE') ? '09AAHCI9258G1Z3' : resolvedCustomer.gst_number}
+                  <p>
+                    GST: {isIsNodeName(activeCompany?.company_name || 'I-SUCCESSNODE') ? '09AAHCI9258G1Z3' : resolvedCustomer.gst_number}
                   </p>
                 )}
-                {resolvedCustomer?.address && <p className="pt-1 text-slate-400">{resolvedCustomer.address}</p>}
+                {(resolvedCustomer?.phone || invoice.customers?.phone) && (
+                  <p>CIN: {resolvedCustomer?.phone || invoice.customers?.phone}</p>
+                )}
+                {(resolvedCustomer?.address || invoice.customers?.address) && (
+                  <p className="pt-1 text-slate-400">{resolvedCustomer?.address || invoice.customers?.address}</p>
+                )}
               </div>
             </div>
 
@@ -1288,7 +1759,7 @@ export const InvoiceDetails = () => {
                           {isComp ? '-' : formatCurrency(item.gst_amount)}
                         </td>
                         <td className={`p-3.5 pr-4 text-right font-mono font-bold ${isComp ? 'text-primary-600 italic' : 'text-slate-800'}`}>
-                          {isComp ? 'Complementary' : formatCurrency(item.total_amount)}
+                                                          {isComp ? '₹0.00' : formatCurrency(item.total_amount)}
                         </td>
                       </tr>
                     );
@@ -1316,7 +1787,7 @@ export const InvoiceDetails = () => {
                 )}
                 <div className="flex justify-between pt-2 border-t border-slate-100 text-sm font-bold text-primary-600">
                   <span>Total</span>
-                  <span className="font-mono">{formatCurrency(invoice.total_amount)}</span>
+                  <span className="font-mono">{formatCurrency(preDiscountTotal)}</span>
                 </div>
                 <div className="flex justify-between text-xs font-bold text-emerald-600">
                   <span>Paid</span>

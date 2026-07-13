@@ -70,9 +70,9 @@ export const InvoiceList = () => {
       link.href = url;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      // Sanitize filename to prevent browser crashes when invoice number contains "/"
-      const safeFilename = inv.invoice_number.replace(/[^a-zA-Z0-9-_]/g, '_');
-      link.download = `${safeFilename}.pdf`;
+      const cxName = inv.customers?.name || inv.customer_name || 'Customer';
+      const safeCxName = cxName.replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/\s+/g, '_');
+      link.download = `${safeCxName}_GST.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

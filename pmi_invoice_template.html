@@ -353,25 +353,26 @@
 
     .footer-content {
       position: absolute;
-      bottom: 12px;
+      bottom: 18px;
       left: 45px;
       z-index: 2;
       color: #FFFFFF;
-      font-weight: bold;
-      font-size: 13.5px;
-      line-height: 1.45;
       text-align: left;
     }
 
     .contact-info {
-      font-size: 14px;
-      margin-bottom: 4px;
+      font-size: 13.5px;
+      font-weight: 700;
+      margin-bottom: 6px;
       letter-spacing: 0.3px;
     }
 
     .address-info {
-      max-width: 440px; /* Kept within the purple band boundary */
-      font-size: 12.5px;
+      max-width: 320px; /* Kept safely within the purple band boundary */
+      font-size: 11px;
+      font-weight: 400;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.85);
     }
   </style>
 </head>
@@ -416,9 +417,9 @@
       <section class="bill-to-section">
         <div class="bill-to-header">
           <div class="bill-to-title">BILL TO:</div>
-          <div style="display: flex; flex-direction: column; align-items: flex-end; color: #102744;">
-            <div class="gst-number-inline">GST: {{COMPANY_GST}}</div>
-            <div class="cin-number-inline" style="font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; margin-top: 2px;">CIN: {{COMPANY_CIN}}</div>
+          <div style="display: flex; flex-direction: column; align-items: flex-start; color: #102744;">
+            <div class="cin-number-inline" style="font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 0.3px;">CIN: {{COMPANY_CIN}}</div>
+            <div class="gst-number-inline" style="margin-top: 2px;">GST: {{COMPANY_GST}}</div>
           </div>
         </div>
         <div class="bill-to-row">
@@ -429,10 +430,7 @@
           <span class="label">Customer Email:</span> 
           <span class="value" data-field="customer-email">{{CUSTOMER_EMAIL}}</span>
         </div>
-        <div class="bill-to-row">
-          <span class="label">Customer CIN:</span> 
-          <span class="value" data-field="customer-phone">{{CUSTOMER_PHONE}}</span>
-        </div>
+
       </section>
 
       <!-- ITEMS TABLE -->
@@ -452,25 +450,25 @@
             <tr data-row-index="1">
               <td class="cell-item">01</td>
               <td class="cell-desc">{{ITEM1_DESC}}</td>
-              <td class="cell-gst">{{ITEM1_GST}}</td>
-              <td class="cell-amount">{{ITEM1_AMOUNT}}</td>
-              <td class="cell-total">{{ITEM1_TOTAL}}</td>
+              <td class="cell-gst">₹{{ITEM1_GST}}</td>
+              <td class="cell-amount">₹{{ITEM1_AMOUNT}}</td>
+              <td class="cell-total">₹{{ITEM1_TOTAL}}</td>
             </tr>
             <!-- Row 2 Placeholder -->
             <tr data-row-index="2">
               <td class="cell-item">02</td>
               <td class="cell-desc">{{ITEM2_DESC}}</td>
-              <td class="cell-gst">{{ITEM2_GST}}</td>
-              <td class="cell-amount">{{ITEM2_AMOUNT}}</td>
-              <td class="cell-total">{{ITEM2_TOTAL}}</td>
+              <td class="cell-gst">₹{{ITEM2_GST}}</td>
+              <td class="cell-amount">₹{{ITEM2_AMOUNT}}</td>
+              <td class="cell-total">₹{{ITEM2_TOTAL}}</td>
             </tr>
             <!-- Standard dynamic templating repeat reference block:
             <tr>
               <td class="cell-item">{{ITEM_INDEX}}</td>
               <td class="cell-desc">{{ITEM_DESCRIPTION}}</td>
-              <td class="cell-gst">{{ITEM_GST}}</td>
-              <td class="cell-amount">{{ITEM_AMOUNT}}</td>
-              <td class="cell-total">{{ITEM_TOTAL}}</td>
+              <td class="cell-gst">₹{{ITEM_GST}}</td>
+              <td class="cell-amount">₹{{ITEM_AMOUNT}}</td>
+              <td class="cell-total">₹{{ITEM_TOTAL}}</td>
             </tr>
             -->
           </tbody>
@@ -483,31 +481,31 @@
           <!-- Upper Box -->
           <div class="summary-top">
             <div class="summary-row">
-              <span class="label">SUB <span class="underline-pmi">TOTAL</span> :</span>
-              <span class="value" data-field="subtotal">{{SUB_TOTAL}}</span>
+              <span class="label">SUB TOTAL :</span>
+              <span class="value" data-field="subtotal">₹{{SUB_TOTAL}}</span>
             </div>
             <div class="summary-row">
-              <span class="label">TOTAL <span class="underline-pmi">GST</span> :</span>
-              <span class="value" data-field="total-gst">{{TOTAL_GST}}</span>
+              <span class="label">TOTAL GST :</span>
+              <span class="value" data-field="total-gst">₹{{TOTAL_GST}}</span>
             </div>
           </div>
           <!-- Lower Box -->
           <div class="summary-bottom">
             <div class="summary-row">
-              <span class="label"><span class="underline-white">TOTAL</span> :</span>
-              <span class="value" data-field="grand-total">{{TOTAL_AMOUNT}}</span>
+              <span class="label">TOTAL :</span>
+              <span class="value" data-field="grand-total">₹{{TOTAL_AMOUNT}}</span>
             </div>
             <div class="summary-row">
               <span class="label">DISCOUNT :</span>
-              <span class="value" data-field="discount">{{DISCOUNT_AMOUNT}}</span>
+              <span class="value" data-field="discount">-₹{{DISCOUNT_AMOUNT}}</span>
             </div>
             <div class="summary-row">
-              <span class="label"><span class="underline-white">PAID</span> :</span>
-              <span class="value" data-field="paid">{{PAID_AMOUNT}}</span>
+              <span class="label">PAID :</span>
+              <span class="value" data-field="paid">₹{{PAID_AMOUNT}}</span>
             </div>
             <div class="summary-row">
               <span class="label">DUE:</span>
-              <span class="value" data-field="due">{{DUE_AMOUNT}}</span>
+              <span class="value" data-field="due">₹{{DUE_AMOUNT}}</span>
             </div>
           </div>
         </div>
@@ -517,23 +515,17 @@
     <!-- FOOTER -->
     <footer class="footer-container" style="height: 140px;">
       <svg class="footer-svg" viewBox="0 0 595.276 140" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- Main Purple Banner on Left -->
-        <polygon points="0,140 0,90 420,90 370,140" fill="#4B2E9E" />
-        
-        <!-- White Separator Mask -->
-        <circle cx="451.2" cy="80" r="35" fill="#FFFFFF" />
+        <!-- Purple Banner (Left) -->
+        <polygon points="0,140 0,40 460,40 360,140" fill="#4B2E9E" />
         
         <!-- Orange Stripe -->
-        <polygon points="391.2,140 465.3,65.9 482.3,65.9 408.2,140" fill="#F2A814" />
+        <polygon points="366,140 466,40 482,40 382,140" fill="#F2A814" />
         
-        <!-- Orange Circle (the dome) -->
-        <circle cx="451.2" cy="80" r="20" fill="#F2A814" />
+        <!-- Green Stripe -->
+        <polygon points="388,140 488,40 504,40 404,140" fill="#2E9E5B" />
         
-        <!-- Green Diagonal Ribbon -->
-        <polygon points="430,140 570,0 595.276,0 595.276,10 465.3,140" fill="#2E9E5B" />
-        
-        <!-- Right Purple Corner -->
-        <polygon points="486.5,140 595.276,31.23 595.276,140" fill="#4B2E9E" />
+        <!-- Purple Corner (Right) -->
+        <polygon points="410,140 510,40 595.276,40 595.276,140" fill="#4B2E9E" />
       </svg>
       
       <div class="footer-content">

@@ -20,9 +20,9 @@ export const eliteLayout = {
   // Header band layout
   header: {
     height: 110,
-    dividerX: 215,
-    logoWidth: 160,
-    logoHeight: 90,
+    dividerX: 250,
+    logoWidth: 195,
+    logoHeight: 92,
     invoiceTitleSize: 38,
     badgeTextSize: 11.5,
     badgeHeight: 22,

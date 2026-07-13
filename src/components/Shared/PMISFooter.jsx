@@ -19,25 +19,23 @@ export const PMISFooter = () => {
   } = PMI_FOOTER_CONFIG;
 
   const renderShape = (shape) => {
-    const color = PMI_FOOTER_CONFIG[shape.colorKey];
-    
+    const fill = PMI_FOOTER_CONFIG[shape.colorKey] || shape.color;
+
     if (shape.type === 'polygon') {
-      // Map points (y_rel_bot to y_svg): y_svg = height - y_rel_bot
       const pointsString = shape.points
         .map(p => `${p.x},${height - p.y}`)
         .join(' ');
-      return <polygon key={shape.id} points={pointsString} fill={color} />;
+      return <polygon key={shape.id} points={pointsString} fill={fill} />;
     }
     
     if (shape.type === 'circle') {
-      // Map center (cy_rel_bot to cy_svg): cy_svg = height - cy_rel_bot
       return (
         <circle
           key={shape.id}
           cx={shape.cx}
           cy={height - shape.cy}
           r={shape.r}
-          fill={color}
+          fill={fill}
         />
       );
     }
@@ -52,10 +50,18 @@ export const PMISFooter = () => {
         {shapes.map(renderShape)}
 
         {/* Contact Info overlay inside the SVG to scale perfectly with the shapes */}
-        <g fill={pmiWhite} className="font-bold font-sans select-none pointer-events-none">
-          <text x={leftPadding} y={height - phoneY} fontSize={`${phoneSize}px`} letterSpacing="0.3px">{phone} | {email}</text>
-          <text x={leftPadding} y={height - address1Y} fontSize={`${addressSize}px`}>{addressLine1}</text>
-          <text x={leftPadding} y={height - address2Y} fontSize={`${addressSize}px`}>{addressLine2}</text>
+        <g fill={pmiWhite} className="select-none pointer-events-none" style={{ fontFamily: "'Inter', 'Poppins', sans-serif" }}>
+          {/* Bold Phone & Email */}
+          <text x={leftPadding} y={height - phoneY} fontSize={`${phoneSize}px`} fontWeight="bold" letterSpacing="0.2px">
+            {phone} | {email}
+          </text>
+          {/* Regular Address Lines */}
+          <text x={leftPadding} y={height - address1Y} fontSize={`${addressSize}px`} fontWeight="500">
+            {addressLine1}
+          </text>
+          <text x={leftPadding} y={height - address2Y} fontSize={`${addressSize}px`} fontWeight="500">
+            {addressLine2}
+          </text>
         </g>
       </svg>
     </div>

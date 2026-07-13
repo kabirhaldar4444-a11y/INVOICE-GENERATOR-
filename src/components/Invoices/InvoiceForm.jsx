@@ -41,7 +41,7 @@ const isIsNodeName = (name) => {
 };
 
 export const InvoiceForm = () => {
-  const { invoices, customers, addInvoice, updateInvoice, showToast, profiles, settings, addCustomer } = useApp();
+  const { invoices, customers, addInvoice, updateInvoice, showToast, profiles, settings, addCustomer, updateCustomer } = useApp();
   const navigate = useNavigate();
   const { id } = useParams();
   
@@ -159,7 +159,7 @@ export const InvoiceForm = () => {
       setDiscountValue('0');
       setPendingAmount('0');
     }
-  }, [id, invoices, isEditMode, profiles]);
+  }, [id, invoices, isEditMode, profiles, customers]);
 
   useEffect(() => {
     if (isIssuingNode) {
@@ -290,6 +290,18 @@ export const InvoiceForm = () => {
         }
       } catch (err) {
         return;
+      }
+    } else {
+      try {
+        await updateCustomer(finalCustomerId, {
+          name: newCustName.trim(),
+          email: newCustEmail.trim(),
+          phone: newCustPhone.trim(),
+          gst_number: isIssuingNode ? '09AAHCI9258G1Z3' : newCustGst.trim(),
+          address: newCustAddress.trim()
+        });
+      } catch (err) {
+        console.error("Failed to update customer", err);
       }
     }
 
