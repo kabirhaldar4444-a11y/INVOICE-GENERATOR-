@@ -16,8 +16,10 @@ import {
   ReceiptText, 
   Building,
   Send,
-  X
-} from 'lucide-react';const isIsNodeName = (name) => {
+  X,
+  FileText
+} from 'lucide-react';
+import { generateCertificatePDF } from '../../utils/certificateGenerator';const isIsNodeName = (name) => {
   if (!name) return false;
   const n = name.toLowerCase();
   return n.includes('isuccessnode') || 
@@ -57,6 +59,17 @@ export const InvoiceDetails = () => {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
+
+  // Certificate state
+  const [certModalOpen, setCertModalOpen] = useState(false);
+  const [certStudentName, setCertStudentName] = useState('');
+  const [certCourseName, setCertCourseName] = useState('CSLP');
+  const [certDuration, setCertDuration] = useState('90 Days');
+  const [certEnrollmentDate, setCertEnrollmentDate] = useState('');
+  const [certValidityDate, setCertValidityDate] = useState('');
+  const [certNo, setCertNo] = useState('');
+  const [certStatus, setCertStatus] = useState('UNDER TRAINING');
+  const [generatingCert, setGeneratingCert] = useState(false);
 
   useEffect(() => {
     const found = invoices.find(inv => inv.id === id);
@@ -118,6 +131,105 @@ export const InvoiceDetails = () => {
       setMessage(formattedMessage);
     }
   }, [id, invoices, settings, customers]);
+
+  const generateDefaultCertNo = (studentName) => {
+    const cleanName = (studentName || '').toUpperCase().replace(/[^A-Z]/g, '');
+    const initials = cleanName.length >= 3 ? cleanName.substring(0, 3) : 'JLE';
+    const prefix = Math.floor(100 + Math.random() * 900);
+    const suffix = Math.floor(1000 + Math.random() * 9000);
+    return `${prefix}${initials}${suffix}`;
+  };
+
+  const formatDateToDDMMYYYY = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateStr;
+  };
+
+  const handleEnrollmentDateChange = (val) => {
+    setCertEnrollmentDate(val);
+    if (val) {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        d.setFullYear(d.getFullYear() + 10);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        setCertValidityDate(`${yyyy}-${mm}-${dd}`);
+      }
+    }
+  };
+
+  const openCertificateModal = () => {
+    const resolvedCust = (customers || []).find(c => c.id === invoice.customer_id) || invoice.customers || null;
+    setCertStudentName(resolvedCust?.name || 'Student Name');
+    
+    const firstItem = invoice.invoice_items?.[0]?.program_name || 'CSLP';
+    setCertCourseName(firstItem);
+    setCertDuration('90 Days');
+    
+    let invDateStr = invoice.invoice_date || '';
+    if (invDateStr) {
+      const d = new Date(invDateStr);
+      if (!isNaN(d.getTime())) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        invDateStr = `${yyyy}-${mm}-${dd}`;
+      }
+    }
+    if (!invDateStr) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      invDateStr = `${yyyy}-${mm}-${dd}`;
+    }
+    setCertEnrollmentDate(invDateStr);
+
+    const d = new Date(invDateStr);
+    d.setFullYear(d.getFullYear() + 10);
+    const valY = d.getFullYear();
+    const valM = String(d.getMonth() + 1).padStart(2, '0');
+    const valD = String(d.getDate()).padStart(2, '0');
+    setCertValidityDate(`${valY}-${valM}-${valD}`);
+
+    setCertNo(generateDefaultCertNo(resolvedCust?.name || 'Student'));
+    setCertStatus('UNDER TRAINING');
+    setCertModalOpen(true);
+  };
+
+  const handleGenerateCertificate = async (e) => {
+    e.preventDefault();
+    setGeneratingCert(true);
+    try {
+      const pdfBytes = await generateCertificatePDF({
+        studentName: certStudentName,
+        courseName: certCourseName,
+        duration: certDuration,
+        enrollmentDate: formatDateToDDMMYYYY(certEnrollmentDate),
+        certificateNo: certNo,
+        validityDate: formatDateToDDMMYYYY(certValidityDate),
+        status: certStatus
+      });
+
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Certificate_${certStudentName.replace(/\s+/g, '_')}.pdf`;
+      link.click();
+      setCertModalOpen(false);
+      showToast('Certificate PDF downloaded successfully!', 'success');
+    } catch (err) {
+      console.error('Error generating certificate:', err);
+      showToast('Failed to generate Certificate PDF.', 'error');
+    } finally {
+      setGeneratingCert(false);
+    }
+  };
 
   if (!invoice) {
     return (
@@ -362,6 +474,16 @@ export const InvoiceDetails = () => {
         </button>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          {themeKey === 'isuccessnode' && (
+            <button
+              onClick={openCertificateModal}
+              className="flex-grow sm:flex-grow-0 flex items-center justify-center gap-2 py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all shadow-md shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.98] text-sm cursor-pointer"
+              title="Generate Student Certificate"
+            >
+              <FileText className="w-4 h-4" /> Download PC
+            </button>
+          )}
+
           <button
             onClick={handleDownloadPDF}
             className="flex-grow sm:flex-grow-0 flex items-center justify-center gap-2 py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl transition-all shadow-md shadow-primary-500/10 hover:shadow-primary-500/25 active:scale-[0.98] text-sm"
@@ -509,6 +631,11 @@ export const InvoiceDetails = () => {
                         <span className="p-2 font-medium text-slate-800 border-r border-black w-[110px]">Tax (18%)</span>
                         <span className="p-2 text-right font-mono font-medium flex-grow">₹{formatNumber(invoice.gst_amount)}</span>
                       </div>
+                      {/* Row Total (Pre-Discount Total) */}
+                      <div className="flex justify-between items-center border-b border-black">
+                        <span className="p-2 font-bold text-slate-800 border-r border-black w-[110px]">Total</span>
+                        <span className="p-2 text-right font-mono font-bold flex-grow">₹{formatNumber(preDiscountTotal)}</span>
+                      </div>
                       {/* Row Discount (Only shown if discountAmount > 0) */}
                       {discountAmount > 0 && (
                         <div className="flex justify-between items-center border-b border-black text-rose-600">
@@ -518,11 +645,6 @@ export const InvoiceDetails = () => {
                           </span>
                         </div>
                       )}
-                      {/* Row Total (Pre-Discount Total) */}
-                      <div className="flex justify-between items-center border-b border-black">
-                        <span className="p-2 font-bold text-slate-800 border-r border-black w-[110px]">Total</span>
-                        <span className="p-2 text-right font-mono font-bold flex-grow">₹{formatNumber(preDiscountTotal)}</span>
-                      </div>
                       {/* Row Paid */}
                       <div className={`flex justify-between items-center ${netBalance > 0 ? 'border-b border-black' : ''}`}>
                         <span className="p-2 font-bold text-slate-800 border-r border-black w-[110px]">Paid</span>
@@ -1905,6 +2027,154 @@ export const InvoiceDetails = () => {
                       <Send className="w-4 h-4" />
                       <span>Send Invoice</span>
                     </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Professional Certificate Modal */}
+      {certModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 shadow-2xl rounded-2xl overflow-hidden animate-scale-up">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-800">
+              <h3 className="font-display font-bold text-base text-slate-800 dark:text-white flex items-center gap-2">
+                <span>Generate Professional Certificate</span>
+              </h3>
+              <button 
+                onClick={() => setCertModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleGenerateCertificate} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Student Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={certStudentName}
+                    onChange={(e) => setCertStudentName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Status
+                  </label>
+                  <select
+                    value={certStatus}
+                    onChange={(e) => setCertStatus(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  >
+                    <option value="UNDER TRAINING">UNDER TRAINING</option>
+                    <option value="COMPLETED">COMPLETED</option>
+                    <option value="CERTIFIED">CERTIFIED</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Course Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={certCourseName}
+                    onChange={(e) => setCertCourseName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Course Duration
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={certDuration}
+                    onChange={(e) => setCertDuration(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Enrollment Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={certEnrollmentDate}
+                    onChange={(e) => handleEnrollmentDateChange(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Validity Date (10 Years Later)
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={certValidityDate}
+                    onChange={(e) => setCertValidityDate(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                  Certificate Number
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={certNo}
+                  onChange={(e) => setCertNo(e.target.value.toUpperCase())}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end items-center gap-3 pt-3 border-t border-slate-150 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setCertModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={generatingCert}
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md shadow-purple-500/10 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {generatingCert ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
+                      Generating...
+                    </>
+                  ) : (
+                    'Download PDF'
                   )}
                 </button>
               </div>

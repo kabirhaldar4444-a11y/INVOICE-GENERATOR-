@@ -15,8 +15,10 @@ import {
   CreditCard,
   ChevronRight,
   TrendingUp,
-  Receipt
+  Receipt,
+  Download
 } from 'lucide-react';
+import { generateCertificatePDF } from '../../utils/certificateGenerator';
 
 const isIsNodeName = (name) => {
   if (!name) return false;
@@ -54,6 +56,17 @@ export const Customers = () => {
   const [gstNumber, setGstNumber] = useState('');
   const [address, setAddress] = useState('');
 
+  // Certificate generation state
+  const [certModalOpen, setCertModalOpen] = useState(false);
+  const [certStudentName, setCertStudentName] = useState('');
+  const [certCourseName, setCertCourseName] = useState('CSLP');
+  const [certDuration, setCertDuration] = useState('90 Days');
+  const [certEnrollmentDate, setCertEnrollmentDate] = useState('');
+  const [certValidityDate, setCertValidityDate] = useState('');
+  const [certNo, setCertNo] = useState('');
+  const [certStatus, setCertStatus] = useState('UNDER TRAINING');
+  const [generatingCert, setGeneratingCert] = useState(false);
+
   // Filter customers based on search
   const filteredCustomers = customers.filter(c => 
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -81,6 +94,86 @@ export const Customers = () => {
     setEditMode(true);
     setCustomerId(c.id);
     setModalOpen(true);
+  };
+
+  const generateDefaultCertNo = (studentName) => {
+    const cleanName = (studentName || '').toUpperCase().replace(/[^A-Z]/g, '');
+    const initials = cleanName.length >= 3 ? cleanName.substring(0, 3) : 'JLE';
+    const prefix = Math.floor(100 + Math.random() * 900);
+    const suffix = Math.floor(1000 + Math.random() * 9000);
+    return `${prefix}${initials}${suffix}`;
+  };
+
+  const formatDateToDDMMYYYY = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateStr;
+  };
+
+  const handleEnrollmentDateChange = (val) => {
+    setCertEnrollmentDate(val);
+    if (val) {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        d.setFullYear(d.getFullYear() + 10);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        setCertValidityDate(`${yyyy}-${mm}-${dd}`);
+      }
+    }
+  };
+
+  const openCertificateModal = (customer) => {
+    setCertStudentName(customer.name);
+    setCertCourseName('CSLP');
+    setCertDuration('90 Days');
+    
+    // Default today
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    setCertEnrollmentDate(todayStr);
+
+    // Default 10 years later
+    const tenYearsLater = `${yyyy + 10}-${mm}-${dd}`;
+    setCertValidityDate(tenYearsLater);
+
+    setCertNo(generateDefaultCertNo(customer.name));
+    setCertStatus('UNDER TRAINING');
+    setCertModalOpen(true);
+  };
+
+  const handleGenerateCertificate = async (e) => {
+    e.preventDefault();
+    setGeneratingCert(true);
+    try {
+      const pdfBytes = await generateCertificatePDF({
+        studentName: certStudentName,
+        courseName: certCourseName,
+        duration: certDuration,
+        enrollmentDate: formatDateToDDMMYYYY(certEnrollmentDate),
+        certificateNo: certNo,
+        validityDate: formatDateToDDMMYYYY(certValidityDate),
+        status: certStatus
+      });
+
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Certificate_${certStudentName.replace(/\s+/g, '_')}.pdf`;
+      link.click();
+      setCertModalOpen(false);
+    } catch (err) {
+      console.error('Error generating certificate:', err);
+    } finally {
+      setGeneratingCert(false);
+    }
   };
 
   const handleSave = async (e) => {
@@ -295,6 +388,25 @@ export const Customers = () => {
                     )}
                   </div>
 
+                  {/* Certificate Generation Action for iSuccessNode */}
+                  {isIsNodeName(settings?.company_name) && (
+                    <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 border border-purple-100 dark:border-purple-900/30 rounded-xl p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
+                        <FileText className="w-4.5 h-4.5" />
+                        <span className="font-bold text-xs uppercase tracking-wider">Professional Certificate</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-450 leading-relaxed">
+                        Generate and download a professional student certificate with signature and stamp for this customer.
+                      </p>
+                      <button
+                        onClick={() => openCertificateModal(selectedCustomer)}
+                        className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white font-semibold rounded-lg text-xs shadow-md shadow-purple-500/10 hover:shadow-purple-500/20 transition-all cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" /> Generate Certificate
+                      </button>
+                    </div>
+                  )}
+
                   {/* Quick Billed Stats */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3.5 bg-indigo-50/30 dark:bg-indigo-950/15 border border-indigo-100/30 dark:border-indigo-950/30 rounded-xl">
@@ -487,6 +599,154 @@ export const Customers = () => {
                   className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md shadow-primary-500/10"
                 >
                   Save Customer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Professional Certificate Modal */}
+      {certModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 shadow-2xl rounded-2xl overflow-hidden animate-scale-up">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-800">
+              <h3 className="font-display font-bold text-base text-slate-800 dark:text-white flex items-center gap-2">
+                <span>Generate Professional Certificate</span>
+              </h3>
+              <button 
+                onClick={() => setCertModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleGenerateCertificate} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Student Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={certStudentName}
+                    onChange={(e) => setCertStudentName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Status
+                  </label>
+                  <select
+                    value={certStatus}
+                    onChange={(e) => setCertStatus(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  >
+                    <option value="UNDER TRAINING">UNDER TRAINING</option>
+                    <option value="COMPLETED">COMPLETED</option>
+                    <option value="CERTIFIED">CERTIFIED</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Course Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={certCourseName}
+                    onChange={(e) => setCertCourseName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Course Duration
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={certDuration}
+                    onChange={(e) => setCertDuration(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Enrollment Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={certEnrollmentDate}
+                    onChange={(e) => handleEnrollmentDateChange(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    Validity Date (10 Years Later)
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={certValidityDate}
+                    onChange={(e) => setCertValidityDate(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                  Certificate Number
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={certNo}
+                  onChange={(e) => setCertNo(e.target.value.toUpperCase())}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end items-center gap-3 pt-3 border-t border-slate-150 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setCertModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={generatingCert}
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md shadow-purple-500/10 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {generatingCert ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
+                      Generating...
+                    </>
+                  ) : (
+                    'Download PDF'
+                  )}
                 </button>
               </div>
             </form>

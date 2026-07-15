@@ -1856,7 +1856,8 @@ export const generateInvoicePDF = async (invoice, settings) => {
       const isnPreDiscountTotal = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
       const isnTotals = [
         { label: 'Sub-Total', val: `₹${issnFmt(invoice.subtotal)}` },
-        { label: 'Tax (18%)', val: `₹${issnFmt(invoice.gst_amount)}` }
+        { label: 'Tax (18%)', val: `₹${issnFmt(invoice.gst_amount)}` },
+        { label: 'Total', val: `₹${issnFmt(isnPreDiscountTotal)}`, bold: true }
       ];
 
       if (realDiscountAmt > 0) {
@@ -1864,7 +1865,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
       }
 
       isnTotals.push(
-        { label: 'Total', val: `₹${issnFmt(isnPreDiscountTotal)}`, bold: true },
         { label: 'Paid', val: `₹${issnFmt(displayPaidAmount)}`, bold: true }
       );
 
