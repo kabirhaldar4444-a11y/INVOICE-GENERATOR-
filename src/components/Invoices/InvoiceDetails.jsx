@@ -430,8 +430,6 @@ export const InvoiceDetails = () => {
       email: 'support@isuccessnode.com',
       website: 'www.isuccessnode.com',
       gst_number: '09AAHCI9258G1Z3',
-      cin: '',
-      address: '',
       primary: '#6b21a8',
       secondary: '#84cc16',
       dark: '#000050',
@@ -457,9 +455,9 @@ export const InvoiceDetails = () => {
   const companyPhone = activeTheme.phone;
   const companyEmail = activeTheme.email;
   const companyWebsite = activeTheme.website;
-  const companyGst = activeTheme.gst_number;
-  const companyCin = activeTheme.cin;
-  const companyAddress = activeTheme.address;
+  const companyGst = activeTheme.gst_number || activeCompany?.gst_number || '';
+  const companyCin = activeTheme.cin || activeCompany?.cin || '';
+  const companyAddress = activeTheme.address || activeCompany?.address || '';
   const logoUrlToRender = localLogoPath || activeCompany?.logo_url;
 
   return (
@@ -560,8 +558,11 @@ export const InvoiceDetails = () => {
                         <div className="space-y-1 text-slate-500">
                           {companyPhone && <p>{companyPhone}</p>}
                           {companyWebsite && <p>{companyWebsite}</p>}
-                          {companyCin && <p>CIN: {companyCin}</p>}
                           {companyEmail && <p>{companyEmail}</p>}
+                          {companyGst && <p>GST: {companyGst}</p>}
+                          {(resolvedCustomer?.phone || invoice.customers?.phone) && (
+                            <p>CIN: {resolvedCustomer?.phone || invoice.customers?.phone}</p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -572,11 +573,6 @@ export const InvoiceDetails = () => {
                         <div className="space-y-1 text-slate-500">
                           <p className="font-bold text-slate-800">{resolvedCustomer?.name || invoice.customers?.name || 'Client Name'}</p>
                           {(resolvedCustomer?.email || invoice.customers?.email) && <p>{resolvedCustomer?.email || invoice.customers?.email}</p>}
-                          {/* GST above CIN */}
-                          <p>GST: {resolvedCustomer?.gst_number || '09AAHCI9258G1Z3'}</p>
-                          {(resolvedCustomer?.phone || invoice.customers?.phone) && (
-                            <p>CIN: {resolvedCustomer?.phone || invoice.customers?.phone}</p>
-                          )}
                         </div>
                       </div>
                     </div>

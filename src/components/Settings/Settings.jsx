@@ -50,6 +50,7 @@ export const Settings = () => {
   // Form states
   const [companyName, setCompanyName] = useState('');
   const [gstNumber, setGstNumber] = useState('');
+  const [cinNumber, setCinNumber] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [website, setWebsite] = useState('');
@@ -62,6 +63,7 @@ export const Settings = () => {
     if (isCreating) {
       setCompanyName('');
       setGstNumber('');
+      setCinNumber('');
       setEmail('');
       setPhone('');
       setWebsite('');
@@ -73,6 +75,7 @@ export const Settings = () => {
         setSelectedProfileId(activeProfile.id);
         setCompanyName(activeProfile.company_name || '');
         setGstNumber(activeProfile.gst_number || '');
+        setCinNumber(activeProfile.cin || '');
         setEmail(activeProfile.email || '');
         setPhone(activeProfile.phone || '');
         setWebsite(activeProfile.website || '');
@@ -88,6 +91,7 @@ export const Settings = () => {
     const payload = {
       company_name: companyName,
       gst_number: finalGstNumber,
+      cin: cinNumber.trim(),
       email,
       phone,
       website,
@@ -350,6 +354,24 @@ export const Settings = () => {
                           ? 'bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-80' 
                           : 'bg-slate-50 dark:bg-slate-800'
                       }`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
+                    CIN (Company Identification Number)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                      <CreditCard className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="e.g. U16229UP2024PTC199657"
+                      value={cinNumber}
+                      onChange={(e) => setCinNumber(e.target.value.toUpperCase())}
+                      className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono"
                     />
                   </div>
                 </div>

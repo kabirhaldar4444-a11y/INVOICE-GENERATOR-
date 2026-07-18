@@ -418,9 +418,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         phone: '+91-7969537567',
         email: 'support@isuccessnode.com',
         website: 'www.isuccessnode.com',
-        gst_number: '09AAHCI9258G1Z3',
-        cin: '',
-        address: ''
+        gst_number: '09AAHCI9258G1Z3'
       }
     };
 
@@ -1700,8 +1698,8 @@ export const generateInvoicePDF = async (invoice, settings) => {
       const leftBoxX = lx;
       const rightBoxX = lx + halfW + 20;
 
-      // Fixed height matching CSS min-h-[110px] (~83pt)
-      const boxH = 85;
+      // Fixed height matching CSS min-h-[110px] (~83pt) + extra for GST line
+      const boxH = 98;
 
       // Draw left box border
       page.drawRectangle({ x: leftBoxX, y: y - boxH, width: halfW, height: boxH, borderColor: isn_border, borderWidth: 1, color: rgb(1,1,1) });
@@ -1720,12 +1718,16 @@ export const generateInvoicePDF = async (invoice, settings) => {
         drawTextHelper(page, companyWebsite, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
         leftY -= 13;
       }
-      if (companyCin) {
-        drawTextHelper(page, `CIN: ${companyCin}`, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
-        leftY -= 13;
-      }
       if (companyEmail) {
         drawTextHelper(page, companyEmail, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
+        leftY -= 13;
+      }
+      if (companyGst) {
+        drawTextHelper(page, `GST: ${companyGst}`, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
+        leftY -= 13;
+      }
+      if (invoice.customers?.phone) {
+        drawTextHelper(page, `CIN: ${invoice.customers.phone}`, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
       }
 
       // Right box content: Bill To
@@ -1736,14 +1738,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
       rightY -= 14;
       if (invoice.customers?.email) {
         drawTextHelper(page, invoice.customers.email, rightBoxX + boxPad, rightY, { font: fontRegular, size: 10, color: isn_muted });
-        rightY -= 13;
-      }
-      // GST above CIN
-      const custGst = invoice.customers?.gst_number || '09AAHCI9258G1Z3';
-      drawTextHelper(page, `GST: ${custGst}`, rightBoxX + boxPad, rightY, { font: fontRegular, size: 10, color: isn_muted });
-      rightY -= 13;
-      if (invoice.customers?.phone) {
-        drawTextHelper(page, `CIN: ${invoice.customers.phone}`, rightBoxX + boxPad, rightY, { font: fontRegular, size: 10, color: isn_muted });
       }
 
       y -= boxH + 25;
