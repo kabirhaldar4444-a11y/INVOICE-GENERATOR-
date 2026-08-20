@@ -1578,7 +1578,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // Box 2: Solid Green — TOTAL / DISCOUNT / PAID / DUE
       const box2Rows = [
-        { label: 'TOTAL :', val: `₹${pmiFmt(invoice.total_amount)}` },
+        { label: 'TOTAL :', val: `₹${pmiFmt(preDiscTotal)}` },
         ...(discountAmount > 0 ? [{ label: 'DISCOUNT :', val: `-₹${pmiFmt(discountAmount)}` }] : []),
         { label: 'PAID :', val: `₹${pmiFmt(paidAmt)}` },
         { label: 'DUE:', val: `₹${pmiFmt(dueAmt)}` }
