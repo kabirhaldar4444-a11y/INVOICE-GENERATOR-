@@ -702,8 +702,8 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // Define dynamic columns based on whether GST is required
       const tHeaders = hasGst 
-        ? ['ITEM', 'Unit Price', `CGST (${halfPct}%)\n${taxType} (${halfPct}%)`, 'AMMOUNT'] 
-        : ['ITEM', 'Unit Price', 'AMMOUNT'];
+        ? ['ITEM', 'Unit Price', `CGST (${halfPct}%)\n${taxType} (${halfPct}%)`, 'AMOUNT'] 
+        : ['ITEM', 'Unit Price', 'AMOUNT'];
       
       const tColWidths = hasGst 
         ? [180, 105, 105, 115] 
@@ -1117,9 +1117,9 @@ export const generateInvoicePDF = async (invoice, settings) => {
       // ── ITEMS TABLE ────────────────────────────────────────────
       // Column widths match HTML preview: 45% | 18% | 18% | 19%
       const tableW  = width - marginX * 2;   // 505pt
-      const colWs   = [230, 91, 91, 93];    // ITEM | Unit Price | GST(18%) | AMMOUNT
+      const colWs   = [230, 91, 91, 93];    // ITEM | Unit Price | GST(18%) | AMOUNT
       const hdrH    = 34;
-      const hdrLabels = ['ITEM', 'Unit Price', 'GST', 'AMMOUNT'];
+      const hdrLabels = ['ITEM', 'Unit Price', 'GST', 'AMOUNT'];
 
       // Table outer top border
       page.drawLine({ start: { x: marginX, y: currentY }, end: { x: width - marginX, y: currentY }, color: eBorder, thickness: 0.8 });
@@ -2233,7 +2233,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
       // ── ITEMS TABLE ──────────────────────────────────────────
       const tableX = mx;
       const tableW = pW - mx * 2;  // 505.276
-      const [cw0, cw1, cw2, cw3] = pl.table.colWidths;  // ITEM | Unit Price | GST (18%) | AMMOUNT
+      const [cw0, cw1, cw2, cw3] = pl.table.colWidths;  // ITEM | Unit Price | GST (18%) | AMOUNT
 
       // Column X-coordinates
       const colX = [
@@ -2257,7 +2257,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
       });
       page.drawRectangle({ x: tableX, y: tableY - hdrH, width: tableW, height: hdrH, color: pBrown, borderColor: pBlack, borderWidth: pl.table.borderThickness });
 
-      const hdrLabels = ['ITEM', 'Unit Price', 'GST', 'AMMOUNT'];
+      const hdrLabels = ['ITEM', 'Unit Price', 'GST', 'AMOUNT'];
       const hdrAlign  = ['center', 'center', 'center', 'center'];
       const hdrLabelY = tableY - hdrH + pl.table.cellPaddingY - 1;
 

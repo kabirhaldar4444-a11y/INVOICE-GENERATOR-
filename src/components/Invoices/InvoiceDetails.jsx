@@ -1056,9 +1056,9 @@ export const InvoiceDetails = () => {
                         'ITEM', 
                         'Unit Price', 
                         <div key="gst-hdr" className="leading-tight"><div>CGST ({halfPct}%)</div><div>{taxType} ({halfPct}%)</div></div>, 
-                        'AMMOUNT'
+                        'AMOUNT'
                       ] 
-                    : ['ITEM', 'Unit Price', 'AMMOUNT'];
+                    : ['ITEM', 'Unit Price', 'AMOUNT'];
                   
                   const tColWidths = hasGst 
                     ? [180, 105, 105, 115] 
@@ -1368,7 +1368,7 @@ export const InvoiceDetails = () => {
                   const pDue = Math.max(0, pPreDiscTotal - pDisc - pPaid);
                   const pl = princetonLayout;
                   const tableW = pl.page.width - pl.marginX * 2; // 505.276px
-                  const [cw0, cw1, cw2, cw3] = pl.table.colWidths; // ITEM | Unit Price | GST (18%) | AMMOUNT
+                  const [cw0, cw1, cw2, cw3] = pl.table.colWidths; // ITEM | Unit Price | GST (18%) | AMOUNT
                   return (
                     <div style={{ fontFamily: 'Inter, sans-serif' }}>
                       {/* Left vertical border strip — full content height */}
@@ -1470,7 +1470,7 @@ export const InvoiceDetails = () => {
                                   <div>{taxType} ({halfPct}%)</div>
                                 </div>
                               </th>
-                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>AMMOUNT</th>
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>AMOUNT</th>
                             </tr>
                           </thead>
 
@@ -1633,7 +1633,7 @@ export const InvoiceDetails = () => {
                                 <div>{taxType} ({halfPct}%)</div>
                               </div>
                             </th>
-                            <th className="p-3 text-center" style={{ width: '18.5%' }}>AMMOUNT</th>
+                            <th className="p-3 text-center" style={{ width: '18.5%' }}>AMOUNT</th>
                           </tr>
                         ) : themeKey === 'harvard' ? (
                           <tr className="text-xs font-semibold border-b border-slate-100" style={{ backgroundColor: '#F2F2F2' }}>

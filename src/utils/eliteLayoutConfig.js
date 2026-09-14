@@ -39,7 +39,7 @@ export const eliteLayout = {
 
   // Items table structure
   table: {
-    colWidths: [230, 91, 91, 93], // ITEM (230) | Unit Price (91) | GST (91) | AMMOUNT (93)
+    colWidths: [230, 91, 91, 93], // ITEM (230) | Unit Price (91) | GST (91) | AMOUNT (93)
     headerHeight: 28,
     rowHeight: 26,
     borderThickness: 0.6,
