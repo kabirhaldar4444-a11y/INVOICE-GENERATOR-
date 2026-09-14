@@ -66,8 +66,10 @@ export const InvoiceForm = () => {
   // Dropdown for line item descriptions
   const [openDescriptionIndex, setOpenDescriptionIndex] = useState(null);
 
+  const [globalTaxType, setGlobalTaxType] = useState('SGST');
+
   const [items, setItems] = useState([
-    { program_name: '', description: '', quantity: 1, unit_price: '0', gross_price: '', gst_percentage: 18, gst_amount: 0, total_amount: 0, paid_amount: '', isPaidManuallyEdited: false }
+    { program_name: '', description: '', quantity: 1, unit_price: '0', gross_price: '', gst_percentage: 18, tax_type: 'SGST', gst_amount: 0, total_amount: 0, paid_amount: '', isPaidManuallyEdited: false }
   ]);
 
   const [subtotal, setSubtotal] = useState(0);
@@ -95,6 +97,9 @@ export const InvoiceForm = () => {
         setStatus(source.status);
 
         // Initialize issuing profile selection
+        const savedTaxType = source.invoice_profile?.tax_type || 'SGST';
+        setGlobalTaxType(savedTaxType);
+
         if (source.invoice_profile) {
           const matchedProfile = profiles.find(p => p.company_name === source.invoice_profile.company_name || p.gst_number === source.invoice_profile.gst_number);
           if (matchedProfile) {
@@ -120,12 +125,14 @@ export const InvoiceForm = () => {
           
           let parsedDesc = item.description || '';
           let itemPaidAmount = (item.total_amount || 0).toString();
+          let itemTaxType = savedTaxType;
           let isPaidManuallyEdited = false;
           try {
             if (parsedDesc.startsWith('{') && parsedDesc.endsWith('}')) {
               const json = JSON.parse(parsedDesc);
               parsedDesc = json.text || '';
               itemPaidAmount = (json.paid_amount !== undefined) ? json.paid_amount.toString() : (item.total_amount || 0).toString();
+              if (json.tax_type) itemTaxType = json.tax_type;
               isPaidManuallyEdited = true;
             }
           } catch (e) {
@@ -140,6 +147,7 @@ export const InvoiceForm = () => {
             unit_price: item.unit_price.toString(),
             gross_price: gross.toFixed(2),
             gst_percentage: gstPct,
+            tax_type: itemTaxType,
             gst_amount: parseFloat(item.gst_amount),
             total_amount: parseFloat(item.total_amount),
             paid_amount: itemPaidAmount,
@@ -158,6 +166,7 @@ export const InvoiceForm = () => {
       setDiscountType('percentage');
       setDiscountValue('0');
       setPendingAmount('0');
+      setGlobalTaxType('SGST');
     }
   }, [id, invoices, isEditMode, profiles, customers]);
 
@@ -205,6 +214,7 @@ export const InvoiceForm = () => {
 
     return {
       ...item,
+      tax_type: item.tax_type || globalTaxType || 'SGST',
       unit_price: unitPrice.toFixed(2),
       gross_price: grossPrice.toFixed(2),
       gst_amount: parseFloat(itemGst.toFixed(2)),
@@ -236,8 +246,13 @@ export const InvoiceForm = () => {
   const handleAddItem = () => {
     setItems(prev => [
       ...prev,
-      { program_name: '', description: '', quantity: 1, unit_price: '0', gross_price: '', gst_percentage: 18, gst_amount: 0, total_amount: 0, paid_amount: '', isPaidManuallyEdited: false }
+      { program_name: '', description: '', quantity: 1, unit_price: '0', gross_price: '', gst_percentage: 18, tax_type: globalTaxType, gst_amount: 0, total_amount: 0, paid_amount: '', isPaidManuallyEdited: false }
     ]);
+  };
+
+  const handleGlobalTaxTypeChange = (newType) => {
+    setGlobalTaxType(newType);
+    setItems(prev => prev.map(item => ({ ...item, tax_type: newType })));
   };
 
   const handleRemoveItem = (index) => {
@@ -329,7 +344,8 @@ export const InvoiceForm = () => {
         discount_type: discountType,
         discount_value: parseAmount(discountValue),
         discount_amount: discountAmt,
-        pending_amount: parsedPendingAmt
+        pending_amount: parsedPendingAmt,
+        tax_type: globalTaxType
       }),
       quantity: 1,
       unit_price: 0,
@@ -342,7 +358,8 @@ export const InvoiceForm = () => {
       program_name: item.program_name,
       description: JSON.stringify({
         text: item.description || '',
-        paid_amount: parseAmount(item.paid_amount)
+        paid_amount: parseAmount(item.paid_amount),
+        tax_type: item.tax_type || globalTaxType || 'SGST'
       }),
       quantity: parseInt(item.quantity, 10) || 1,
       unit_price: parseAmount(item.unit_price),
@@ -566,18 +583,34 @@ export const InvoiceForm = () => {
 
           {/* Section 2: Multiple Line Items */}
           <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 transition-colors shadow-sm space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-primary-500" />
                 <h3 className="font-display font-bold text-base text-slate-800 dark:text-white">Product & Program Line Items</h3>
               </div>
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-255 rounded-lg text-xs font-bold transition-all shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Row
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">GST Option (All):</span>
+                  <div className="w-48">
+                    <CustomSelect
+                      size="sm"
+                      value={globalTaxType}
+                      onChange={(v) => handleGlobalTaxTypeChange(v)}
+                      options={[
+                        { value: 'SGST', label: 'CGST + SGST (9% + 9%)' },
+                        { value: 'IGST', label: 'CGST + IGST (9% + 9%)' },
+                      ]}
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddItem}
+                  className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-255 rounded-lg text-xs font-bold transition-all shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Row
+                </button>
+              </div>
             </div>
 
             {/* Helpful navigation/usage hint */}
@@ -595,8 +628,8 @@ export const InvoiceForm = () => {
                   className="p-4 border border-slate-100 dark:border-slate-800 rounded-xl space-y-4 bg-slate-50/30 dark:bg-slate-850/10 transition-colors"
                 >
                   {/* Row Top Details: Program Name & GST Selector */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="md:col-span-2">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div className="md:col-span-6">
                       <input
                         type="text"
                         required
@@ -606,7 +639,7 @@ export const InvoiceForm = () => {
                         className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs font-semibold"
                       />
                     </div>
-                    <div>
+                    <div className="md:col-span-3">
                       <CustomSelect
                         size="sm"
                         value={item.gst_percentage}
@@ -617,6 +650,17 @@ export const InvoiceForm = () => {
                           { value: 12, label: '12% GST' },
                           { value: 18, label: '18% GST (Standard)' },
                           { value: 28, label: '28% GST (Luxury)' },
+                        ]}
+                      />
+                    </div>
+                    <div className="md:col-span-3">
+                      <CustomSelect
+                        size="sm"
+                        value={item.tax_type || globalTaxType || 'SGST'}
+                        onChange={(v) => handleItemFieldChange(index, 'tax_type', v)}
+                        options={[
+                          { value: 'SGST', label: `SGST (CGST ${(item.gst_percentage || 18)/2}% + SGST ${(item.gst_percentage || 18)/2}%)` },
+                          { value: 'IGST', label: `IGST (CGST ${(item.gst_percentage || 18)/2}% + IGST ${(item.gst_percentage || 18)/2}%)` },
                         ]}
                       />
                     </div>

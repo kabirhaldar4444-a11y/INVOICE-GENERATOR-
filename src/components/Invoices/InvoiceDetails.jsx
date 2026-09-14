@@ -46,6 +46,44 @@ const renderItemDescription = (item, isElite = false) => {
   return <span className="block text-[10px] text-slate-400 font-normal mt-0.5">({displayDesc})</span>;
 };
 
+const getBifurcatedTaxInfo = (invoice) => {
+  if (!invoice) return { taxType: 'SGST', repGstPct: 18, halfPct: 9, getSplitAmounts: () => ({ cgstAmt: 0, secondTaxAmt: 0, itemTaxType: 'SGST' }) };
+  const items = invoice.invoice_items || [];
+  let taxType = invoice.invoice_profile?.tax_type || 'SGST';
+  if (!invoice.invoice_profile?.tax_type && items.length > 0) {
+    for (const itm of items) {
+      if (itm.description && itm.description.startsWith('{') && itm.description.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(itm.description);
+          if (parsed.tax_type) {
+            taxType = parsed.tax_type;
+            break;
+          }
+        } catch (e) {}
+      }
+    }
+  }
+  const repItem = items.find(i => (parseFloat(i.gst_percentage) || 0) > 0);
+  const repGstPct = repItem ? parseFloat(repItem.gst_percentage) : 18;
+  const halfPct = repGstPct / 2;
+
+  const getSplitAmounts = (item) => {
+    const totalGst = parseFloat(item?.gst_amount) || 0;
+    const cgstAmt = Math.round((totalGst / 2) * 100) / 100;
+    const secondTaxAmt = Math.round((totalGst - cgstAmt) * 100) / 100;
+    let itemTaxType = taxType;
+    if (item?.description && item.description.startsWith('{') && item.description.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(item.description);
+        if (parsed.tax_type) itemTaxType = parsed.tax_type;
+      } catch (e) {}
+    }
+    return { cgstAmt, secondTaxAmt, itemTaxType };
+  };
+
+  return { taxType, repGstPct, halfPct, getSplitAmounts };
+};
+
 export const InvoiceDetails = () => {
   const { invoices, customers, settings, deleteInvoice, showToast, confirm } = useApp();
   const navigate = useNavigate();
@@ -369,6 +407,8 @@ export const InvoiceDetails = () => {
     localLogoPath = '/logos/isuccessnode.png';
   }
 
+  const { taxType, halfPct, getSplitAmounts } = getBifurcatedTaxInfo(invoice);
+
   const eliteMarginX = 20;
 
   // Brand data fallback overrides
@@ -585,13 +625,19 @@ export const InvoiceDetails = () => {
                         <tr className="border-b border-black" style={{ backgroundColor: '#BCE0FD' }}>
                           <th className="p-3 text-left font-bold text-black text-sm border-r border-black w-[45%]">Program Name</th>
                           <th className="p-3 text-right font-bold text-black text-sm border-r border-black w-[18%]">Unit Price</th>
-                          <th className="p-3 text-right font-bold text-black text-sm border-r border-black w-[15%]">GST (18%)</th>
+                          <th className="p-3 text-right font-bold text-black text-sm border-r border-black w-[15%]">
+                            <div className="leading-tight">
+                              <div>CGST ({halfPct}%)</div>
+                              <div>{taxType} ({halfPct}%)</div>
+                            </div>
+                          </th>
                           <th className="p-3 text-right font-bold text-black text-sm w-[22%]">Amount (INR)</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(invoice.invoice_items || []).map((item, idx) => {
                           const isComp = parseFloat(item.unit_price) === 0;
+                          const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
                           return (
                             <tr key={item.id || idx} className="text-sm font-semibold text-slate-800">
                               <td className="p-3 text-left border-r border-b border-black font-medium">
@@ -602,7 +648,12 @@ export const InvoiceDetails = () => {
                                 {isComp ? '' : `₹${formatNumber(item.unit_price)}`}
                               </td>
                               <td className="p-3 text-right border-r border-b border-black font-mono font-normal">
-                                {isComp ? '' : `₹${formatNumber(item.gst_amount)}`}
+                                {isComp ? '' : (
+                                  <div className="leading-tight">
+                                    <div>₹{formatNumber(cgstAmt)}</div>
+                                    <div>₹{formatNumber(secondTaxAmt)}</div>
+                                  </div>
+                                )}
                               </td>
                               <td className="p-3 text-right border-b border-black font-mono font-bold">
                                 {isComp ? '0.00' : `₹${formatNumber(item.total_amount)}`}
@@ -734,10 +785,15 @@ export const InvoiceDetails = () => {
                   <div className="mt-6">
                     <table className="w-full border-collapse border border-black text-[10px] text-left" style={{ tableLayout: 'fixed' }}>
                       <thead>
-                        <tr className="bg-[#4A15B7] text-white text-[10px] font-bold" style={{ height: '32px' }}>
+                        <tr className="bg-[#4A15B7] text-white text-[10px] font-bold" style={{ height: '34px' }}>
                           <th className="border border-black text-center" style={{ width: '50px' }}>ITEM</th>
                           <th className="border border-black text-center" style={{ width: '255px' }}>DESCRIPTION</th>
-                          <th className="border border-black text-center" style={{ width: '65px' }}>GST (18%)</th>
+                          <th className="border border-black text-center" style={{ width: '65px' }}>
+                            <div className="leading-tight py-0.5">
+                              <div>CGST ({halfPct}%)</div>
+                              <div>{taxType} ({halfPct}%)</div>
+                            </div>
+                          </th>
                           <th className="border border-black text-center" style={{ width: '65px' }}>AMOUNT</th>
                           <th className="border border-black text-center" style={{ width: '70px' }}>TOTAL</th>
                         </tr>
@@ -766,11 +822,24 @@ export const InvoiceDetails = () => {
                               }
                               return itm.program_name || '';
                             };
+                            const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
                             return (
-                              <tr key={rIdx} className="font-bold text-black border-b border-black" style={{ backgroundColor: isAlt ? '#F2F4F7' : '#FFFFFF', minHeight: '30px' }}>
+                              <tr key={rIdx} className="font-bold text-black border-b border-black" style={{ backgroundColor: isAlt ? '#F2F4F7' : '#FFFFFF', minHeight: '32px' }}>
                                 <td className="border border-black p-2 text-center">{String(rIdx + 1).padStart(2, '0')}</td>
                                 <td className="border border-black p-2 text-left leading-tight break-words">{getItemDisplayName(item)}</td>
-                                <td className="border border-black p-2 text-center">{isComp ? '₹0.00' : `₹${pmiFmt(item.gst_amount)}`}</td>
+                                <td className="border border-black p-1.5 text-center leading-tight">
+                                  {isComp ? (
+                                    <>
+                                      <div>₹0.00</div>
+                                      <div>₹0.00</div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div>₹{pmiFmt(cgstAmt)}</div>
+                                      <div>₹{pmiFmt(secondTaxAmt)}</div>
+                                    </>
+                                  )}
+                                </td>
                                 <td className="border border-black p-2 text-center">{isComp ? '₹0.00' : `₹${pmiFmt(item.unit_price)}`}</td>
                                 <td className="border border-black p-2 text-center">{isComp ? '₹0.00' : `₹${pmiFmt(item.total_amount)}`}</td>
                               </tr>
@@ -983,7 +1052,12 @@ export const InvoiceDetails = () => {
                   const hasGst = parseFloat(invoice.gst_amount) > 0 || items.some(item => (parseFloat(item.gst_amount) || 0) > 0);
 
                   const tHeaders = hasGst 
-                    ? ['ITEM', 'Unit Price', 'GST (18%)', 'AMMOUNT'] 
+                    ? [
+                        'ITEM', 
+                        'Unit Price', 
+                        <div key="gst-hdr" className="leading-tight"><div>CGST ({halfPct}%)</div><div>{taxType} ({halfPct}%)</div></div>, 
+                        'AMMOUNT'
+                      ] 
                     : ['ITEM', 'Unit Price', 'AMMOUNT'];
                   
                   const tColWidths = hasGst 
@@ -1004,7 +1078,7 @@ export const InvoiceDetails = () => {
                             const widthVal = tColWidths[idx];
                             return (
                               <th 
-                                key={header}
+                                key={idx}
                                 className="border border-black text-white font-extrabold text-center uppercase" 
                                 style={{ 
                                   width: `${widthVal}px`, 
@@ -1023,9 +1097,9 @@ export const InvoiceDetails = () => {
                       <tbody>
                         {items.map((item, i) => {
                           const unitPrice = parseFloat(item.unit_price) || 0;
-                          const gstAmount = parseFloat(item.gst_amount) || 0;
                           const totalAmount = parseFloat(item.total_amount) || 0;
                           const isComp = unitPrice === 0;
+                          const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
 
                           const formatVal = (val, forceZero = false) => {
                             if (forceZero && val === 0) return '₹0.00';
@@ -1046,7 +1120,10 @@ export const InvoiceDetails = () => {
                               </td>
                               {hasGst && (
                                 <td className="border border-black font-extrabold text-black text-center font-mono" style={{ fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
-                                  {formatVal(gstAmount)}
+                                  <div className="leading-tight">
+                                    <div>{formatVal(cgstAmt)}</div>
+                                    <div>{formatVal(secondTaxAmt)}</div>
+                                  </div>
                                 </td>
                               )}
                               <td className="border border-black font-extrabold text-black text-center font-mono" style={{ fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
@@ -1387,7 +1464,12 @@ export const InvoiceDetails = () => {
                             >
                               <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>ITEM</th>
                               <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>Unit Price</th>
-                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>GST (18%)</th>
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>
+                                <div className="leading-tight py-0.5">
+                                  <div>CGST ({halfPct}%)</div>
+                                  <div>{taxType} ({halfPct}%)</div>
+                                </div>
+                              </th>
                               <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>AMMOUNT</th>
                             </tr>
                           </thead>
@@ -1396,6 +1478,7 @@ export const InvoiceDetails = () => {
                           <tbody>
                             {(invoice.invoice_items || []).map((item, idx) => {
                               const isComp = parseFloat(item.unit_price) === 0;
+                              const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
                               return (
                                 <tr
                                   key={item.id || idx}
@@ -1412,7 +1495,12 @@ export const InvoiceDetails = () => {
                                     {isComp ? '₹0.00' : `₹${formatNumber(item.unit_price)}`}
                                   </td>
                                   <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'right', padding: `${pl.table.cellPaddingY}px ${pl.table.cellPaddingX}px`, verticalAlign: 'middle', fontWeight: 700 }}>
-                                    {isComp ? '₹0.00' : `₹${formatNumber(item.gst_amount)}`}
+                                    {isComp ? '₹0.00' : (
+                                      <div className="leading-tight">
+                                        <div>₹{formatNumber(cgstAmt)}</div>
+                                        <div>₹{formatNumber(secondTaxAmt)}</div>
+                                      </div>
+                                    )}
                                   </td>
                                   <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'right', padding: `${pl.table.cellPaddingY}px ${pl.table.cellPaddingX}px`, verticalAlign: 'middle', fontWeight: 700 }}>
                                     {isComp ? '₹0.00' : `₹${formatNumber(item.total_amount)}`}
@@ -1539,7 +1627,12 @@ export const InvoiceDetails = () => {
                           <tr className="text-white text-xs font-bold" style={{ backgroundColor: eliteLayout.colors.primary, height: `${eliteLayout.table.headerHeight}px` }}>
                             <th className="p-3 text-center" style={{ width: '45.5%', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>ITEM</th>
                             <th className="p-3 text-center" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>Unit Price</th>
-                            <th className="p-3 text-center" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>GST (18%)</th>
+                            <th className="p-3 text-center" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>
+                              <div className="leading-tight">
+                                <div>CGST ({halfPct}%)</div>
+                                <div>{taxType} ({halfPct}%)</div>
+                              </div>
+                            </th>
                             <th className="p-3 text-center" style={{ width: '18.5%' }}>AMMOUNT</th>
                           </tr>
                         ) : themeKey === 'harvard' ? (
@@ -1570,6 +1663,7 @@ export const InvoiceDetails = () => {
                               const item = items[rIdx];
                               const isComp = item ? parseFloat(item.unit_price) === 0 : false;
                               if (item) {
+                                const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
                                 rows.push(
                                   <tr 
                                     key={item.id || rIdx} 
@@ -1581,7 +1675,14 @@ export const InvoiceDetails = () => {
                                       {renderItemDescription(item, true)}
                                     </td>
                                     <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '₹0.00' : `₹${formatNumber(item.unit_price)}`}</td>
-                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '₹0.00' : `₹${formatNumber(item.gst_amount)}`}</td>
+                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>
+                                      {isComp ? '₹0.00' : (
+                                        <div className="leading-tight">
+                                          <div>₹{formatNumber(cgstAmt)}</div>
+                                          <div>₹{formatNumber(secondTaxAmt)}</div>
+                                        </div>
+                                      )}
+                                    </td>
                                     <td className="p-3 text-center font-bold font-mono" style={{ width: '18.5%', verticalAlign: 'middle' }}>{isComp ? '₹0.00' : `₹${formatNumber(item.total_amount)}`}</td>
                                   </tr>
                                 );
@@ -1857,13 +1958,19 @@ export const InvoiceDetails = () => {
                   <tr className="bg-primary-600 text-white text-xs font-semibold">
                     <th className="p-3.5 pl-4 font-bold rounded-tl-xl">Description</th>
                     <th className="p-3.5 font-bold text-right">Unit Price</th>
-                    <th className="p-3.5 font-bold text-right">GST (18%)</th>
+                    <th className="p-3.5 font-bold text-right">
+                      <div className="leading-tight">
+                        <div>CGST ({halfPct}%)</div>
+                        <div>{taxType} ({halfPct}%)</div>
+                      </div>
+                    </th>
                     <th className="p-3.5 pr-4 font-bold text-right rounded-tr-xl">Amount (INR)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invoice.invoice_items?.map((item, index) => {
                     const isComp = parseFloat(item.unit_price) === 0;
+                    const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
                     return (
                       <tr key={item.id || index} className="border-b border-slate-100/60 text-xs hover:bg-slate-50/30">
                         <td className="p-3.5 pl-4 font-medium text-slate-800">
@@ -1874,10 +1981,15 @@ export const InvoiceDetails = () => {
                           {isComp ? '-' : formatCurrency(item.unit_price)}
                         </td>
                         <td className="p-3.5 text-right text-slate-650 font-mono">
-                          {isComp ? '-' : formatCurrency(item.gst_amount)}
+                          {isComp ? '-' : (
+                            <div className="leading-tight">
+                              <div>{formatCurrency(cgstAmt)}</div>
+                              <div>{formatCurrency(secondTaxAmt)}</div>
+                            </div>
+                          )}
                         </td>
                         <td className={`p-3.5 pr-4 text-right font-mono font-bold ${isComp ? 'text-primary-600 italic' : 'text-slate-800'}`}>
-                                                          {isComp ? '₹0.00' : formatCurrency(item.total_amount)}
+                          {isComp ? '₹0.00' : formatCurrency(item.total_amount)}
                         </td>
                       </tr>
                     );

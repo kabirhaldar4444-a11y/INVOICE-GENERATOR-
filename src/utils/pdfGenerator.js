@@ -246,9 +246,48 @@ const getItemDisplayName = (item) => {
   return item.program_name;
 };
 
+const getBifurcatedTaxInfo = (invoice) => {
+  if (!invoice) return { taxType: 'SGST', repGstPct: 18, halfPct: 9, getSplitAmounts: () => ({ cgstAmt: 0, secondTaxAmt: 0, itemTaxType: 'SGST' }) };
+  const items = invoice.invoice_items || [];
+  let taxType = invoice.invoice_profile?.tax_type || 'SGST';
+  if (!invoice.invoice_profile?.tax_type && items.length > 0) {
+    for (const itm of items) {
+      if (itm.description && itm.description.startsWith('{') && itm.description.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(itm.description);
+          if (parsed.tax_type) {
+            taxType = parsed.tax_type;
+            break;
+          }
+        } catch (e) {}
+      }
+    }
+  }
+  const repItem = items.find(i => (parseFloat(i.gst_percentage) || 0) > 0);
+  const repGstPct = repItem ? parseFloat(repItem.gst_percentage) : 18;
+  const halfPct = repGstPct / 2;
+
+  const getSplitAmounts = (item) => {
+    const totalGst = parseFloat(item?.gst_amount) || 0;
+    const cgstAmt = Math.round((totalGst / 2) * 100) / 100;
+    const secondTaxAmt = Math.round((totalGst - cgstAmt) * 100) / 100;
+    let itemTaxType = taxType;
+    if (item?.description && item.description.startsWith('{') && item.description.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(item.description);
+        if (parsed.tax_type) itemTaxType = parsed.tax_type;
+      } catch (e) {}
+    }
+    return { cgstAmt, secondTaxAmt, itemTaxType };
+  };
+
+  return { taxType, repGstPct, halfPct, getSplitAmounts };
+};
+
 export const generateInvoicePDF = async (invoice, settings) => {
   const activeCompany = invoice.invoice_profile || settings;
   settings = activeCompany;
+  const { taxType, halfPct, getSplitAmounts } = getBifurcatedTaxInfo(invoice);
   const hexToRgbHelper = (hex) => {
     if (!hex) return rgb(0, 0, 0);
     const cleanHex = hex.replace('#', '');
@@ -663,7 +702,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // Define dynamic columns based on whether GST is required
       const tHeaders = hasGst 
-        ? ['ITEM', 'Unit Price', 'GST (18%)', 'AMMOUNT'] 
+        ? ['ITEM', 'Unit Price', `CGST (${halfPct}%)\n${taxType} (${halfPct}%)`, 'AMMOUNT'] 
         : ['ITEM', 'Unit Price', 'AMMOUNT'];
       
       const tColWidths = hasGst 
@@ -702,17 +741,26 @@ export const generateInvoicePDF = async (invoice, settings) => {
           borderWidth: harvardLayout.table.borderThickness
         });
 
-        const textW = fontBold.widthOfTextAtSize(header, tFontSz);
-        const textH = tFontSz * 0.72;
-        const tx = xOffset + (colW - textW) / 2;
-        const ty = tableY - tHeaderH + (tHeaderH - textH) / 2;
-        page.drawText(header, {
-          x: tx,
-          y: ty,
-          size: tFontSz,
-          font: fontBold,
-          color: hWhite
-        });
+        if (hasGst && idx === 2) {
+          drawTextHelper(page, `CGST (${halfPct}%)`, xOffset + colW / 2, tableY - tHeaderH + (tHeaderH / 2) + 2, {
+            size: tFontSz - 1, font: fontBold, color: hWhite, align: 'center'
+          });
+          drawTextHelper(page, `${taxType} (${halfPct}%)`, xOffset + colW / 2, tableY - tHeaderH + (tHeaderH / 2) - 8, {
+            size: tFontSz - 1, font: fontBold, color: hWhite, align: 'center'
+          });
+        } else {
+          const textW = fontBold.widthOfTextAtSize(header, tFontSz);
+          const textH = tFontSz * 0.72;
+          const tx = xOffset + (colW - textW) / 2;
+          const ty = tableY - tHeaderH + (tHeaderH - textH) / 2;
+          page.drawText(header, {
+            x: tx,
+            y: ty,
+            size: tFontSz,
+            font: fontBold,
+            color: hWhite
+          });
+        }
 
         xOffset += colW;
       });
@@ -749,7 +797,15 @@ export const generateInvoicePDF = async (invoice, settings) => {
             else if (j === 2) text = isComp ? '₹0.00' : formatVal(parseFloat(item.total_amount) || 0);
           }
 
-          if (text !== '' && text !== '-') {
+          if (hasGst && j === 2) {
+            const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
+            const l1 = isComp ? '₹0.00' : formatVal(cgstAmt);
+            const l2 = isComp ? '₹0.00' : formatVal(secondTaxAmt);
+            const cx = xRowOffset + colW / 2;
+            const ty = tableY - tRowH + tRowH / 2;
+            drawTextHelper(page, l1, cx, ty + 2, { font: fontBold, size: tFontSz - 1, color: hBlack, align: 'center' });
+            drawTextHelper(page, l2, cx, ty - 8, { font: fontBold, size: tFontSz - 1, color: hBlack, align: 'center' });
+          } else if (text !== '' && text !== '-') {
             const rowFont = fontBold;
             const textH = tFontSz * 0.72;
             const cx = xRowOffset + colW / 2;
@@ -1062,8 +1118,8 @@ export const generateInvoicePDF = async (invoice, settings) => {
       // Column widths match HTML preview: 45% | 18% | 18% | 19%
       const tableW  = width - marginX * 2;   // 505pt
       const colWs   = [230, 91, 91, 93];    // ITEM | Unit Price | GST(18%) | AMMOUNT
-      const hdrH    = 32;
-      const hdrLabels = ['ITEM', 'Unit Price', 'GST (18%)', 'AMMOUNT'];
+      const hdrH    = 34;
+      const hdrLabels = ['ITEM', 'Unit Price', 'GST', 'AMMOUNT'];
 
       // Table outer top border
       page.drawLine({ start: { x: marginX, y: currentY }, end: { x: width - marginX, y: currentY }, color: eBorder, thickness: 0.8 });
@@ -1080,9 +1136,18 @@ export const generateInvoicePDF = async (invoice, settings) => {
       hdrLabels.forEach((lbl, i) => {
         const cw = colWs[i];
         const tx = hx + cw / 2;
-        drawTextHelper(page, lbl, tx, currentY - hdrH + 11, {
-          font: fontBold, size: 10.5, color: eWhite, align: 'center'
-        });
+        if (i === 2) {
+          drawTextHelper(page, `CGST (${halfPct}%)`, tx, currentY - hdrH + 19, {
+            font: fontBold, size: 8.5, color: eWhite, align: 'center'
+          });
+          drawTextHelper(page, `${taxType} (${halfPct}%)`, tx, currentY - hdrH + 8, {
+            font: fontBold, size: 8.5, color: eWhite, align: 'center'
+          });
+        } else {
+          drawTextHelper(page, lbl, tx, currentY - hdrH + 12, {
+            font: fontBold, size: 10.5, color: eWhite, align: 'center'
+          });
+        }
         // Header column divider
         if (i > 0) {
           page.drawLine({ start: { x: hx, y: currentY }, end: { x: hx, y: currentY - hdrH }, color: eDark, thickness: 0.6 });
@@ -1094,7 +1159,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // ── DATA ROWS ──────────────────────────────────────────────
       const tableDataTop = currentY;
-      const rowH_default = 30;
+      const rowH_default = 32;
       const fontSize = 10.5;
       const lineHeight = 13;
       const items = invoice.invoice_items || [];
@@ -1139,7 +1204,13 @@ export const generateInvoicePDF = async (invoice, settings) => {
           cx += colWs[1];
 
           // Col 2: GST
-          drawTextHelper(page, isComp ? '-' : `₹${eFmt(item.gst_amount)}`, cx + colWs[2] / 2, cellY, { font: fontBold, size: fontSize, color: eDark, align: 'center' });
+          const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
+          if (isComp) {
+            drawTextHelper(page, '-', cx + colWs[2] / 2, cellY, { font: fontBold, size: fontSize, color: eDark, align: 'center' });
+          } else {
+            drawTextHelper(page, `₹${eFmt(cgstAmt)}`, cx + colWs[2] / 2, currentY - rowHeight / 2 + 2, { font: fontBold, size: 8.5, color: eDark, align: 'center' });
+            drawTextHelper(page, `₹${eFmt(secondTaxAmt)}`, cx + colWs[2] / 2, currentY - rowHeight / 2 - 8, { font: fontBold, size: 8.5, color: eDark, align: 'center' });
+          }
           cx += colWs[2];
 
           // Col 3: Amount
@@ -1434,7 +1505,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
       let tableY = clientY - 15;
       const colWs = [50, 255, 65, 65, 70];
       const tableW = width - marginX * 2;
-      const hdrH = 32;
+      const hdrH = 34;
       
       // Header background
       page.drawRectangle({
@@ -1448,13 +1519,22 @@ export const generateInvoicePDF = async (invoice, settings) => {
       
       // Header texts
       let hx = marginX;
-      const hdrLabels = ['ITEM', 'DESCRIPTION', 'GST (18%)', 'AMOUNT', 'TOTAL'];
+      const hdrLabels = ['ITEM', 'DESCRIPTION', 'GST', 'AMOUNT', 'TOTAL'];
       hdrLabels.forEach((lbl, i) => {
         const cw = colWs[i];
         const tx = hx + cw / 2;
-        drawTextHelper(page, lbl, tx, tableY - hdrH + 11, {
-          font: fontBold, size: 10, color: pmiWhite, align: 'center'
-        });
+        if (i === 2) {
+          drawTextHelper(page, `CGST (${halfPct}%)`, tx, tableY - hdrH + 19, {
+            font: fontBold, size: 8.5, color: pmiWhite, align: 'center'
+          });
+          drawTextHelper(page, `${taxType} (${halfPct}%)`, tx, tableY - hdrH + 8, {
+            font: fontBold, size: 8.5, color: pmiWhite, align: 'center'
+          });
+        } else {
+          drawTextHelper(page, lbl, tx, tableY - hdrH + 12, {
+            font: fontBold, size: 10, color: pmiWhite, align: 'center'
+          });
+        }
         // Header vertical dividers (black borders)
         if (i > 0) {
           page.drawLine({ start: { x: hx, y: tableY }, end: { x: hx, y: tableY - hdrH }, color: pmiBlack, thickness: 1 });
@@ -1466,7 +1546,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // Data rows
       const items = invoice.invoice_items || [];
-      const rowH_default = 30;
+      const rowH_default = 32;
       const fontSize = 10;
       const lineHeight = 13;
       
@@ -1513,9 +1593,15 @@ export const generateInvoicePDF = async (invoice, settings) => {
         });
         cx += colWs[1];
         
-        // Col 2: GST (18%) (centered)
-        const gstVal = isComp ? '₹0.00' : `₹${pmiFmt(item.gst_amount)}`;
-        drawTextHelper(page, gstVal, cx + colWs[2] / 2, cellY, { font: fontBold, size: fontSize, color: pmiBlack, align: 'center' });
+        // Col 2: CGST and SGST/IGST (2 lines centered)
+        const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
+        if (isComp) {
+          drawTextHelper(page, '₹0.00', cx + colWs[2] / 2, tableY - rowHeight / 2 + 2, { font: fontBold, size: 8.5, color: pmiBlack, align: 'center' });
+          drawTextHelper(page, '₹0.00', cx + colWs[2] / 2, tableY - rowHeight / 2 - 8, { font: fontBold, size: 8.5, color: pmiBlack, align: 'center' });
+        } else {
+          drawTextHelper(page, `₹${pmiFmt(cgstAmt)}`, cx + colWs[2] / 2, tableY - rowHeight / 2 + 2, { font: fontBold, size: 8.5, color: pmiBlack, align: 'center' });
+          drawTextHelper(page, `₹${pmiFmt(secondTaxAmt)}`, cx + colWs[2] / 2, tableY - rowHeight / 2 - 8, { font: fontBold, size: 8.5, color: pmiBlack, align: 'center' });
+        }
         cx += colWs[2];
         
         // Col 3: AMOUNT (centered)
@@ -1745,8 +1831,8 @@ export const generateInvoicePDF = async (invoice, settings) => {
       // --- ITEMS TABLE ---
       const tableW = rx - lx;
       const colW = [227, 91, 76, 111]; // Program Name (45%) | Unit Price (18%) | GST (15%) | Amount (22%)
-      const tHeaders = ['Program Name', 'Unit Price', 'GST (18%)', 'Amount (INR)'];
-      const tHdrH = 22;
+      const tHeaders = ['Program Name', 'Unit Price', 'GST', 'Amount (INR)'];
+      const tHdrH = 26;
       const tableTopY = y;
 
       // Table header background
@@ -1758,7 +1844,12 @@ export const generateInvoicePDF = async (invoice, settings) => {
         const cw = colW[i];
         const isRight = i > 0;
         const tx = isRight ? hx + cw - 8 : hx + 8;
-        drawTextHelper(page, h, tx, y - tHdrH + 7, { font: fontBold, size: 10.5, color: isn_dark, align: isRight ? 'right' : 'left' });
+        if (i === 2) {
+          drawTextHelper(page, `CGST (${halfPct}%)`, tx, y - tHdrH + 14, { font: fontBold, size: 9, color: isn_dark, align: 'right' });
+          drawTextHelper(page, `${taxType} (${halfPct}%)`, tx, y - tHdrH + 4, { font: fontBold, size: 9, color: isn_dark, align: 'right' });
+        } else {
+          drawTextHelper(page, h, tx, y - tHdrH + 7, { font: fontBold, size: 10.5, color: isn_dark, align: isRight ? 'right' : 'left' });
+        }
         hx += cw;
       });
 
@@ -1792,7 +1883,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         }
 
         const hasDesc = displayDesc !== '';
-        const currentRowH = hasDesc ? 36 : 24;
+        const currentRowH = hasDesc ? 36 : 28;
         const cellY = y - currentRowH / 2 - 4;
 
         // Col 0: Program Name + optional description on second line
@@ -1810,8 +1901,11 @@ export const generateInvoicePDF = async (invoice, settings) => {
         cx += colW[1];
 
         // Col 2: GST
-        const gstTxt = isComp ? '' : `₹${issnFmt(item.gst_amount)}`;
-        drawTextHelper(page, gstTxt, cx + colW[2] - 8, cellY, { font: fontRegular, size: 10.5, color: isn_dark, align: 'right' });
+        const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
+        if (!isComp) {
+          drawTextHelper(page, `₹${issnFmt(cgstAmt)}`, cx + colW[2] - 8, y - currentRowH / 2 + 2, { font: fontRegular, size: 8.5, color: isn_dark, align: 'right' });
+          drawTextHelper(page, `₹${issnFmt(secondTaxAmt)}`, cx + colW[2] - 8, y - currentRowH / 2 - 8, { font: fontRegular, size: 8.5, color: isn_dark, align: 'right' });
+        }
         cx += colW[2];
 
         // Col 3: Amount (bold for paid items)
@@ -2163,15 +2257,24 @@ export const generateInvoicePDF = async (invoice, settings) => {
       });
       page.drawRectangle({ x: tableX, y: tableY - hdrH, width: tableW, height: hdrH, color: pBrown, borderColor: pBlack, borderWidth: pl.table.borderThickness });
 
-      const hdrLabels = ['ITEM', 'Unit Price', 'GST (18%)', 'AMMOUNT'];
+      const hdrLabels = ['ITEM', 'Unit Price', 'GST', 'AMMOUNT'];
       const hdrAlign  = ['center', 'center', 'center', 'center'];
       const hdrLabelY = tableY - hdrH + pl.table.cellPaddingY - 1;
 
       hdrLabels.forEach((lbl, i) => {
         const cx = colX[i] + pl.table.colWidths[i] / 2;
-        drawTextHelper(page, lbl, cx, hdrLabelY, {
-          font: fontBold, size: pl.table.headerFontSize, color: pWhite, align: 'center'
-        });
+        if (i === 2) {
+          drawTextHelper(page, `CGST (${halfPct}%)`, cx, hdrLabelY + 5, {
+            font: fontBold, size: pl.table.headerFontSize - 1, color: pWhite, align: 'center'
+          });
+          drawTextHelper(page, `${taxType} (${halfPct}%)`, cx, hdrLabelY - 5, {
+            font: fontBold, size: pl.table.headerFontSize - 1, color: pWhite, align: 'center'
+          });
+        } else {
+          drawTextHelper(page, lbl, cx, hdrLabelY, {
+            font: fontBold, size: pl.table.headerFontSize, color: pWhite, align: 'center'
+          });
+        }
       });
 
       tableY -= hdrH;
@@ -2203,9 +2306,14 @@ export const generateInvoicePDF = async (invoice, settings) => {
         const unitPriceStr = isComp ? '₹0.00' : pFmt(item.unit_price);
         drawTextHelper(page, unitPriceStr, colX[1] + cw1 - pl.table.cellPaddingX, cellY, { font: fontBold, size: pl.table.fontSize, color: pDark, align: 'right' });
 
-        // GST (18%) — right, bold
-        const gstStr = isComp ? '₹0.00' : pFmt(item.gst_amount);
-        drawTextHelper(page, gstStr, colX[2] + cw2 - pl.table.cellPaddingX, cellY, { font: fontBold, size: pl.table.fontSize, color: pDark, align: 'right' });
+        // GST — right, bold
+        const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
+        if (isComp) {
+          drawTextHelper(page, '₹0.00', colX[2] + cw2 - pl.table.cellPaddingX, cellY, { font: fontBold, size: pl.table.fontSize, color: pDark, align: 'right' });
+        } else {
+          drawTextHelper(page, `₹${pFmt(cgstAmt)}`, colX[2] + cw2 - pl.table.cellPaddingX, cellY + 4, { font: fontBold, size: pl.table.fontSize - 1, color: pDark, align: 'right' });
+          drawTextHelper(page, `₹${pFmt(secondTaxAmt)}`, colX[2] + cw2 - pl.table.cellPaddingX, cellY - 5, { font: fontBold, size: pl.table.fontSize - 1, color: pDark, align: 'right' });
+        }
 
         // AMOUNT — right, bold
         const totalStr = isComp ? '₹0.00' : pFmt(item.total_amount);
@@ -2361,12 +2469,12 @@ export const generateInvoicePDF = async (invoice, settings) => {
         colWidths = [215, 50, 80, 80, 80]; // total 505pt
       } else {
         // default
-        headers = ['Description', 'Unit Price', 'GST (18%)', 'Amount (INR)'];
-        colWidths = [225, 100, 90, 90]; // total 505pt
+        headers = ['Description', 'Unit Price', 'GST', 'Amount (INR)'];
+        colWidths = [225, 95, 95, 90]; // total 505pt
       }
 
       const tableWidth = width - marginX * 2; // 505pt
-      const tableHeaderHeight = 22;
+      const tableHeaderHeight = 26;
 
       // Draw header row background
       if (themeKey === 'harvard' || themeKey === 'pmi') {
@@ -2388,7 +2496,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
       }
 
       // Draw Header Labels
-      const labelY = currentY - tableHeaderHeight + 7;
+      const labelY = currentY - tableHeaderHeight + 8;
       let startX = marginX;
 
       headers.forEach((h, idx) => {
@@ -2407,13 +2515,28 @@ export const generateInvoicePDF = async (invoice, settings) => {
           align = 'right';
         }
 
-        const labelTextX = align === 'center' ? startX + curW / 2 : (align === 'right' ? startX + curW - 8 : startX + 8);
-        drawTextHelper(page, h, labelTextX, labelY, {
-          font: fontStyle,
-          size: 8.5,
-          color: labelColor,
-          align
-        });
+        if (themeKey === 'default' && idx === 2) {
+          drawTextHelper(page, `CGST (${halfPct}%)`, startX + curW - 8, currentY - tableHeaderHeight + 15, {
+            font: fontStyle,
+            size: 8,
+            color: labelColor,
+            align: 'right'
+          });
+          drawTextHelper(page, `${taxType} (${halfPct}%)`, startX + curW - 8, currentY - tableHeaderHeight + 5, {
+            font: fontStyle,
+            size: 8,
+            color: labelColor,
+            align: 'right'
+          });
+        } else {
+          const labelTextX = align === 'center' ? startX + curW / 2 : (align === 'right' ? startX + curW - 8 : startX + 8);
+          drawTextHelper(page, h, labelTextX, labelY, {
+            font: fontStyle,
+            size: 8.5,
+            color: labelColor,
+            align
+          });
+        }
 
         startX += curW;
       });
@@ -2481,8 +2604,13 @@ export const generateInvoicePDF = async (invoice, settings) => {
                 const txt = isComp ? '₹0.00' : formatCurrency(item.unit_price);
                 drawTextHelper(page, txt, colX + curW - 8, cellTextY, { font: fontRegular, size: 8.5, color: colorDark, align: 'right' });
               } else if (idx === 2) {
-                const txt = isComp ? '₹0.00' : formatCurrency(item.gst_amount);
-                drawTextHelper(page, txt, colX + curW - 8, cellTextY, { font: fontRegular, size: 8.5, color: colorDark, align: 'right' });
+                const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
+                if (isComp) {
+                  drawTextHelper(page, '₹0.00', colX + curW - 8, cellTextY, { font: fontRegular, size: 8.5, color: colorDark, align: 'right' });
+                } else {
+                  drawTextHelper(page, formatCurrency(cgstAmt), colX + curW - 8, tableY - rowHeight / 2 + 2, { font: fontRegular, size: 8, color: colorDark, align: 'right' });
+                  drawTextHelper(page, formatCurrency(secondTaxAmt), colX + curW - 8, tableY - rowHeight / 2 - 8, { font: fontRegular, size: 8, color: colorDark, align: 'right' });
+                }
               } else if (idx === 3) {
                 const txt = isComp ? '₹0.00' : formatCurrency(item.total_amount);
                 drawTextHelper(page, txt, colX + curW - 8, cellTextY, { font: fontBold, size: 9, color: colorDark, align: 'right' });
@@ -2502,9 +2630,12 @@ export const generateInvoicePDF = async (invoice, settings) => {
       {
         currentY -= 15;
         const realDiscountAmt = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
+        const cgstTotal = Math.round(((parseFloat(invoice.gst_amount) || 0) / 2) * 100) / 100;
+        const secondTaxTotal = Math.round(((parseFloat(invoice.gst_amount) || 0) - cgstTotal) * 100) / 100;
         const summaryLabels = [
           { text: 'Sub-Total', val: formatCurrency(invoice.subtotal) },
-          { text: `GST (${items[0]?.gst_percentage || 18}%)`, val: formatCurrency(invoice.gst_amount) }
+          { text: `CGST (${halfPct}%)`, val: formatCurrency(cgstTotal) },
+          { text: `${taxType} (${halfPct}%)`, val: formatCurrency(secondTaxTotal) }
         ];
         if (realDiscountAmt > 0) {
           summaryLabels.push({
