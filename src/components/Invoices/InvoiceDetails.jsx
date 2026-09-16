@@ -901,7 +901,26 @@ export const InvoiceDetails = () => {
                       return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
                     };
                     return (
-                      <div className="flex justify-end mt-4 text-[9.5px] text-left">
+                      <div className="flex justify-between items-end mt-4 text-[9.5px] text-left">
+                        {/* PMI Stamp & Signature (Left side, above footer) */}
+                        <div className="flex items-end gap-3 pb-1">
+                          <img 
+                            src="/pmi-stamp.png" 
+                            alt="PMI Services Stamp" 
+                            className="w-[85px] h-[82px] object-contain select-none pointer-events-none" 
+                          />
+                          <div className="flex flex-col items-center">
+                            <img 
+                              src="/pmi-signature.png" 
+                              alt="PMI Authorized Signature" 
+                              className="w-[125px] h-[42px] object-contain select-none pointer-events-none mb-1" 
+                            />
+                            <div className="w-[135px] border-b border-black mb-1"></div>
+                            <span className="text-[8.5px] font-bold text-black tracking-wide">Authorized Signatory</span>
+                          </div>
+                        </div>
+
+                        {/* Summary Box */}
                         <div className="flex flex-col gap-2.5 w-[190px]">
                           {/* Upper Box */}
                           <div className="border border-black p-2 space-y-1.5 bg-white text-black font-bold">

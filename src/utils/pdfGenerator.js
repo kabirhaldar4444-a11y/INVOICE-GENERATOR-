@@ -1528,6 +1528,28 @@ export const generateInvoicePDF = async (invoice, settings) => {
         return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
       };
 
+      // Load PMI Stamp and Signature
+      let pmiStampImage = null;
+      let pmiSigImage = null;
+      try {
+        const stampRes = await fetch('/pmi-stamp.png');
+        if (stampRes.ok) {
+          const ab = await stampRes.arrayBuffer();
+          pmiStampImage = await pdfDoc.embedPng(ab);
+        }
+      } catch (err) {
+        console.warn("Failed to load PMI stamp:", err);
+      }
+      try {
+        const sigRes = await fetch('/pmi-signature.png');
+        if (sigRes.ok) {
+          const ab = await sigRes.arrayBuffer();
+          pmiSigImage = await pdfDoc.embedPng(ab);
+        }
+      } catch (err) {
+        console.warn("Failed to load PMI signature:", err);
+      }
+
       // ── TOP ACCENTS ─────────────────────────────────────────────
       // Purple top strip
       drawPolygonHelper(page, [
@@ -1945,6 +1967,53 @@ export const generateInvoicePDF = async (invoice, settings) => {
         const ry = box2Y + box2H - (i + 1) * box2RowH + box2RowH / 2 - 4;
         drawTextHelper(page, row.label, boxX + 10, ry, { font: fontBold, size: isCompact ? 9 : 9.5, color: pmiWhite });
         drawTextHelper(page, row.val, boxX + boxW - 10, ry, { font: fontBold, size: isCompact ? 9 : 9.5, color: pmiWhite, align: 'right' });
+      });
+
+      // ── PMI STAMP & SIGNATURE (Above Footer) ────────────────────
+      const signBlockBottomY = Math.max(55, box2Y);
+      const pmiStampW = isCompact ? 75 : 85;
+      const pmiStampH = isCompact ? 72 : 82;
+      const pmiStampX = marginX + 10;
+      const pmiStampY = signBlockBottomY + (isCompact ? 2 : 5);
+
+      if (pmiStampImage) {
+        page.drawImage(pmiStampImage, {
+          x: pmiStampX,
+          y: pmiStampY,
+          width: pmiStampW,
+          height: pmiStampH
+        });
+      }
+
+      const pmiSigW = isCompact ? 110 : 125;
+      const pmiSigH = isCompact ? 36 : 42;
+      const pmiSigX = pmiStampX + pmiStampW + 12;
+      const pmiSigY = signBlockBottomY + 22;
+
+      if (pmiSigImage) {
+        page.drawImage(pmiSigImage, {
+          x: pmiSigX,
+          y: pmiSigY,
+          width: pmiSigW,
+          height: pmiSigH
+        });
+      }
+
+      // Line under signature
+      const sigLineY = signBlockBottomY + 18;
+      page.drawLine({
+        start: { x: pmiSigX - 5, y: sigLineY },
+        end: { x: pmiSigX + pmiSigW + 5, y: sigLineY },
+        color: pmiBlack,
+        thickness: 0.8
+      });
+
+      // "Authorized Signatory" text
+      drawTextHelper(page, 'Authorized Signatory', pmiSigX + pmiSigW / 2, signBlockBottomY + 6, {
+        font: fontBold,
+        size: isCompact ? 8 : 8.5,
+        color: pmiBlack,
+        align: 'center'
       });
 
       const pdfBytes = await pdfDoc.save();
