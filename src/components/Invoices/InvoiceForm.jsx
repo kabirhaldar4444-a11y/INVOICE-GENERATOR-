@@ -69,7 +69,7 @@ export const InvoiceForm = () => {
   const [globalTaxType, setGlobalTaxType] = useState('SGST');
 
   const [items, setItems] = useState([
-    { program_name: '', description: '', quantity: 1, unit_price: '0', gross_price: '', gst_percentage: 18, tax_type: 'SGST', gst_amount: 0, total_amount: 0, paid_amount: '', isPaidManuallyEdited: false }
+    { program_name: '', description: '', course_description: '', duration: '', quantity: 1, unit_price: '0', gross_price: '', gst_percentage: 18, tax_type: 'SGST', gst_amount: 0, total_amount: 0, paid_amount: '', isPaidManuallyEdited: false }
   ]);
 
   const [subtotal, setSubtotal] = useState(0);
@@ -124,6 +124,8 @@ export const InvoiceForm = () => {
           const gross = uPrice * (1 + gstPct / 100);
           
           let parsedDesc = item.description || '';
+          let itemCourseDesc = item.course_description || '';
+          let itemDuration = item.duration || '';
           let itemPaidAmount = (item.total_amount || 0).toString();
           let itemTaxType = savedTaxType;
           let isPaidManuallyEdited = false;
@@ -131,6 +133,8 @@ export const InvoiceForm = () => {
             if (parsedDesc.startsWith('{') && parsedDesc.endsWith('}')) {
               const json = JSON.parse(parsedDesc);
               parsedDesc = json.text || '';
+              if (json.course_description) itemCourseDesc = json.course_description;
+              if (json.duration) itemDuration = json.duration;
               itemPaidAmount = (json.paid_amount !== undefined) ? json.paid_amount.toString() : (item.total_amount || 0).toString();
               if (json.tax_type) itemTaxType = json.tax_type;
               isPaidManuallyEdited = true;
@@ -143,6 +147,8 @@ export const InvoiceForm = () => {
             id: item.id,
             program_name: item.program_name,
             description: parsedDesc,
+            course_description: itemCourseDesc,
+            duration: itemDuration,
             quantity: item.quantity,
             unit_price: item.unit_price.toString(),
             gross_price: gross.toFixed(2),
@@ -246,7 +252,7 @@ export const InvoiceForm = () => {
   const handleAddItem = () => {
     setItems(prev => [
       ...prev,
-      { program_name: '', description: '', quantity: 1, unit_price: '0', gross_price: '', gst_percentage: 18, tax_type: globalTaxType, gst_amount: 0, total_amount: 0, paid_amount: '', isPaidManuallyEdited: false }
+      { program_name: '', description: '', course_description: '', duration: '', quantity: 1, unit_price: '0', gross_price: '', gst_percentage: 18, tax_type: globalTaxType, gst_amount: 0, total_amount: 0, paid_amount: '', isPaidManuallyEdited: false }
     ]);
   };
 
@@ -358,6 +364,8 @@ export const InvoiceForm = () => {
       program_name: item.program_name,
       description: JSON.stringify({
         text: item.description || '',
+        course_description: item.course_description || '',
+        duration: item.duration || '',
         paid_amount: parseAmount(item.paid_amount),
         tax_type: item.tax_type || globalTaxType || 'SGST'
       }),
@@ -597,8 +605,8 @@ export const InvoiceForm = () => {
                       value={globalTaxType}
                       onChange={(v) => handleGlobalTaxTypeChange(v)}
                       options={[
-                        { value: 'SGST', label: 'CGST + SGST (9% + 9%)' },
-                        { value: 'IGST', label: 'CGST + IGST (9% + 9%)' },
+                        { value: 'SGST', label: 'CGST + SGST (Col 5: SGST 9%)' },
+                        { value: 'IGST', label: 'CGST + IGST (Col 5: IGST 9%)' },
                       ]}
                     />
                   </div>
@@ -659,8 +667,8 @@ export const InvoiceForm = () => {
                         value={item.tax_type || globalTaxType || 'SGST'}
                         onChange={(v) => handleItemFieldChange(index, 'tax_type', v)}
                         options={[
-                          { value: 'SGST', label: `SGST (CGST ${(item.gst_percentage || 18)/2}% + SGST ${(item.gst_percentage || 18)/2}%)` },
-                          { value: 'IGST', label: `IGST (CGST ${(item.gst_percentage || 18)/2}% + IGST ${(item.gst_percentage || 18)/2}%)` },
+                          { value: 'SGST', label: `SGST (Col 5: SGST ${(item.gst_percentage || 18)/2}%)` },
+                          { value: 'IGST', label: `IGST (Col 5: IGST ${(item.gst_percentage || 18)/2}%)` },
                         ]}
                       />
                     </div>
@@ -770,6 +778,90 @@ export const InvoiceForm = () => {
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
+                      </div>
+                    </div>
+
+                    {/* Smart Course Details (Description & Duration) */}
+                    <div className="pt-3 mt-1 border-t border-slate-150/70 dark:border-slate-800/80">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                        {/* Course Description Text Box */}
+                        <div className="md:col-span-8">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                              <span>Course Description (Optional)</span>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleItemFieldChange(index, 'course_description', 'Professional Development Certification is a premier training program designed to equip modern professionals with the high-impact competencies required for corporate excellence.');
+                                if (!item.duration) handleItemFieldChange(index, 'duration', '20 days');
+                              }}
+                              className="text-[9.5px] font-bold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline cursor-pointer"
+                              title="Load example course description and 20 days duration"
+                            >
+                              + Load Certification Sample
+                            </button>
+                          </div>
+                          <textarea
+                            rows="2"
+                            placeholder="Add course description here (will wrap cleanly in invoice table without affecting layout)..."
+                            value={item.course_description || ''}
+                            onChange={(e) => handleItemFieldChange(index, 'course_description', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs resize-y font-normal"
+                          />
+                        </div>
+
+                        {/* Course Duration Option */}
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
+                            Course Duration Option
+                          </label>
+                          <div className="space-y-1.5">
+                            <CustomSelect
+                              size="sm"
+                              value={
+                                ['', '5 days', '10 days', '15 days', '20 days', '30 days', '45 days', '60 days', '90 days', '1 Month', '2 Months', '3 Months', '6 Months', '1 Year'].includes(item.duration)
+                                  ? item.duration
+                                  : (item.duration ? 'custom' : '')
+                              }
+                              onChange={(v) => {
+                                if (v === 'custom') {
+                                  if (!item.duration || ['', '5 days', '10 days', '15 days', '20 days', '30 days', '45 days', '60 days', '90 days', '1 Month', '2 Months', '3 Months', '6 Months', '1 Year'].includes(item.duration)) {
+                                    handleItemFieldChange(index, 'duration', '20 days');
+                                  }
+                                } else {
+                                  handleItemFieldChange(index, 'duration', v);
+                                }
+                              }}
+                              options={[
+                                { value: '', label: 'None (No Duration)' },
+                                { value: '5 days', label: '5 days' },
+                                { value: '10 days', label: '10 days' },
+                                { value: '15 days', label: '15 days' },
+                                { value: '20 days', label: '20 days' },
+                                { value: '30 days', label: '30 days' },
+                                { value: '45 days', label: '45 days' },
+                                { value: '60 days', label: '60 days' },
+                                { value: '90 days', label: '90 days' },
+                                { value: '1 Month', label: '1 Month' },
+                                { value: '2 Months', label: '2 Months' },
+                                { value: '3 Months', label: '3 Months' },
+                                { value: '6 Months', label: '6 Months' },
+                                { value: '1 Year', label: '1 Year' },
+                                { value: 'custom', label: '✏️ Custom Duration...' },
+                              ]}
+                            />
+                            {(!['', '5 days', '10 days', '15 days', '20 days', '30 days', '45 days', '60 days', '90 days', '1 Month', '2 Months', '3 Months', '6 Months', '1 Year'].includes(item.duration) || item.duration === 'custom') && (
+                              <input
+                                type="text"
+                                placeholder="Type duration (e.g. 25 days, 40 hours)"
+                                value={item.duration === 'custom' ? '' : item.duration}
+                                onChange={(e) => handleItemFieldChange(index, 'duration', e.target.value)}
+                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 font-medium"
+                              />
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -56,8 +56,8 @@ export const princetonLayout = {
   // ── Items Table ─────────────────────────────────────────────
   table: {
     // Column widths (must sum to page.width - 2*marginX = 505.276)
-    // ITEM | Unit Price | GST (18%) | AMOUNT
-    colWidths:  [205, 100, 100, 100],  // pt/px each column
+    // SR. NO. | ITEM | AMOUNT | CGST | SGST/IGST | TOTAL
+    colWidths:  [35, 190, 70, 70, 70, 70],  // pt/px each column
     headerHeight:   30,   // table header row height
     rowHeight:      28,   // each data row height
     borderColor: '#000000',

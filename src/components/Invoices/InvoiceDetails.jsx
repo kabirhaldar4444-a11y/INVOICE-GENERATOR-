@@ -32,18 +32,37 @@ import { generateCertificatePDF } from '../../utils/certificateGenerator';const 
 
 const renderItemDescription = (item, isElite = false) => {
   let displayDesc = item.description || '';
+  let courseDesc = item.course_description || '';
+  let duration = item.duration || '';
   try {
     if (displayDesc.startsWith('{') && displayDesc.endsWith('}')) {
       const json = JSON.parse(displayDesc);
       displayDesc = json.text || '';
+      if (json.course_description) courseDesc = json.course_description;
+      if (json.duration) duration = json.duration;
     }
   } catch (e) {}
-  if (!displayDesc) return null;
+  if (!displayDesc && !courseDesc && !duration) return null;
   
-  if (isElite) {
-    return <span className="block text-[9px] text-slate-400 font-normal mt-0.5">({displayDesc})</span>;
-  }
-  return <span className="block text-[10px] text-slate-400 font-normal mt-0.5">({displayDesc})</span>;
+  return (
+    <div className="mt-1 [overflow-wrap:anywhere] [word-break:break-word]">
+      {courseDesc && (
+        <span className="block text-[9.5px] text-slate-600 dark:text-slate-400 font-normal leading-relaxed break-words [overflow-wrap:anywhere] [word-break:break-word]">
+          {courseDesc}
+        </span>
+      )}
+      {duration && (
+        <span className="block text-[9.5px] text-slate-700 dark:text-slate-300 font-bold mt-1">
+          Course Duration: <span className="font-normal">{duration}</span>
+        </span>
+      )}
+      {!courseDesc && displayDesc && (
+        <span className={`block ${isElite ? 'text-[9px]' : 'text-[10px]'} text-slate-400 font-normal mt-0.5 [overflow-wrap:anywhere] [word-break:break-word]`}>
+          ({displayDesc})
+        </span>
+      )}
+    </div>
+  );
 };
 
 const getBifurcatedTaxInfo = (invoice) => {
@@ -620,18 +639,15 @@ export const InvoiceDetails = () => {
 
                   {/* Items Table with full black borders */}
                   <div className="overflow-x-auto border border-black rounded-none">
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
                       <thead>
                         <tr className="border-b border-black" style={{ backgroundColor: '#BCE0FD' }}>
-                          <th className="p-3 text-left font-bold text-black text-sm border-r border-black w-[45%]">Program Name</th>
-                          <th className="p-3 text-right font-bold text-black text-sm border-r border-black w-[18%]">Unit Price</th>
-                          <th className="p-3 text-right font-bold text-black text-sm border-r border-black w-[15%]">
-                            <div className="leading-tight">
-                              <div>CGST ({halfPct}%)</div>
-                              <div>{taxType} ({halfPct}%)</div>
-                            </div>
-                          </th>
-                          <th className="p-3 text-right font-bold text-black text-sm w-[22%]">Amount (INR)</th>
+                          <th className="p-2 text-center font-bold text-black text-xs border-r border-black" style={{ width: '35px' }}>SR. NO.</th>
+                          <th className="p-2 text-left font-bold text-black text-xs border-r border-black" style={{ width: '190px' }}>ITEM</th>
+                          <th className="p-2 text-center font-bold text-black text-xs border-r border-black" style={{ width: '70px' }}>AMOUNT</th>
+                          <th className="p-2 text-center font-bold text-black text-xs border-r border-black" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
+                          <th className="p-2 text-center font-bold text-black text-xs border-r border-black" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
+                          <th className="p-2 text-center font-bold text-black text-xs" style={{ width: '70px' }}>TOTAL</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -640,23 +656,24 @@ export const InvoiceDetails = () => {
                           const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
                           return (
                             <tr key={item.id || idx} className="text-sm font-semibold text-slate-800">
-                              <td className="p-3 text-left border-r border-b border-black font-medium">
-                                {item.program_name}
+                              <td className="p-1.5 text-center border-r border-b border-black font-bold align-middle text-xs">
+                                {String(idx + 1).padStart(2, '0')}
+                              </td>
+                              <td className="p-2 text-left border-r border-b border-black font-medium align-middle">
+                                <span className="font-bold text-black text-xs">{item.program_name}</span>
                                 {renderItemDescription(item)}
                               </td>
-                              <td className="p-3 text-right border-r border-b border-black font-mono font-normal">
-                                {isComp ? '' : `₹${formatNumber(item.unit_price)}`}
+                              <td className="px-1 py-2 text-center border-r border-b border-black font-mono font-bold align-middle text-[10px] whitespace-nowrap">
+                                {isComp ? '₹0.00' : `₹${formatNumber(item.unit_price)}`}
                               </td>
-                              <td className="p-3 text-right border-r border-b border-black font-mono font-normal">
-                                {isComp ? '' : (
-                                  <div className="leading-tight">
-                                    <div>₹{formatNumber(cgstAmt)}</div>
-                                    <div>₹{formatNumber(secondTaxAmt)}</div>
-                                  </div>
-                                )}
+                              <td className="px-1 py-2 text-center border-r border-b border-black font-mono font-bold align-middle text-[10px] whitespace-nowrap">
+                                {isComp ? '₹0.00' : `₹${formatNumber(cgstAmt)}`}
                               </td>
-                              <td className="p-3 text-right border-b border-black font-mono font-bold">
-                                {isComp ? '0.00' : `₹${formatNumber(item.total_amount)}`}
+                              <td className="px-1 py-2 text-center border-r border-b border-black font-mono font-bold align-middle text-[10px] whitespace-nowrap">
+                                {isComp ? '₹0.00' : `₹${formatNumber(secondTaxAmt)}`}
+                              </td>
+                              <td className="px-1 py-2 text-center border-b border-black font-mono font-bold align-middle text-[10px] whitespace-nowrap">
+                                {isComp ? '₹0.00' : `₹${formatNumber(item.total_amount)}`}
                               </td>
                             </tr>
                           );
@@ -786,15 +803,11 @@ export const InvoiceDetails = () => {
                     <table className="w-full border-collapse border border-black text-[10px] text-left" style={{ tableLayout: 'fixed' }}>
                       <thead>
                         <tr className="bg-[#4A15B7] text-white text-[10px] font-bold" style={{ height: '34px' }}>
-                          <th className="border border-black text-center" style={{ width: '50px' }}>ITEM</th>
-                          <th className="border border-black text-center" style={{ width: '255px' }}>DESCRIPTION</th>
-                          <th className="border border-black text-center" style={{ width: '65px' }}>
-                            <div className="leading-tight py-0.5">
-                              <div>CGST ({halfPct}%)</div>
-                              <div>{taxType} ({halfPct}%)</div>
-                            </div>
-                          </th>
-                          <th className="border border-black text-center" style={{ width: '65px' }}>AMOUNT</th>
+                          <th className="border border-black text-center" style={{ width: '35px' }}>S.NO.</th>
+                          <th className="border border-black text-center" style={{ width: '190px' }}>ITEM</th>
+                          <th className="border border-black text-center" style={{ width: '70px' }}>AMOUNT</th>
+                          <th className="border border-black text-center" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
+                          <th className="border border-black text-center" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
                           <th className="border border-black text-center" style={{ width: '70px' }}>TOTAL</th>
                         </tr>
                       </thead>
@@ -813,35 +826,55 @@ export const InvoiceDetails = () => {
                           return items.map((item, rIdx) => {
                             const isAlt = rIdx % 2 === 1;
                             const isComp = item ? parseFloat(item.unit_price) === 0 : false;
-                            const getItemDisplayName = (itm) => {
-                              if (itm.course_type === 'Course' && itm.course_details) {
-                                const d = itm.course_details;
-                                if (d.course_name && d.mode && d.admission_type) {
-                                  return `${d.course_name} (${d.mode} - ${d.admission_type})`;
-                                }
+                            
+                            let displayDesc = item.description || '';
+                            let courseDesc = item.course_description || '';
+                            let duration = item.duration || '';
+                            try {
+                              if (displayDesc.startsWith('{') && displayDesc.endsWith('}')) {
+                                const json = JSON.parse(displayDesc);
+                                displayDesc = json.text || '';
+                                if (json.course_description) courseDesc = json.course_description;
+                                if (json.duration) duration = json.duration;
                               }
-                              return itm.program_name || '';
-                            };
+                            } catch (e) {}
+
                             const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
                             return (
                               <tr key={rIdx} className="font-bold text-black border-b border-black" style={{ backgroundColor: isAlt ? '#F2F4F7' : '#FFFFFF', minHeight: '32px' }}>
-                                <td className="border border-black p-2 text-center">{String(rIdx + 1).padStart(2, '0')}</td>
-                                <td className="border border-black p-2 text-left leading-tight break-words">{getItemDisplayName(item)}</td>
-                                <td className="border border-black p-1.5 text-center leading-tight">
-                                  {isComp ? (
-                                    <>
-                                      <div>₹0.00</div>
-                                      <div>₹0.00</div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div>₹{pmiFmt(cgstAmt)}</div>
-                                      <div>₹{pmiFmt(secondTaxAmt)}</div>
-                                    </>
+                                <td className="border border-black p-2 text-center align-middle font-bold" style={{ width: '35px' }}>
+                                  {String(rIdx + 1).padStart(2, '0')}
+                                </td>
+                                <td className="border border-black p-2.5 text-left align-middle leading-tight break-words [overflow-wrap:anywhere] [word-break:break-word]" style={{ width: '190px' }}>
+                                  <div className="font-bold text-black text-[10px] leading-snug break-words [overflow-wrap:anywhere] [word-break:break-word]">{item.program_name}</div>
+                                  {courseDesc && (
+                                    <div className="text-[9px] text-black font-normal mt-1 leading-normal break-words [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-line">
+                                      {courseDesc}
+                                    </div>
+                                  )}
+                                  {duration && (
+                                    <div className="text-[9.5px] text-black mt-2 leading-tight">
+                                      <span className="font-bold">Course Duration:</span> <span className="font-bold">{duration}</span>
+                                    </div>
+                                  )}
+                                  {!courseDesc && displayDesc && (
+                                    <div className="text-[9px] text-slate-500 font-normal mt-0.5">
+                                      ({displayDesc})
+                                    </div>
                                   )}
                                 </td>
-                                <td className="border border-black p-2 text-center">{isComp ? '₹0.00' : `₹${pmiFmt(item.unit_price)}`}</td>
-                                <td className="border border-black p-2 text-center">{isComp ? '₹0.00' : `₹${pmiFmt(item.total_amount)}`}</td>
+                                <td className="border border-black px-1 py-2 text-center align-middle font-bold font-mono text-[9px] whitespace-nowrap overflow-hidden" style={{ width: '70px' }}>
+                                  {isComp ? '₹0.00' : `₹${pmiFmt(item.unit_price)}`}
+                                </td>
+                                <td className="border border-black px-1 py-2 text-center align-middle font-bold font-mono text-[9px] whitespace-nowrap overflow-hidden" style={{ width: '70px' }}>
+                                  {isComp ? '₹0.00' : `₹${pmiFmt(cgstAmt)}`}
+                                </td>
+                                <td className="border border-black px-1 py-2 text-center align-middle font-bold font-mono text-[9px] whitespace-nowrap overflow-hidden" style={{ width: '70px' }}>
+                                  {isComp ? '₹0.00' : `₹${pmiFmt(secondTaxAmt)}`}
+                                </td>
+                                <td className="border border-black px-1 py-2 text-center align-middle font-bold font-mono text-[9px] whitespace-nowrap overflow-hidden" style={{ width: '70px' }}>
+                                  {isComp ? '₹0.00' : `₹${pmiFmt(item.total_amount)}`}
+                                </td>
                               </tr>
                             );
                           });
@@ -1049,24 +1082,9 @@ export const InvoiceDetails = () => {
               >
                 {(() => {
                   const items = invoice.invoice_items || [];
-                  const hasGst = parseFloat(invoice.gst_amount) > 0 || items.some(item => (parseFloat(item.gst_amount) || 0) > 0);
-
-                  const tHeaders = hasGst 
-                    ? [
-                        'ITEM', 
-                        'Unit Price', 
-                        <div key="gst-hdr" className="leading-tight"><div>CGST ({halfPct}%)</div><div>{taxType} ({halfPct}%)</div></div>, 
-                        'AMOUNT'
-                      ] 
-                    : ['ITEM', 'Unit Price', 'AMOUNT'];
-                  
-                  const tColWidths = hasGst 
-                    ? [180, 105, 105, 115] 
-                    : [275, 115, 115];
-
-                  const tHeaderColors = hasGst 
-                    ? ['burgundy', 'navy', 'navy', 'navy'] 
-                    : ['burgundy', 'navy', 'navy'];
+                  const tHeaders = ['S.NO.', 'ITEM', 'AMOUNT', `CGST (${halfPct}%)`, `${taxType} (${halfPct}%)`, 'TOTAL'];
+                  const tColWidths = [35, 190, 70, 70, 70, 70];
+                  const tHeaderColors = ['burgundy', 'burgundy', 'navy', 'navy', 'navy', 'navy'];
 
                   return (
                     <table className="w-full border-collapse border border-black text-center" style={{ tableLayout: 'fixed', borderColor: harvardLayout.colors.black }}>
@@ -1111,22 +1129,24 @@ export const InvoiceDetails = () => {
                           };
 
                           return (
-                            <tr key={item.id || i} style={{ height: `${harvardLayout.table.rowHeight}px` }}>
-                              <td className="border border-black font-extrabold text-black text-center" style={{ fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
-                                {item.program_name}
+                            <tr key={item.id || i} style={{ minHeight: `${harvardLayout.table.rowHeight}px` }}>
+                              <td className="border border-black font-extrabold text-black text-center" style={{ width: '35px', fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
+                                {String(i + 1).padStart(2, '0')}
                               </td>
-                              <td className="border border-black font-extrabold text-black text-center font-mono" style={{ fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
+                              <td className="border border-black font-bold text-black text-left p-2" style={{ width: '190px', fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
+                                <div className="font-bold text-black">{item.program_name}</div>
+                                {renderItemDescription(item)}
+                              </td>
+                              <td className="border border-black font-extrabold text-black text-center font-mono px-1 py-1 whitespace-nowrap overflow-hidden" style={{ width: '70px', fontSize: '9px', borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
                                 {formatVal(unitPrice)}
                               </td>
-                              {hasGst && (
-                                <td className="border border-black font-extrabold text-black text-center font-mono" style={{ fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
-                                  <div className="leading-tight">
-                                    <div>{formatVal(cgstAmt)}</div>
-                                    <div>{formatVal(secondTaxAmt)}</div>
-                                  </div>
-                                </td>
-                              )}
-                              <td className="border border-black font-extrabold text-black text-center font-mono" style={{ fontSize: `${harvardLayout.table.fontSize}px`, borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
+                              <td className="border border-black font-extrabold text-black text-center font-mono px-1 py-1 whitespace-nowrap overflow-hidden" style={{ width: '70px', fontSize: '9px', borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
+                                {formatVal(cgstAmt)}
+                              </td>
+                              <td className="border border-black font-extrabold text-black text-center font-mono px-1 py-1 whitespace-nowrap overflow-hidden" style={{ width: '70px', fontSize: '9px', borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
+                                {formatVal(secondTaxAmt)}
+                              </td>
+                              <td className="border border-black font-extrabold text-black text-center font-mono px-1 py-1 whitespace-nowrap overflow-hidden" style={{ width: '70px', fontSize: '9px', borderColor: harvardLayout.colors.black, verticalAlign: 'middle' }}>
                                 {isComp ? '₹0.00' : formatVal(totalAmount)}
                               </td>
                             </tr>
@@ -1446,10 +1466,12 @@ export const InvoiceDetails = () => {
                           }}
                         >
                           <colgroup>
-                            <col style={{ width: `${cw0}px` }} />
-                            <col style={{ width: `${cw1}px` }} />
-                            <col style={{ width: `${cw2}px` }} />
-                            <col style={{ width: `${cw3}px` }} />
+                            <col style={{ width: '35px' }} />
+                            <col style={{ width: '190px' }} />
+                            <col style={{ width: '70px' }} />
+                            <col style={{ width: '70px' }} />
+                            <col style={{ width: '70px' }} />
+                            <col style={{ width: '70px' }} />
                           </colgroup>
 
                           {/* Header row */}
@@ -1462,15 +1484,12 @@ export const InvoiceDetails = () => {
                                 fontSize: `${pl.table.headerFontSize}px`,
                               }}
                             >
-                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>ITEM</th>
-                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>Unit Price</th>
-                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>
-                                <div className="leading-tight py-0.5">
-                                  <div>CGST ({halfPct}%)</div>
-                                  <div>{taxType} ({halfPct}%)</div>
-                                </div>
-                              </th>
-                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>AMOUNT</th>
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 ${pl.table.cellPaddingX}px`, fontWeight: 700 }}>S.NO.</th>
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'left', padding: `0 10px`, fontWeight: 700 }}>ITEM</th>
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 2px`, fontWeight: 700 }}>AMOUNT</th>
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 2px`, fontWeight: 700 }}>CGST ({halfPct}%)</th>
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 2px`, fontWeight: 700 }}>{taxType} ({halfPct}%)</th>
+                              <th style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `0 2px`, fontWeight: 700 }}>TOTAL</th>
                             </tr>
                           </thead>
 
@@ -1488,21 +1507,23 @@ export const InvoiceDetails = () => {
                                     color: pl.colors.darkText,
                                   }}
                                 >
-                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `${pl.table.cellPaddingY}px ${pl.table.cellPaddingX}px`, verticalAlign: 'middle', fontWeight: 700 }}>
-                                    {item.program_name}
+                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `${pl.table.cellPaddingY}px 2px`, verticalAlign: 'middle', fontWeight: 700 }}>
+                                    {String(idx + 1).padStart(2, '0')}
                                   </td>
-                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'right', padding: `${pl.table.cellPaddingY}px ${pl.table.cellPaddingX}px`, verticalAlign: 'middle', fontWeight: 700 }}>
+                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'left', padding: `6px 10px`, verticalAlign: 'middle', fontWeight: 700 }}>
+                                    <div className="font-bold text-black">{item.program_name}</div>
+                                    {renderItemDescription(item)}
+                                  </td>
+                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `6px 2px`, verticalAlign: 'middle', fontWeight: 700, fontFamily: 'monospace', fontSize: '9px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                                     {isComp ? '₹0.00' : `₹${formatNumber(item.unit_price)}`}
                                   </td>
-                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'right', padding: `${pl.table.cellPaddingY}px ${pl.table.cellPaddingX}px`, verticalAlign: 'middle', fontWeight: 700 }}>
-                                    {isComp ? '₹0.00' : (
-                                      <div className="leading-tight">
-                                        <div>₹{formatNumber(cgstAmt)}</div>
-                                        <div>₹{formatNumber(secondTaxAmt)}</div>
-                                      </div>
-                                    )}
+                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `6px 2px`, verticalAlign: 'middle', fontWeight: 700, fontFamily: 'monospace', fontSize: '9px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                                    {isComp ? '₹0.00' : `₹${formatNumber(cgstAmt)}`}
                                   </td>
-                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'right', padding: `${pl.table.cellPaddingY}px ${pl.table.cellPaddingX}px`, verticalAlign: 'middle', fontWeight: 700 }}>
+                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `6px 2px`, verticalAlign: 'middle', fontWeight: 700, fontFamily: 'monospace', fontSize: '9px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                                    {isComp ? '₹0.00' : `₹${formatNumber(secondTaxAmt)}`}
+                                  </td>
+                                  <td style={{ border: `${pl.table.borderThickness}px solid ${pl.table.borderColor}`, textAlign: 'center', padding: `6px 2px`, verticalAlign: 'middle', fontWeight: 700, fontFamily: 'monospace', fontSize: '9px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                                     {isComp ? '₹0.00' : `₹${formatNumber(item.total_amount)}`}
                                   </td>
                                 </tr>
@@ -1625,31 +1646,31 @@ export const InvoiceDetails = () => {
                       <thead>
                         {themeKey === 'elite' ? (
                           <tr className="text-white text-xs font-bold" style={{ backgroundColor: eliteLayout.colors.primary, height: `${eliteLayout.table.headerHeight}px` }}>
-                            <th className="p-3 text-center" style={{ width: '45.5%', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>ITEM</th>
-                            <th className="p-3 text-center" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>Unit Price</th>
-                            <th className="p-3 text-center" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>
-                              <div className="leading-tight">
-                                <div>CGST ({halfPct}%)</div>
-                                <div>{taxType} ({halfPct}%)</div>
-                              </div>
-                            </th>
-                            <th className="p-3 text-center" style={{ width: '18.5%' }}>AMOUNT</th>
+                            <th className="p-2 text-center" style={{ width: '35px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>S.NO.</th>
+                            <th className="p-2.5 text-left" style={{ width: '190px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>ITEM</th>
+                            <th className="p-2 text-center" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>AMOUNT</th>
+                            <th className="p-2 text-center" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>CGST ({halfPct}%)</th>
+                            <th className="p-2 text-center" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>{taxType} ({halfPct}%)</th>
+                            <th className="p-2 text-center" style={{ width: '70px' }}>TOTAL</th>
                           </tr>
                         ) : themeKey === 'harvard' ? (
                           <tr className="text-xs font-semibold border-b border-slate-100" style={{ backgroundColor: '#F2F2F2' }}>
-                            <th className="p-3.5 pl-4 rounded-tl-xl" style={{ color: activeTheme.primary }}>Item Description</th>
-                            <th className="p-3.5 text-right" style={{ color: activeTheme.primary }}>Quantity</th>
-                            <th className="p-3.5 text-right" style={{ color: activeTheme.primary }}>Rate</th>
-                            <th className="p-3.5 pr-4 text-right rounded-tr-xl" style={{ color: activeTheme.primary }}>Amount</th>
+                            <th className="p-2 text-center" style={{ width: '35px' }}>S.NO.</th>
+                            <th className="p-2.5 text-left" style={{ width: '190px' }}>ITEM</th>
+                            <th className="p-2 text-center" style={{ width: '70px' }}>AMOUNT</th>
+                            <th className="p-2 text-center" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
+                            <th className="p-2 text-center" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
+                            <th className="p-2 text-center" style={{ width: '70px' }}>TOTAL</th>
                           </tr>
                         ) : (
-                          // PMI Theme
-                          <tr className="text-xs font-semibold border-b border-slate-100" style={{ backgroundColor: '#F2F2F2', color: activeTheme.dark }}>
-                            <th className="p-3.5 pl-4 rounded-tl-xl">Description</th>
-                            <th className="p-3.5 text-right">Qty</th>
-                            <th className="p-3.5 text-right">Unit Price</th>
-                            <th className="p-3.5 text-right">Tax (GST 18%)</th>
-                            <th className="p-3.5 pr-4 text-right rounded-tr-xl">Amount</th>
+                          // Standard Theme
+                          <tr className="text-white text-xs font-bold" style={{ backgroundColor: activeTheme?.primary || '#1e293b' }}>
+                            <th className="p-2 text-center" style={{ width: '35px' }}>S.NO.</th>
+                            <th className="p-2.5 text-left" style={{ width: '190px' }}>ITEM</th>
+                            <th className="p-2 text-center" style={{ width: '70px' }}>AMOUNT</th>
+                            <th className="p-2 text-center" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
+                            <th className="p-2 text-center" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
+                            <th className="p-2 text-center" style={{ width: '70px' }}>TOTAL</th>
                           </tr>
                         )}
                       </thead>
@@ -1670,20 +1691,25 @@ export const InvoiceDetails = () => {
                                     className="border-b text-xs font-bold"
                                     style={{ borderColor: eliteLayout.colors.border, color: eliteLayout.colors.dark }}
                                   >
-                                    <td className="p-3 text-center" style={{ width: '45.5%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>
-                                      {item.program_name}
+                                    <td className="p-2 text-center" style={{ width: '35px', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>
+                                      {String(rIdx + 1).padStart(2, '0')}
+                                    </td>
+                                    <td className="p-2 text-left" style={{ width: '190px', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>
+                                      <div className="font-bold text-black">{item.program_name}</div>
                                       {renderItemDescription(item, true)}
                                     </td>
-                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>{isComp ? '₹0.00' : `₹${formatNumber(item.unit_price)}`}</td>
-                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18%', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>
-                                      {isComp ? '₹0.00' : (
-                                        <div className="leading-tight">
-                                          <div>₹{formatNumber(cgstAmt)}</div>
-                                          <div>₹{formatNumber(secondTaxAmt)}</div>
-                                        </div>
-                                      )}
+                                    <td className="px-1 py-2 text-center font-bold font-mono text-[9px] whitespace-nowrap overflow-hidden" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>
+                                      {isComp ? '₹0.00' : `₹${formatNumber(item.unit_price)}`}
                                     </td>
-                                    <td className="p-3 text-center font-bold font-mono" style={{ width: '18.5%', verticalAlign: 'middle' }}>{isComp ? '₹0.00' : `₹${formatNumber(item.total_amount)}`}</td>
+                                    <td className="px-1 py-2 text-center font-bold font-mono text-[9px] whitespace-nowrap overflow-hidden" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>
+                                      {isComp ? '₹0.00' : `₹${formatNumber(cgstAmt)}`}
+                                    </td>
+                                    <td className="px-1 py-2 text-center font-bold font-mono text-[9px] whitespace-nowrap overflow-hidden" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.border}`, verticalAlign: 'middle' }}>
+                                      {isComp ? '₹0.00' : `₹${formatNumber(secondTaxAmt)}`}
+                                    </td>
+                                    <td className="px-1 py-2 text-center font-bold font-mono text-[9px] whitespace-nowrap overflow-hidden" style={{ width: '70px', verticalAlign: 'middle' }}>
+                                      {isComp ? '₹0.00' : `₹${formatNumber(item.total_amount)}`}
+                                    </td>
                                   </tr>
                                 );
                               }
@@ -1693,41 +1719,28 @@ export const InvoiceDetails = () => {
                         ) : (
                           invoice.invoice_items?.map((item, idx) => {
                             const isComp = parseFloat(item.unit_price) === 0;
+                            const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
                             return (
                               <tr key={item.id || idx} className="border-b border-slate-100/60 text-xs hover:bg-slate-50/30">
-                                {themeKey === 'harvard' ? (
-                                  <>
-                                    <td className="p-3.5 pl-4 font-medium text-slate-800">
-                                      {item.program_name}
-                                      {renderItemDescription(item)}
-                                    </td>
-                                    <td className="p-3.5 text-right text-slate-600 font-mono">{item.quantity || 1}</td>
-                                    <td className="p-3.5 text-right text-slate-600 font-mono">
-                                      {isComp ? '₹0.00' : formatCurrency(item.unit_price)}
-                                    </td>
-                                    <td className={`p-3.5 pr-4 text-right font-mono font-bold ${isComp ? 'text-emerald-600 italic' : 'text-slate-850'}`}>
-                                      {isComp ? '₹0.00' : formatCurrency(item.total_amount)}
-                                    </td>
-                                  </>
-                                ) : (
-                                  // PMI Theme
-                                  <>
-                                    <td className="p-3.5 pl-4 font-medium text-slate-800">
-                                      {item.program_name}
-                                      {renderItemDescription(item)}
-                                    </td>
-                                    <td className="p-3.5 text-right text-slate-600 font-mono">{item.quantity || 1}</td>
-                                    <td className="p-3.5 text-right text-slate-600 font-mono">
-                                      {isComp ? '₹0.00' : formatCurrency(item.unit_price)}
-                                    </td>
-                                    <td className="p-3.5 text-right text-slate-600 font-mono">
-                                      {isComp ? '₹0.00' : formatCurrency(item.gst_amount)}
-                                    </td>
-                                    <td className={`p-3.5 pr-4 text-right font-mono font-bold ${isComp ? 'text-primary-600 italic' : 'text-slate-800'}`}>
-                                      {isComp ? '₹0.00' : formatCurrency(item.total_amount)}
-                                    </td>
-                                  </>
-                                )}
+                                <td className="p-2 text-center font-bold text-slate-800 align-middle" style={{ width: '35px' }}>
+                                  {String(idx + 1).padStart(2, '0')}
+                                </td>
+                                <td className="p-2.5 text-left font-medium text-slate-800 align-middle" style={{ width: '190px' }}>
+                                  <div className="font-bold text-slate-900">{item.program_name}</div>
+                                  {renderItemDescription(item)}
+                                </td>
+                                <td className="px-1 py-2 text-center text-slate-700 font-mono font-bold text-[9px] whitespace-nowrap overflow-hidden align-middle" style={{ width: '70px' }}>
+                                  {isComp ? '₹0.00' : formatCurrency(item.unit_price)}
+                                </td>
+                                <td className="px-1 py-2 text-center text-slate-700 font-mono font-bold text-[9px] whitespace-nowrap overflow-hidden align-middle" style={{ width: '70px' }}>
+                                  {isComp ? '₹0.00' : formatCurrency(cgstAmt)}
+                                </td>
+                                <td className="px-1 py-2 text-center text-slate-700 font-mono font-bold text-[9px] whitespace-nowrap overflow-hidden align-middle" style={{ width: '70px' }}>
+                                  {isComp ? '₹0.00' : formatCurrency(secondTaxAmt)}
+                                </td>
+                                <td className={`px-1 py-2 text-center font-mono font-bold text-[9px] whitespace-nowrap overflow-hidden align-middle ${isComp ? 'text-primary-600 italic' : 'text-slate-800'}`} style={{ width: '70px' }}>
+                                  {isComp ? '₹0.00' : formatCurrency(item.total_amount)}
+                                </td>
                               </tr>
                             );
                           })
@@ -1956,15 +1969,12 @@ export const InvoiceDetails = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-primary-600 text-white text-xs font-semibold">
-                    <th className="p-3.5 pl-4 font-bold rounded-tl-xl">Description</th>
-                    <th className="p-3.5 font-bold text-right">Unit Price</th>
-                    <th className="p-3.5 font-bold text-right">
-                      <div className="leading-tight">
-                        <div>CGST ({halfPct}%)</div>
-                        <div>{taxType} ({halfPct}%)</div>
-                      </div>
-                    </th>
-                    <th className="p-3.5 pr-4 font-bold text-right rounded-tr-xl">Amount (INR)</th>
+                    <th className="p-3 text-center font-bold rounded-tl-xl" style={{ width: '35px' }}>S.NO.</th>
+                    <th className="p-3 text-left font-bold" style={{ width: '190px' }}>ITEM</th>
+                    <th className="p-3 text-center font-bold" style={{ width: '70px' }}>AMOUNT</th>
+                    <th className="p-3 text-center font-bold" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
+                    <th className="p-3 text-center font-bold" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
+                    <th className="p-3 pr-4 font-bold text-center rounded-tr-xl" style={{ width: '70px' }}>TOTAL</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1973,22 +1983,23 @@ export const InvoiceDetails = () => {
                     const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
                     return (
                       <tr key={item.id || index} className="border-b border-slate-100/60 text-xs hover:bg-slate-50/30">
-                        <td className="p-3.5 pl-4 font-medium text-slate-800">
-                          <span className="font-semibold">{item.program_name}</span>
+                        <td className="p-2 text-center font-bold text-slate-800 align-middle" style={{ width: '35px' }}>
+                          {String(index + 1).padStart(2, '0')}
+                        </td>
+                        <td className="p-2.5 text-left font-medium text-slate-800 align-middle" style={{ width: '190px' }}>
+                          <span className="font-bold text-slate-900">{item.program_name}</span>
                           {renderItemDescription(item)}
                         </td>
-                        <td className="p-3.5 text-right text-slate-650 font-mono">
+                        <td className="px-1 py-2 text-center text-slate-700 font-mono font-bold text-[9px] whitespace-nowrap overflow-hidden align-middle" style={{ width: '70px' }}>
                           {isComp ? '-' : formatCurrency(item.unit_price)}
                         </td>
-                        <td className="p-3.5 text-right text-slate-650 font-mono">
-                          {isComp ? '-' : (
-                            <div className="leading-tight">
-                              <div>{formatCurrency(cgstAmt)}</div>
-                              <div>{formatCurrency(secondTaxAmt)}</div>
-                            </div>
-                          )}
+                        <td className="px-1 py-2 text-center text-slate-700 font-mono font-bold text-[9px] whitespace-nowrap overflow-hidden align-middle" style={{ width: '70px' }}>
+                          {isComp ? '-' : formatCurrency(cgstAmt)}
                         </td>
-                        <td className={`p-3.5 pr-4 text-right font-mono font-bold ${isComp ? 'text-primary-600 italic' : 'text-slate-800'}`}>
+                        <td className="px-1 py-2 text-center text-slate-700 font-mono font-bold text-[9px] whitespace-nowrap overflow-hidden align-middle" style={{ width: '70px' }}>
+                          {isComp ? '-' : formatCurrency(secondTaxAmt)}
+                        </td>
+                        <td className={`px-1 py-2 text-center font-mono font-bold text-[9px] whitespace-nowrap overflow-hidden align-middle ${isComp ? 'text-primary-600 italic' : 'text-slate-900'}`} style={{ width: '70px' }}>
                           {isComp ? '₹0.00' : formatCurrency(item.total_amount)}
                         </td>
                       </tr>

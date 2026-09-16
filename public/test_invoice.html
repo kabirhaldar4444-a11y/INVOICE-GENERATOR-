@@ -219,25 +219,30 @@
       text-align: center;
     }
 
+    .items-table th.col-sno {
+      background-color: #4B2E9E;
+      width: 7%;
+    }
+
     .items-table th.col-item {
       background-color: #4B2E9E;
-      width: 10%;
-    }
-
-    .items-table th.col-desc {
-      background-color: #4B2E9E;
-      width: 50%;
+      width: 37%;
       text-align: left;
-    }
-
-    .items-table th.col-gst {
-      background-color: #F2A814;
-      width: 13%;
     }
 
     .items-table th.col-amount {
       background-color: #4B2E9E;
-      width: 13%;
+      width: 14%;
+    }
+
+    .items-table th.col-cgst {
+      background-color: #4B2E9E;
+      width: 14%;
+    }
+
+    .items-table th.col-sgst {
+      background-color: #4B2E9E;
+      width: 14%;
     }
 
     .items-table th.col-total {
@@ -251,20 +256,23 @@
       color: #1A1A2E;
     }
 
-    .items-table td.cell-item {
+    .items-table td.cell-sno {
       text-align: center;
+      font-weight: bold;
     }
 
-    .items-table td.cell-desc {
+    .items-table td.cell-item {
       text-align: left;
       font-weight: bold;
     }
 
-    .items-table td.cell-gst,
-    .items-table td.cell-amount,
-    .items-table td.cell-total {
+    .items-table td.cell-num {
       text-align: center;
-      font-weight: bold; /* Bold numbers matching reference */
+      font-weight: bold;
+      font-family: monospace;
+      font-size: 11px;
+      white-space: nowrap;
+      padding: 10px 4px;
     }
 
     .items-table tr:nth-child(even) {
@@ -433,29 +441,32 @@
         <table class="items-table">
           <thead>
             <tr>
+              <th class="col-sno">S.NO.</th>
               <th class="col-item">ITEM</th>
-              <th class="col-desc">DESCRIPTION</th>
-              <th class="col-gst">GST (18%)</th>
               <th class="col-amount">AMOUNT</th>
+              <th class="col-cgst">CGST (9%)</th>
+              <th class="col-sgst">SGST (9%)</th>
               <th class="col-total">TOTAL</th>
             </tr>
           </thead>
           <tbody id="invoice-items-body">
             <!-- Row 1 -->
             <tr data-row-index="1">
-              <td class="cell-item">01</td>
-              <td class="cell-desc">Personal Branding Strategist Training</td>
-              <td class="cell-gst">9915.25</td>
-              <td class="cell-amount">55084.75</td>
-              <td class="cell-total">65,000</td>
+              <td class="cell-sno">01</td>
+              <td class="cell-item">Personal Branding Strategist Training</td>
+              <td class="cell-num">55,084.75</td>
+              <td class="cell-num">4,957.63</td>
+              <td class="cell-num">4,957.62</td>
+              <td class="cell-num">65,000.00</td>
             </tr>
             <!-- Row 2 -->
             <tr data-row-index="2">
-              <td class="cell-item">02</td>
-              <td class="cell-desc">Mindset Mastery Training</td>
-              <td class="cell-gst">3050.85</td>
-              <td class="cell-amount">16949.15</td>
-              <td class="cell-total">20,000</td>
+              <td class="cell-sno">02</td>
+              <td class="cell-item">Mindset Mastery Training</td>
+              <td class="cell-num">16,949.15</td>
+              <td class="cell-num">1,525.43</td>
+              <td class="cell-num">1,525.42</td>
+              <td class="cell-num">20,000.00</td>
             </tr>
           </tbody>
         </table>

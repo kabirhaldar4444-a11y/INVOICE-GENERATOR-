@@ -130,11 +130,11 @@ export const harvardLayout = {
     maxRows: 8,
     borderThickness: 0.6,
     fontSize: 10,
-    // Column definitions: ITEM | Unit Price | GST (18%) | AMMOUNT
-    colWidths: [180, 105, 105, 115], // Sums to 505pt exactly
-    colHeaders: ['ITEM', 'Unit Price', 'GST (18%)', 'AMMOUNT'],
+    // Column definitions: S.NO. | ITEM | AMOUNT | CGST | SGST | TOTAL
+    colWidths: [35, 190, 70, 70, 70, 70], // Sums to 505pt exactly
+    colHeaders: ['S.NO.', 'ITEM', 'AMOUNT', 'CGST', 'SGST', 'TOTAL'],
     // Header background colors
-    headerColors: ['burgundy', 'navy', 'navy', 'navy'] as const
+    headerColors: ['burgundy', 'burgundy', 'navy', 'navy', 'navy', 'navy'] as const
   },
 
   // Summary Box (Bottom-Right)

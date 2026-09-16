@@ -219,25 +219,30 @@
       text-align: center;
     }
 
+    .items-table th.col-sno {
+      background-color: #4B2E9E;
+      width: 7%;
+    }
+
     .items-table th.col-item {
       background-color: #4B2E9E;
-      width: 10%;
-    }
-
-    .items-table th.col-desc {
-      background-color: #4B2E9E;
-      width: 50%;
+      width: 37%;
       text-align: left;
-    }
-
-    .items-table th.col-gst {
-      background-color: #F2A814;
-      width: 13%;
     }
 
     .items-table th.col-amount {
       background-color: #4B2E9E;
-      width: 13%;
+      width: 14%;
+    }
+
+    .items-table th.col-cgst {
+      background-color: #4B2E9E;
+      width: 14%;
+    }
+
+    .items-table th.col-sgst {
+      background-color: #4B2E9E;
+      width: 14%;
     }
 
     .items-table th.col-total {
@@ -251,20 +256,23 @@
       color: #1A1A2E;
     }
 
-    .items-table td.cell-item {
+    .items-table td.cell-sno {
       text-align: center;
+      font-weight: bold;
     }
 
-    .items-table td.cell-desc {
+    .items-table td.cell-item {
       text-align: left;
       font-weight: bold;
     }
 
-    .items-table td.cell-gst,
-    .items-table td.cell-amount,
-    .items-table td.cell-total {
+    .items-table td.cell-num {
       text-align: center;
-      font-weight: normal;
+      font-weight: bold;
+      font-family: monospace;
+      font-size: 11px;
+      white-space: nowrap;
+      padding: 10px 4px;
     }
 
     .items-table tr:nth-child(even) {
@@ -438,37 +446,41 @@
         <table class="items-table">
           <thead>
             <tr>
+              <th class="col-sno">S.NO.</th>
               <th class="col-item">ITEM</th>
-              <th class="col-desc">DESCRIPTION</th>
-              <th class="col-gst">GST (18%)</th>
               <th class="col-amount">AMOUNT</th>
+              <th class="col-cgst">CGST (9%)</th>
+              <th class="col-sgst">SGST (9%)</th>
               <th class="col-total">TOTAL</th>
             </tr>
           </thead>
           <tbody id="invoice-items-body">
             <!-- Row 1 Placeholder -->
             <tr data-row-index="1">
-              <td class="cell-item">01</td>
-              <td class="cell-desc">{{ITEM1_DESC}}</td>
-              <td class="cell-gst">₹{{ITEM1_GST}}</td>
-              <td class="cell-amount">₹{{ITEM1_AMOUNT}}</td>
-              <td class="cell-total">₹{{ITEM1_TOTAL}}</td>
+              <td class="cell-sno">01</td>
+              <td class="cell-item">{{ITEM1_DESC}}</td>
+              <td class="cell-num">₹{{ITEM1_AMOUNT}}</td>
+              <td class="cell-num">₹{{ITEM1_CGST}}</td>
+              <td class="cell-num">₹{{ITEM1_SGST}}</td>
+              <td class="cell-num">₹{{ITEM1_TOTAL}}</td>
             </tr>
             <!-- Row 2 Placeholder -->
             <tr data-row-index="2">
-              <td class="cell-item">02</td>
-              <td class="cell-desc">{{ITEM2_DESC}}</td>
-              <td class="cell-gst">₹{{ITEM2_GST}}</td>
-              <td class="cell-amount">₹{{ITEM2_AMOUNT}}</td>
-              <td class="cell-total">₹{{ITEM2_TOTAL}}</td>
+              <td class="cell-sno">02</td>
+              <td class="cell-item">{{ITEM2_DESC}}</td>
+              <td class="cell-num">₹{{ITEM2_AMOUNT}}</td>
+              <td class="cell-num">₹{{ITEM2_CGST}}</td>
+              <td class="cell-num">₹{{ITEM2_SGST}}</td>
+              <td class="cell-num">₹{{ITEM2_TOTAL}}</td>
             </tr>
             <!-- Standard dynamic templating repeat reference block:
             <tr>
-              <td class="cell-item">{{ITEM_INDEX}}</td>
-              <td class="cell-desc">{{ITEM_DESCRIPTION}}</td>
-              <td class="cell-gst">₹{{ITEM_GST}}</td>
-              <td class="cell-amount">₹{{ITEM_AMOUNT}}</td>
-              <td class="cell-total">₹{{ITEM_TOTAL}}</td>
+              <td class="cell-sno">{{ITEM_INDEX}}</td>
+              <td class="cell-item">{{ITEM_NAME}}</td>
+              <td class="cell-num">₹{{ITEM_AMOUNT}}</td>
+              <td class="cell-num">₹{{ITEM_CGST}}</td>
+              <td class="cell-num">₹{{ITEM_SGST}}</td>
+              <td class="cell-num">₹{{ITEM_TOTAL}}</td>
             </tr>
             -->
           </tbody>
