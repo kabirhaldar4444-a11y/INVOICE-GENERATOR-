@@ -781,7 +781,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         });
 
         drawTextHelper(page, header, xOffset + colW / 2, tableY - tHeaderH + (tHeaderH / 2) - 3, {
-          size: (idx === 3 || idx === 4) ? tFontSz - 1.5 : tFontSz,
+          size: tFontSz,
           font: fontBold,
           color: hWhite,
           align: 'center'
@@ -1216,7 +1216,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         const tx = hx + cw / 2;
         drawTextHelper(page, lbl, tx, currentY - hdrH + 12, {
           font: fontBold,
-          size: (i === 3 || i === 4) ? 8.5 : 9.5,
+          size: 9.5,
           color: eWhite,
           align: 'center'
         });
@@ -1726,7 +1726,10 @@ export const generateInvoicePDF = async (invoice, settings) => {
         const cw = colWs[i];
         const tx = hx + cw / 2;
         drawTextHelper(page, lbl, tx, tableY - hdrH + (isCompact ? 10 : 12), {
-          font: fontBold, size: (i === 3 || i === 4) ? 8 : (i === 0 ? 8.5 : 9.5), color: pmiWhite, align: 'center'
+          font: fontBold,
+          size: isCompact ? 9 : 9.5,
+          color: pmiWhite,
+          align: 'center'
         });
         // Header vertical dividers (black borders)
         if (i > 0) {
@@ -2057,7 +2060,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         const tx = hx + cw / 2;
         drawTextHelper(page, h, tx, y - tHdrH + 7, {
           font: fontBold,
-          size: (i === 3 || i === 4) ? 8 : (i === 0 ? 8.5 : 9.5),
+          size: 9.5,
           color: isn_dark,
           align: 'center'
         });
@@ -2504,7 +2507,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         const cx = hTextX + cw / 2;
         drawTextHelper(page, lbl, cx, tableY - hdrH + 10, {
           font: fontBold,
-          size: (i === 3 || i === 4) ? pl.table.headerFontSize - 1.5 : pl.table.headerFontSize,
+          size: pl.table.headerFontSize,
           color: pWhite,
           align: 'center'
         });
@@ -2797,7 +2800,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         const labelTextX = startX + curW / 2;
         drawTextHelper(page, h, labelTextX, labelY, {
           font: fontStyle,
-          size: (idx === 3 || idx === 4) ? 8.5 : 9.5,
+          size: 9.5,
           color: labelColor,
           align: 'center'
         });
