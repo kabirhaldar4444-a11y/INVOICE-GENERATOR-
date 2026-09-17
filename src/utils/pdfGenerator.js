@@ -474,7 +474,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
         email: 'info@elitetoolistic.com',
         website: 'www.elitetoolistic.com',
         gst_number: '09AAOCP5868J1ZI',
-        cin: 'U16229UP2024PTC199657',
         address: '301, 2nd Floor, The Capital, Science City Road, Sola, Ahmedabad - 380060'
       },
       harvard: {
@@ -483,7 +482,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
         email: 'support@harvardlearning.com',
         website: 'www.harvardlearning.com',
         gst_number: '09AAOCP5868J1ZI',
-        cin: 'U16229UP2024PTC199657',
         address: 'SG Highway, Bodakdev, Ahmedabad, Gujarat - 380054, India'
       },
       pmi: {
@@ -492,7 +490,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
         email: 'support@pmiservices.in',
         website: 'www.pmiservices.in',
         gst_number: '09TRFPS5497N1Z6',
-        cin: 'U16229UP2024PTC199657',
         address: 'Sarkhej Gandhinagar Service Road Near Wide Angle Cinema Ramdev Nagar, Satellite, Ahmedabad, Gujarat 380015'
       },
       princeton: {
@@ -500,7 +497,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
         email: 'support@princetonprofessional.com',
         website: 'www.princetonprofessional.com',
         gst_number: '09AAOCP5868J1ZI',
-        cin: '',
         address: '1203, Mondeal Heights, Sarkhej Gandhinagar Service Road, Ahmedabad, Gujarat 380015'
       },
       isuccessnode: {
@@ -519,7 +515,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
     const companyWebsite = brandOverride.website || activeCompany?.website || '';
     const companyGst = brandOverride.gst_number || activeCompany?.gst_number || '';
     const isIssuingNode = isIsNodeName(companyNameText);
-    const companyCin = brandOverride.cin || activeCompany?.cin || '';
     const companyAddress = brandOverride.address || activeCompany?.address || '';
     const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
     const preDiscountTotal = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
@@ -729,21 +724,11 @@ export const generateInvoicePDF = async (invoice, settings) => {
       drawTextHelper(page, gstLabel, 350, custY, { font: fontBold, size: custFontSz, color: hBlack });
       drawTextHelper(page, gstVal, 350 + gstLabelW, custY, { font: fontRegular, size: custFontSz, color: hBlack });
 
-      // Right side: CIN (Customer phone field holds CIN)
-      const customerCin = invoice.customers?.phone || '';
-      if (customerCin) {
-        const cinLabel = 'CIN: ';
-        const cinVal = customerCin;
-        const cinLabelW = fontBold.widthOfTextAtSize(cinLabel, custFontSz);
-        drawTextHelper(page, cinLabel, 350, custY - 15, { font: fontBold, size: custFontSz, color: hBlack });
-        drawTextHelper(page, cinVal, 350 + cinLabelW, custY - 15, { font: fontRegular, size: custFontSz, color: hBlack });
-      }
-
       // Right side: Date
       const dateLabel = 'Date: ';
       const dateVal = formatDate(invoice.invoice_date);
       const dateLabelW = fontBold.widthOfTextAtSize(dateLabel, custFontSz);
-      const dateY = customerCin ? (custY - 30) : (custY - 15);
+      const dateY = custY - 15;
       drawTextHelper(page, dateLabel, 350, dateY, { font: fontBold, size: custFontSz, color: hBlack });
       drawTextHelper(page, dateVal, 350 + dateLabelW, dateY, { font: fontRegular, size: custFontSz, color: hBlack });
 
@@ -1134,7 +1119,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
       });
       currentY -= 16;
 
-      // ── BILL TO (left) + GST/CIN (right) ──────────────────────
+      // ── BILL TO (left) + GST (right) ──────────────────────
       let billY = currentY;
       drawTextHelper(page, 'BILL TO:', marginX, billY, { font: fontBold, size: 10, color: eDark });
       billY -= 15;
@@ -1147,7 +1132,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
         drawTextHelper(page, invoice.customers.email, marginX, billY, { font: fontRegular, size: 9.5, color: eDark });
         billY -= 13;
       }
-      // No customer CIN for Elite theme to prevent double CIN on page
       
       // Add Date under BILL TO
       drawTextHelper(page, 'Date: ', marginX, billY, { font: fontBold, size: 9.5, color: eDark });
@@ -1156,37 +1140,19 @@ export const generateInvoicePDF = async (invoice, settings) => {
       drawTextHelper(page, dateValStr, marginX + dateLblW, billY, { font: fontRegular, size: 9.5, color: eDark });
       billY -= 13;
 
-      // GST + CIN on the right (left-aligned block positioned on the right)
+      // GST on the right (left-aligned block positioned on the right)
       let infoY = currentY;
       const gstLabel = 'GST: ';
-      const cinLabel = 'CIN: ';
       
       const gstLabelW = fontBold.widthOfTextAtSize(gstLabel, 10);
       const gstValW = fontRegular.widthOfTextAtSize(companyGst || '', 10);
       const gstTotalW = gstLabelW + gstValW;
-      
-      let cinTotalW = 0;
-      let cinLabelW = 0;
-      if (companyCin) {
-        cinLabelW = fontBold.widthOfTextAtSize(cinLabel, 10);
-        const cinValW = fontRegular.widthOfTextAtSize(companyCin, 10);
-        cinTotalW = cinLabelW + cinValW;
-      }
-      
-      const maxInfoW = Math.max(gstTotalW, cinTotalW);
-      const infoStartX = width - marginX - maxInfoW;
+      const infoStartX = width - marginX - gstTotalW;
       
       // Draw GST
       drawTextHelper(page, gstLabel, infoStartX, infoY, { font: fontBold, size: 10, color: eDark, align: 'left' });
       drawTextHelper(page, companyGst || '', infoStartX + gstLabelW, infoY, { font: fontRegular, size: 10, color: eDark, align: 'left' });
       infoY -= 15;
-      
-      // Draw CIN
-      if (companyCin) {
-        drawTextHelper(page, cinLabel, infoStartX, infoY, { font: fontBold, size: 10, color: eDark, align: 'left' });
-        drawTextHelper(page, companyCin, infoStartX + cinLabelW, infoY, { font: fontRegular, size: 10, color: eDark, align: 'left' });
-        infoY -= 15;
-      }
 
 
 
@@ -1676,38 +1642,31 @@ export const generateInvoicePDF = async (invoice, settings) => {
       // BILL TO on left
       drawTextHelper(page, 'BILL TO:', marginX, clientY, { font: fontBold, size: 10, color: pmiBlack });
 
-      // CIN on right, on top
-      const cinLabelText = 'CIN: ';
-      const cinValText = invoice.customers?.phone || companyCin || 'U16229UP2024PTC199657';
-      const pmiCinLabelW = fontBold.widthOfTextAtSize(cinLabelText, 9.5);
-      const pmiCinValW = fontRegular.widthOfTextAtSize(cinValText, 9.5);
-      const pmiCinW = pmiCinLabelW + pmiCinValW;
-
-      // GST on right, below CIN
+      // GST on right, top
       const gstLabelText = 'GST: ';
       const gstValText = companyGst || '09TRFPS5497N1Z6';
       const pmiGstLabelW = fontBold.widthOfTextAtSize(gstLabelText, 9.5);
       const pmiGstValW = fontRegular.widthOfTextAtSize(gstValText, 9.5);
       const pmiGstW = pmiGstLabelW + pmiGstValW;
 
-      // Calculate column X position to left-align both labels but align the column to the right margin
-      const pmiColW = Math.max(pmiCinW, pmiGstW);
-      const pmiColX = width - marginX - pmiColW;
-
-      // Draw CIN
-      drawTextHelper(page, cinLabelText, pmiColX, clientY, { font: fontBold, size: 9.5, color: pmiBlack });
-      drawTextHelper(page, cinValText, pmiColX + pmiCinLabelW, clientY, { font: fontRegular, size: 9.5, color: pmiBlack });
-
-      // Draw GST
-      drawTextHelper(page, gstLabelText, pmiColX, clientY - 12, { font: fontBold, size: 9.5, color: pmiBlack });
-      drawTextHelper(page, gstValText, pmiColX + pmiGstLabelW, clientY - 12, { font: fontRegular, size: 9.5, color: pmiBlack });
-
-      // Draw Date
+      // Date on right, below GST
       const dateLabelText = 'Date: ';
       const dateValText = formatDate(invoice.invoice_date);
       const pmiDateLabelW = fontBold.widthOfTextAtSize(dateLabelText, 9.5);
-      drawTextHelper(page, dateLabelText, pmiColX, clientY - 24, { font: fontBold, size: 9.5, color: pmiBlack });
-      drawTextHelper(page, dateValText, pmiColX + pmiDateLabelW, clientY - 24, { font: fontRegular, size: 9.5, color: pmiBlack });
+      const pmiDateValW = fontRegular.widthOfTextAtSize(dateValText, 9.5);
+      const pmiDateW = pmiDateLabelW + pmiDateValW;
+
+      // Calculate column X position to left-align both labels but align the column to the right margin
+      const pmiColW = Math.max(pmiGstW, pmiDateW);
+      const pmiColX = width - marginX - pmiColW;
+
+      // Draw GST
+      drawTextHelper(page, gstLabelText, pmiColX, clientY, { font: fontBold, size: 9.5, color: pmiBlack });
+      drawTextHelper(page, gstValText, pmiColX + pmiGstLabelW, clientY, { font: fontRegular, size: 9.5, color: pmiBlack });
+
+      // Draw Date
+      drawTextHelper(page, dateLabelText, pmiColX, clientY - 12, { font: fontBold, size: 9.5, color: pmiBlack });
+      drawTextHelper(page, dateValText, pmiColX + pmiDateLabelW, clientY - 12, { font: fontRegular, size: 9.5, color: pmiBlack });
       
       clientY -= isCompact ? 32 : 40;
       
@@ -2094,10 +2053,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
       }
       if (companyGst) {
         drawTextHelper(page, `GST: ${companyGst}`, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
-        leftY -= 13;
-      }
-      if (invoice.customers?.phone) {
-        drawTextHelper(page, `CIN: ${invoice.customers.phone}`, leftBoxX + boxPad, leftY, { font: fontRegular, size: 10, color: isn_muted });
       }
 
       // Right box content: Bill To
@@ -2527,7 +2482,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
       drawTextHelper(page, dateLabel, mx, shLY, { font: fontBold, size: 9.5, color: pDark });
       drawTextHelper(page, dateVal, mx + fontBold.widthOfTextAtSize(dateLabel, 9.5), shLY, { font: fontRegular, size: 9.5, color: pDark });
 
-      // Right: Invoice details (Invoice No & GST & CIN) — positioned on the right but aligned left-to-right
+      // Right: Invoice details (Invoice No & GST) — positioned on the right but aligned left-to-right
       const rightBlockX = pW - mx - 180;
       let shRY = shTop + shH - 22;
       
@@ -2541,12 +2496,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
       const gstVal = companyGst || '09AAOCP5868J1ZI';
       drawTextHelper(page, gstLabel, rightBlockX, shRY, { font: fontBold, size: 9.5, color: pDark });
       drawTextHelper(page, gstVal, rightBlockX + fontBold.widthOfTextAtSize(gstLabel, 9.5), shRY, { font: fontRegular, size: 9.5, color: pDark });
-
-      shRY -= 13;
-      const cinLabel = 'CIN: ';
-      const cinVal = activeCompany?.cin || 'U16229UP2024PTC199657';
-      drawTextHelper(page, cinLabel, rightBlockX, shRY, { font: fontBold, size: 9.5, color: pDark });
-      drawTextHelper(page, cinVal, rightBlockX + fontBold.widthOfTextAtSize(cinLabel, 9.5), shRY, { font: fontRegular, size: 9.5, color: pDark });
 
       // ── ITEMS TABLE ──────────────────────────────────────────
       const tableX = mx;
@@ -2792,10 +2741,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
         drawTextHelper(page, `GST: ${companyGst}`, marginX, leftY, { font: fontBold, size: 8.5, color: colorMuted });
         leftY -= 12;
       }
-      if (companyCin) {
-        drawTextHelper(page, `CIN: ${companyCin}`, marginX, leftY, { font: fontRegular, size: 8.5, color: colorMuted });
-        leftY -= 12;
-      }
       if (companyAddress) {
         drawTextHelper(page, companyAddress, marginX, leftY, { font: fontRegular, size: 8.5, color: colorMuted, width: colWidth });
       }
@@ -2807,7 +2752,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
       drawTextHelper(page, invoice.customers?.name || 'Client Name', rightColX, rightY, { font: fontBold, size: 10, color: colorDark });
       rightY -= 13;
       if (invoice.customers?.phone) {
-        drawTextHelper(page, `CIN: ${invoice.customers.phone}`, rightColX, rightY, { font: fontRegular, size: 8.5, color: colorMuted });
+        drawTextHelper(page, `Phone: ${invoice.customers.phone}`, rightColX, rightY, { font: fontRegular, size: 8.5, color: colorMuted });
         rightY -= 12;
       }
       if (invoice.customers?.email) {

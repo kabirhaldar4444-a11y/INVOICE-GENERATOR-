@@ -438,7 +438,6 @@ export const InvoiceDetails = () => {
       email: 'info@elitetoolistic.com',
       website: 'www.elitetoolistic.com',
       gst_number: '09AAOCP5868J1ZI',
-      cin: 'U16229UP2024PTC199657',
       address: '301, 2nd Floor, The Capital, Science City Road, Sola, Ahmedabad - 380060',
       primary: '#2E41B4',
       secondary: '#EE0000',
@@ -451,7 +450,6 @@ export const InvoiceDetails = () => {
       email: 'support@harvardlearning.com',
       website: 'www.harvardlearning.com',
       gst_number: '09AAOCP5868J1ZI',
-      cin: 'U16229UP2024PTC199657',
       address: 'SG Highway, Bodakdev, Ahmedabad, Gujarat - 380054, India',
       primary: '#77151D',
       secondary: '#081E42',
@@ -464,7 +462,6 @@ export const InvoiceDetails = () => {
       email: 'support@pmiservices.in',
       website: 'www.pmiservices.in',
       gst_number: '09TRFPS5497N1Z6',
-      cin: 'U16229UP2024PTC199657',
       address: 'Sarkhej Gandhinagar Service Road Near Wide Angle Cinema Ramdev Nagar, Satellite, Ahmedabad, Gujarat 380015',
       primary: '#3C0BB5',
       secondary: '#FFC000',
@@ -476,7 +473,6 @@ export const InvoiceDetails = () => {
       email: 'support@princetonprofessional.com',
       website: 'www.princetonprofessional.com',
       gst_number: '09AAOCP5868J1ZI',
-      cin: 'U16229UP2024PTC199657',
       address: '1203, Mondeal Heights, Sarkhej Gandhinagar Service Road, Ahmedabad, Gujarat 380015',
       primary: '#996633',
       secondary: '#102744',
@@ -500,7 +496,6 @@ export const InvoiceDetails = () => {
       email: activeCompany?.email || '',
       website: activeCompany?.website || '',
       gst_number: activeCompany?.gst_number || '',
-      cin: activeCompany?.cin || '',
       address: activeCompany?.address || '',
       primary: '#7c3aed',
       secondary: '#0ea5e9',
@@ -515,7 +510,6 @@ export const InvoiceDetails = () => {
   const companyEmail = activeTheme.email;
   const companyWebsite = activeTheme.website;
   const companyGst = activeTheme.gst_number || activeCompany?.gst_number || '';
-  const companyCin = activeTheme.cin || activeCompany?.cin || '';
   const companyAddress = activeTheme.address || activeCompany?.address || '';
   const logoUrlToRender = localLogoPath || activeCompany?.logo_url;
 
@@ -619,9 +613,6 @@ export const InvoiceDetails = () => {
                           {companyWebsite && <p>{companyWebsite}</p>}
                           {companyEmail && <p>{companyEmail}</p>}
                           {companyGst && <p>GST: {companyGst}</p>}
-                          {(resolvedCustomer?.phone || invoice.customers?.phone) && (
-                            <p>CIN: {resolvedCustomer?.phone || invoice.customers?.phone}</p>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -787,8 +778,7 @@ export const InvoiceDetails = () => {
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-black text-[10px] tracking-wide text-black">BILL TO:</span>
                       <div className="flex flex-col items-start text-black font-bold text-[9.5px]">
-                        <span>CIN: {resolvedCustomer?.phone || companyCin || 'U16229UP2024PTC199657'}</span>
-                        <span className="mt-0.5">GST: {companyGst || '09TRFPS5497N1Z6'}</span>
+                        <span>GST: {companyGst || '09TRFPS5497N1Z6'}</span>
                         <span className="mt-0.5">Date: {formatDate(invoice.invoice_date)}</span>
                       </div>
                     </div>
@@ -1078,11 +1068,6 @@ export const InvoiceDetails = () => {
                     <p className="text-black font-semibold">
                       <span className="font-extrabold">GST: </span>{resolvedCustomer?.gst_number || '09AAOCP5868J1ZI'}
                     </p>
-                    {resolvedCustomer?.phone && themeKey !== 'elite' && (
-                      <p className="text-black font-semibold mt-1">
-                        <span className="font-extrabold">CIN: </span>{resolvedCustomer.phone}
-                      </p>
-                    )}
                     <p className="text-black font-semibold mt-1">
                       <span className="font-extrabold">Date: </span>{formatDate(invoice.invoice_date)}
                     </p>
@@ -1332,7 +1317,7 @@ export const InvoiceDetails = () => {
                     {/* Separator line */}
                     <div style={{ height: '1px', backgroundColor: eliteLayout.colors.border, marginLeft: `${eliteMarginX}px`, marginRight: `${eliteMarginX}px` }} />
 
-                    {/* BILL TO (left) + GST/CIN (right) */}
+                    {/* BILL TO (left) + GST (right) */}
                     <div className="py-4 flex justify-between items-start text-xs" style={{ paddingLeft: `${eliteMarginX}px`, paddingRight: `${eliteMarginX}px` }}>
                       <div className="space-y-1">
                         <p className="font-extrabold text-[11px] uppercase tracking-wide" style={{ color: eliteLayout.colors.dark }}>BILL TO:</p>
@@ -1342,7 +1327,6 @@ export const InvoiceDetails = () => {
                       </div>
                       <div className="space-y-1 text-left">
                         {companyGst && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">GST: </span>{companyGst}</p>}
-                        {companyCin && <p style={{ color: eliteLayout.colors.dark }}><span className="font-bold">CIN: </span>{companyCin}</p>}
                       </div>
                     </div>
                   </div>
@@ -1469,7 +1453,6 @@ export const InvoiceDetails = () => {
                         <div className="space-y-1 text-[10px] w-[180px]" style={{ color: '#102744' }}>
                           <p><span className="font-bold">Invoice No:</span> {invoice.invoice_number}</p>
                           <p><span className="font-bold">GST:</span> {companyGst || '09AAOCP5868J1ZI'}</p>
-                          <p><span className="font-bold">CIN:</span> {companyCin || 'U16229UP2024PTC199657'}</p>
                         </div>
                       </div>
 
@@ -1639,7 +1622,6 @@ export const InvoiceDetails = () => {
                         {companyEmail && <p>Email: {companyEmail}</p>}
                         {companyWebsite && <p>Web: {companyWebsite}</p>}
                         {companyGst && <p className="font-medium text-slate-700">GST: {companyGst}</p>}
-                        {companyCin && <p>CIN: {companyCin}</p>}
                         {companyAddress && <p className="pt-1 text-slate-400">{companyAddress}</p>}
                       </div>
 
@@ -1647,7 +1629,7 @@ export const InvoiceDetails = () => {
                       <div className="space-y-1 text-slate-500">
                         <p className="font-bold text-[10px] uppercase tracking-wider text-slate-400">BILL TO</p>
                         <p className="font-bold text-slate-800 text-sm">{resolvedCustomer?.name || 'Client Name'}</p>
-                        {resolvedCustomer?.phone && <p>CIN: {resolvedCustomer.phone}</p>}
+                        {resolvedCustomer?.phone && <p>Phone: {resolvedCustomer.phone}</p>}
                         {resolvedCustomer?.email && <p>Email: {resolvedCustomer.email}</p>}
                         {(isIsNodeName(companyNameText) || resolvedCustomer?.gst_number) && (
                           <p className="font-medium text-slate-700">
@@ -1959,7 +1941,6 @@ export const InvoiceDetails = () => {
                 {activeCompany?.email && <p>Email: {activeCompany.email}</p>}
                 {activeCompany?.website && <p>Web: {activeCompany.website}</p>}
                 {activeCompany?.gst_number && <p className="font-medium text-slate-700">GST: {activeCompany.gst_number}</p>}
-                {activeCompany?.cin && <p className="text-slate-500">CIN: {activeCompany.cin}</p>}
                 {activeCompany?.address && <p className="pt-1 text-slate-400">{activeCompany.address}</p>}
               </div>
 
@@ -1968,14 +1949,13 @@ export const InvoiceDetails = () => {
                 <p className="font-bold text-[10px] uppercase tracking-wider text-slate-400">BILL TO</p>
                 <p className="font-bold text-slate-800 text-sm">{resolvedCustomer?.name || invoice.customers?.name || 'Client Name'}</p>
                 {(resolvedCustomer?.email || invoice.customers?.email) && <p>Email: {resolvedCustomer?.email || invoice.customers?.email}</p>}
-                {/* GST above CIN */}
                 {(isIsNodeName(activeCompany?.company_name || 'I-SUCCESSNODE') || resolvedCustomer?.gst_number) && (
                   <p>
                     GST: {isIsNodeName(activeCompany?.company_name || 'I-SUCCESSNODE') ? '09AAHCI9258G1Z3' : resolvedCustomer.gst_number}
                   </p>
                 )}
                 {(resolvedCustomer?.phone || invoice.customers?.phone) && (
-                  <p>CIN: {resolvedCustomer?.phone || invoice.customers?.phone}</p>
+                  <p>Phone: {resolvedCustomer?.phone || invoice.customers?.phone}</p>
                 )}
                 {(resolvedCustomer?.address || invoice.customers?.address) && (
                   <p className="pt-1 text-slate-400">{resolvedCustomer?.address || invoice.customers?.address}</p>
