@@ -40,7 +40,7 @@ export const eliteLayout = {
   // Items table structure
   table: {
     colWidths: [35, 190, 70, 70, 70, 70], // SR. NO. (35) | ITEM (190) | AMOUNT (70) | CGST (70) | SGST/IGST (70) | TOTAL (70)
-    headerHeight: 28,
+    headerHeight: 34,
     rowHeight: 26,
     borderThickness: 0.6,
   },

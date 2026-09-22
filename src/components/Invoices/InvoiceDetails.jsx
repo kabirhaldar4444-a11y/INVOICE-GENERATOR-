@@ -437,7 +437,7 @@ export const InvoiceDetails = () => {
       phone: '+91 7969325899',
       email: 'info@elitetoolistic.com',
       website: 'www.elitetoolistic.com',
-      gst_number: '09AAOCP5868J1ZI',
+      gst_number: '09AAICE4778J1Z0',
       address: '301, 2nd Floor, The Capital, Science City Road, Sola, Ahmedabad - 380060',
       primary: '#2E41B4',
       secondary: '#EE0000',
@@ -509,7 +509,9 @@ export const InvoiceDetails = () => {
   const companyPhone = activeTheme.phone;
   const companyEmail = activeTheme.email;
   const companyWebsite = activeTheme.website;
-  const companyGst = activeTheme.gst_number || activeCompany?.gst_number || '';
+  const companyGst = (themeKey === 'elite' || companyName.includes('elite'))
+    ? '09AAICE4778J1Z0'
+    : (activeTheme.gst_number || activeCompany?.gst_number || '');
   const companyAddress = activeTheme.address || activeCompany?.address || '';
   const logoUrlToRender = localLogoPath || activeCompany?.logo_url;
 
@@ -632,13 +634,13 @@ export const InvoiceDetails = () => {
                   <div className="overflow-x-auto border border-black rounded-none">
                     <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
                       <thead>
-                        <tr className="border-b border-black" style={{ backgroundColor: '#BCE0FD' }}>
-                          <th className="p-2 text-center font-bold text-black text-xs border-r border-black" style={{ width: '35px' }}>SR. NO.</th>
-                          <th className="p-2 text-left font-bold text-black text-xs border-r border-black" style={{ width: '190px' }}>ITEM</th>
-                          <th className="p-2 text-center font-bold text-black text-xs border-r border-black" style={{ width: '70px' }}>AMOUNT</th>
-                          <th className="p-2 text-center font-bold text-black text-xs border-r border-black" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
-                          <th className="p-2 text-center font-bold text-black text-xs border-r border-black" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
-                          <th className="p-2 text-center font-bold text-black text-xs" style={{ width: '70px' }}>TOTAL</th>
+                        <tr className="border-b border-black text-[10px]" style={{ backgroundColor: '#BCE0FD', height: '34px' }}>
+                          <th className="p-1 text-center font-bold text-black border-r border-black whitespace-nowrap" style={{ width: '35px' }}>SR. NO.</th>
+                          <th className="p-2 text-left font-bold text-black border-r border-black" style={{ width: '190px' }}>ITEM</th>
+                          <th className="p-1 text-center font-bold text-black border-r border-black whitespace-nowrap" style={{ width: '70px' }}>AMOUNT</th>
+                          <th className="p-1 text-center font-bold text-black border-r border-black whitespace-nowrap" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
+                          <th className="p-1 text-center font-bold text-black border-r border-black whitespace-nowrap" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
+                          <th className="p-1 text-center font-bold text-black whitespace-nowrap" style={{ width: '70px' }}>TOTAL</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -793,12 +795,12 @@ export const InvoiceDetails = () => {
                     <table className="w-full border-collapse border border-black text-[10px] text-left" style={{ tableLayout: 'fixed' }}>
                       <thead>
                         <tr className="bg-[#4A15B7] text-white text-[10px] font-bold" style={{ height: '34px' }}>
-                          <th className="border border-black text-center" style={{ width: '35px' }}>S.NO.</th>
+                          <th className="border border-black text-center whitespace-nowrap" style={{ width: '35px' }}>S.NO.</th>
                           <th className="border border-black text-center" style={{ width: '190px' }}>ITEM</th>
-                          <th className="border border-black text-center" style={{ width: '70px' }}>AMOUNT</th>
-                          <th className="border border-black text-center" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
-                          <th className="border border-black text-center" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
-                          <th className="border border-black text-center" style={{ width: '70px' }}>TOTAL</th>
+                          <th className="border border-black text-center whitespace-nowrap" style={{ width: '70px' }}>AMOUNT</th>
+                          <th className="border border-black text-center whitespace-nowrap" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
+                          <th className="border border-black text-center whitespace-nowrap" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
+                          <th className="border border-black text-center whitespace-nowrap" style={{ width: '70px' }}>TOTAL</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1646,32 +1648,32 @@ export const InvoiceDetails = () => {
                     <table className="w-full text-left border-collapse border" style={{ width: '100%', borderColor: themeKey === 'elite' ? eliteLayout.colors.border : '#e2e8f0' }}>
                       <thead>
                         {themeKey === 'elite' ? (
-                          <tr className="text-white text-xs font-bold" style={{ backgroundColor: eliteLayout.colors.primary, height: `${eliteLayout.table.headerHeight}px` }}>
-                            <th className="p-2 text-center" style={{ width: '35px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>S.NO.</th>
-                            <th className="p-2.5 text-left" style={{ width: '190px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>ITEM</th>
-                            <th className="p-2 text-center" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>AMOUNT</th>
-                            <th className="p-2 text-center" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>CGST ({halfPct}%)</th>
-                            <th className="p-2 text-center" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>{taxType} ({halfPct}%)</th>
-                            <th className="p-2 text-center" style={{ width: '70px' }}>TOTAL</th>
+                          <tr className="text-white text-[10px] font-bold" style={{ backgroundColor: eliteLayout.colors.primary, height: `${eliteLayout.table.headerHeight}px` }}>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '35px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>S.NO.</th>
+                            <th className="py-2 px-2.5 text-left" style={{ width: '190px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>ITEM</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>AMOUNT</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>CGST ({halfPct}%)</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px', borderRight: `1px solid ${eliteLayout.colors.dark}` }}>{taxType} ({halfPct}%)</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px' }}>TOTAL</th>
                           </tr>
                         ) : themeKey === 'harvard' ? (
-                          <tr className="text-xs font-semibold border-b border-slate-100" style={{ backgroundColor: '#F2F2F2' }}>
-                            <th className="p-2 text-center" style={{ width: '35px' }}>S.NO.</th>
-                            <th className="p-2.5 text-left" style={{ width: '190px' }}>ITEM</th>
-                            <th className="p-2 text-center" style={{ width: '70px' }}>AMOUNT</th>
-                            <th className="p-2 text-center" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
-                            <th className="p-2 text-center" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
-                            <th className="p-2 text-center" style={{ width: '70px' }}>TOTAL</th>
+                          <tr className="text-[10px] font-semibold border-b border-slate-100" style={{ backgroundColor: '#F2F2F2', height: '34px' }}>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '35px' }}>S.NO.</th>
+                            <th className="py-2 px-2.5 text-left" style={{ width: '190px' }}>ITEM</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px' }}>AMOUNT</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px' }}>TOTAL</th>
                           </tr>
                         ) : (
                           // Standard Theme
-                          <tr className="text-white text-xs font-bold" style={{ backgroundColor: activeTheme?.primary || '#1e293b' }}>
-                            <th className="p-2 text-center" style={{ width: '35px' }}>S.NO.</th>
-                            <th className="p-2.5 text-left" style={{ width: '190px' }}>ITEM</th>
-                            <th className="p-2 text-center" style={{ width: '70px' }}>AMOUNT</th>
-                            <th className="p-2 text-center" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
-                            <th className="p-2 text-center" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
-                            <th className="p-2 text-center" style={{ width: '70px' }}>TOTAL</th>
+                          <tr className="text-white text-[10px] font-bold" style={{ backgroundColor: activeTheme?.primary || '#1e293b', height: '34px' }}>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '35px' }}>S.NO.</th>
+                            <th className="py-2 px-2.5 text-left" style={{ width: '190px' }}>ITEM</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px' }}>AMOUNT</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px' }}>CGST ({halfPct}%)</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px' }}>{taxType} ({halfPct}%)</th>
+                            <th className="py-2 px-1 text-center whitespace-nowrap" style={{ width: '70px' }}>TOTAL</th>
                           </tr>
                         )}
                       </thead>

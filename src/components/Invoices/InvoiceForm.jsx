@@ -337,11 +337,17 @@ export const InvoiceForm = () => {
       status
     };
 
+    const isEliteProfile = activeProfile && (
+      activeProfile.id === 'hc-elite' || 
+      (activeProfile.company_name && activeProfile.company_name.toLowerCase().includes('elite'))
+    );
+    const profileGst = isEliteProfile ? '09AAICE4778J1Z0' : (activeProfile?.gst_number || '');
+
     const metadataItem = {
       program_name: '__profile_metadata__',
       description: JSON.stringify({
         company_name: activeProfile?.company_name || 'I-SUCCESSNODE',
-        gst_number: activeProfile?.gst_number || '',
+        gst_number: profileGst,
         email: activeProfile?.email || '',
         phone: activeProfile?.phone || '',
         website: activeProfile?.website || '',

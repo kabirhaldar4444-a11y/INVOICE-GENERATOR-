@@ -21,6 +21,13 @@ const isIsNodeName = (name) => {
          n.includes('i-sucessnode');
 };
 
+const isEliteName = (name) => {
+  if (!name) return false;
+  const n = name.toLowerCase().replace(/[\s\-_]/g, '');
+  return n.includes('elitetoolistic') || n.includes('elitetool');
+};
+
+
 const AppContext = createContext();
 
 // Detect if Supabase is configured
@@ -320,6 +327,8 @@ export const AppProvider = ({ children }) => {
       const processedFields = { ...updatedFields };
       if (isIsNodeName(processedFields.company_name)) {
         processedFields.gst_number = '09AAHCI9258G1Z3';
+      } else if (isEliteName(processedFields.company_name)) {
+        processedFields.gst_number = '09AAICE4778J1Z0';
       }
       if (useSupabase) {
         // Supabase Database Update
@@ -365,7 +374,7 @@ export const AppProvider = ({ children }) => {
     {
       id: 'hc-elite',
       company_name: 'EliteToolistic',
-      gst_number: '09AAOCP5868J1ZI',
+      gst_number: '09AAICE4778J1Z0',
       email: 'info@elitetoolistic.com',
       phone: '+91-7969325899',
       website: 'www.elitetoolistic.com',
@@ -448,10 +457,20 @@ export const AppProvider = ({ children }) => {
           // Brand new hardcoded company — insert it
           await idbCreateProfile({ ...company, created_at: now, updated_at: now });
         } else {
-          // Already exists — only sync the logo_url if it changed (leave other user edits intact)
+          // Already exists — sync logo_url and permanent GST if changed
           const existing = stored.find(p => p.id === company.id);
+          const updates = {};
           if (existing && existing.logo_url !== company.logo_url) {
-            await idbUpdateProfile(company.id, { logo_url: company.logo_url });
+            updates.logo_url = company.logo_url;
+          }
+          if (company.id === 'hc-elite' && existing && existing.gst_number !== company.gst_number) {
+            updates.gst_number = company.gst_number;
+          }
+          if (company.id === 'hc-isn' && existing && existing.gst_number !== company.gst_number) {
+            updates.gst_number = company.gst_number;
+          }
+          if (Object.keys(updates).length > 0) {
+            await idbUpdateProfile(company.id, updates);
           }
         }
       }
@@ -485,6 +504,8 @@ export const AppProvider = ({ children }) => {
       const processedFields = { ...profileFields };
       if (isIsNodeName(processedFields.company_name)) {
         processedFields.gst_number = '09AAHCI9258G1Z3';
+      } else if (isEliteName(processedFields.company_name)) {
+        processedFields.gst_number = '09AAICE4778J1Z0';
       }
       const newProfile = await idbCreateProfile({ ...processedFields, is_default: false });
       setProfiles(prev => [...prev, newProfile]);
@@ -501,6 +522,8 @@ export const AppProvider = ({ children }) => {
       const processedFields = { ...updatedFields };
       if (isIsNodeName(processedFields.company_name)) {
         processedFields.gst_number = '09AAHCI9258G1Z3';
+      } else if (isEliteName(processedFields.company_name) || id === 'hc-elite') {
+        processedFields.gst_number = '09AAICE4778J1Z0';
       }
       // If updating the default profile, also sync the main settings
       const target = profiles.find(p => p.id === id);

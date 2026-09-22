@@ -29,6 +29,13 @@ const isIsNodeName = (name) => {
          n.includes('i-sucessnode');
 };
 
+const isEliteName = (name) => {
+  if (!name) return false;
+  const n = name.toLowerCase().replace(/[\s\-_]/g, '');
+  return n.includes('elitetoolistic') || n.includes('elitetool');
+};
+
+
 export const Settings = () => {
   const { 
     settings, 
@@ -84,7 +91,11 @@ export const Settings = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const finalGstNumber = isIsNodeName(companyName) ? '09AAHCI9258G1Z3' : gstNumber;
+    const finalGstNumber = isIsNodeName(companyName) 
+      ? '09AAHCI9258G1Z3' 
+      : isEliteName(companyName) 
+        ? '09AAICE4778J1Z0' 
+        : gstNumber;
     const payload = {
       company_name: companyName,
       gst_number: finalGstNumber,
@@ -342,11 +353,17 @@ export const Settings = () => {
                     <input
                       type="text"
                       placeholder="e.g. 27AADCA1123B1Z2"
-                      value={isIsNodeName(companyName) ? '09AAHCI9258G1Z3' : gstNumber}
-                      onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-                      disabled={isIsNodeName(companyName)}
-                      className={`w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono ${
+                      value={
                         isIsNodeName(companyName) 
+                          ? '09AAHCI9258G1Z3' 
+                          : isEliteName(companyName) 
+                            ? '09AAICE4778J1Z0' 
+                            : gstNumber
+                      }
+                      onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                      disabled={isIsNodeName(companyName) || isEliteName(companyName)}
+                      className={`w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono ${
+                        (isIsNodeName(companyName) || isEliteName(companyName))
                           ? 'bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-80' 
                           : 'bg-slate-50 dark:bg-slate-800'
                       }`}

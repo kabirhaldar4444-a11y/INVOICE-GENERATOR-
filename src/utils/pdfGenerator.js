@@ -473,7 +473,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
         phone: '+91 7969325899',
         email: 'info@elitetoolistic.com',
         website: 'www.elitetoolistic.com',
-        gst_number: '09AAOCP5868J1ZI',
+        gst_number: '09AAICE4778J1Z0',
         address: '301, 2nd Floor, The Capital, Science City Road, Sola, Ahmedabad - 380060'
       },
       harvard: {
@@ -513,7 +513,8 @@ export const generateInvoicePDF = async (invoice, settings) => {
     const companyPhone = brandOverride.phone || activeCompany?.phone || '';
     const companyEmail = brandOverride.email || activeCompany?.email || '';
     const companyWebsite = brandOverride.website || activeCompany?.website || '';
-    const companyGst = brandOverride.gst_number || activeCompany?.gst_number || '';
+    const isElite = themeKey === 'elite' || (companyNameText && companyNameText.toLowerCase().includes('elite'));
+    const companyGst = isElite ? '09AAICE4778J1Z0' : (brandOverride.gst_number || activeCompany?.gst_number || '');
     const isIssuingNode = isIsNodeName(companyNameText);
     const companyAddress = brandOverride.address || activeCompany?.address || '';
     const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
@@ -1159,10 +1160,36 @@ export const generateInvoicePDF = async (invoice, settings) => {
       currentY = billY - 22;
 
       // ── ITEMS TABLE ────────────────────────────────────────────
-      // Column widths match HTML preview: 45% | 18% | 18% | 19%
-      const tableW  = width - marginX * 2;   // 505pt
-      const colWs   = [35, 190, 70, 70, 70, 70];    // S.NO. | ITEM | AMOUNT | CGST | SGST/IGST | TOTAL
-      const hdrH    = 34;
+      // ── PRE-CALCULATE CONTENT BUDGET FOR ADAPTIVE COMPACTION ────
+      const items = invoice.invoice_items || [];
+      const colWs = [35, 190, 70, 70, 70, 70];
+      const tableW = width - marginX * 2;
+      
+      let totalDescLinesCount = 0;
+      items.forEach(item => {
+        let desc = item.course_description || '';
+        if (!desc && item.description) {
+          try {
+            if (item.description.startsWith('{') && item.description.endsWith('}')) {
+              const j = JSON.parse(item.description);
+              desc = j.course_description || j.text || '';
+            } else {
+              desc = item.description;
+            }
+          } catch (e) {
+            desc = item.description;
+          }
+        }
+        if (desc) {
+          const lns = wrapText(desc, fontRegular, 8.5, colWs[1] - 16);
+          totalDescLinesCount += lns.length;
+        }
+      });
+
+      const isCompact = items.length >= 3 || totalDescLinesCount > 4;
+      const isUltraCompact = items.length >= 4 || totalDescLinesCount > 10;
+
+      const hdrH = 34;
       const hdrLabels = ['S.NO.', 'ITEM', 'AMOUNT', `CGST (${halfPct}%)`, `${taxType} (${halfPct}%)`, 'TOTAL'];
 
       // Table outer top border
@@ -1197,8 +1224,11 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // ── DATA ROWS ──────────────────────────────────────────────
       const tableDataTop = currentY;
-      const rowH_default = 32;
-      const items = invoice.invoice_items || [];
+      const rowH_default = isCompact ? 24 : 32;
+      const titleLineH   = isCompact ? 11 : 12;
+      const descLineH    = isUltraCompact ? 9 : (isCompact ? 9.5 : 10.5);
+      const durLineH     = isCompact ? 10 : 11;
+      const rowPad       = isUltraCompact ? 6 : (isCompact ? 8 : 14);
       const MIN_ROWS = items.length; // only show rows with content
 
       for (let rIdx = 0; rIdx < MIN_ROWS; rIdx++) {
@@ -1216,18 +1246,18 @@ export const generateInvoicePDF = async (invoice, settings) => {
         } catch (e) {}
 
         const progName = item.program_name || '';
-        const titleLines = wrapText(progName, fontBold, 9.5, colWs[1] - 16);
-        const descLines = courseDesc ? wrapText(courseDesc, fontRegular, 8.5, colWs[1] - 16) : [];
-        const durLines = duration ? wrapText(`Course Duration: ${duration}`, fontBold, 8.5, colWs[1] - 16) : [];
-        const fallbackLines = (!courseDesc && displayDesc) ? wrapText(`(${displayDesc})`, fontRegular, 8.5, colWs[1] - 16) : [];
+        const titleLines = wrapText(progName, fontBold, isCompact ? 9 : 9.5, colWs[1] - 16);
+        const descLines = courseDesc ? wrapText(courseDesc, fontRegular, isCompact ? 8 : 8.5, colWs[1] - 16) : [];
+        const durLines = duration ? wrapText(`Course Duration: ${duration}`, fontBold, isCompact ? 8 : 8.5, colWs[1] - 16) : [];
+        const fallbackLines = (!courseDesc && displayDesc) ? wrapText(`(${displayDesc})`, fontRegular, isCompact ? 8 : 8.5, colWs[1] - 16) : [];
 
-        const titleH = titleLines.length * 12;
-        const descH = descLines.length > 0 ? (descLines.length * 10.5 + 4) : 0;
-        const durH = durLines.length > 0 ? (durLines.length * 11 + 5) : 0;
-        const fallbackH = fallbackLines.length > 0 ? (fallbackLines.length * 10.5 + 3) : 0;
+        const titleH = titleLines.length * titleLineH;
+        const descH = descLines.length > 0 ? (descLines.length * descLineH + (isCompact ? 2 : 4)) : 0;
+        const durH = durLines.length > 0 ? (durLines.length * durLineH + (isCompact ? 3 : 5)) : 0;
+        const fallbackH = fallbackLines.length > 0 ? (fallbackLines.length * descLineH + (isCompact ? 2 : 3)) : 0;
         const totalContentH = titleH + descH + durH + fallbackH;
 
-        const rowHeight = Math.max(rowH_default, totalContentH + 16);
+        const rowHeight = Math.max(rowH_default, totalContentH + rowPad);
         const cellY = currentY - rowHeight / 2 - 3.5;
         const isComp = item ? parseFloat(item.unit_price) === 0 : false;
         const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
@@ -1237,80 +1267,80 @@ export const generateInvoicePDF = async (invoice, settings) => {
           
           // Col 0: ITEM number
           const itemNoStr = String(rIdx + 1).padStart(2, '0');
-          drawTextHelper(page, itemNoStr, cx + colWs[0] / 2, cellY, { font: fontBold, size: 9.5, color: eDark, align: 'center' });
+          drawTextHelper(page, itemNoStr, cx + colWs[0] / 2, cellY, { font: fontBold, size: isCompact ? 9 : 9.5, color: eDark, align: 'center' });
           cx += colWs[0];
 
           // Col 1: DESCRIPTION (left-aligned)
-          let curY = currentY - (rowHeight - totalContentH) / 2 - 8.5;
+          let curY = currentY - (rowHeight - totalContentH) / 2 - (isCompact ? 7.5 : 8.5);
           titleLines.forEach((lineText) => {
             drawTextHelper(page, lineText, cx + 8, curY, {
               font: fontBold,
-              size: 9.5,
+              size: isCompact ? 9 : 9.5,
               color: eDark,
               align: 'left',
               width: colWs[1] - 16
             });
-            curY -= 12;
+            curY -= titleLineH;
           });
           if (descLines.length > 0) {
-            curY -= 2;
+            curY -= isCompact ? 1.5 : 2;
             descLines.forEach((lineText) => {
               drawTextHelper(page, lineText, cx + 8, curY, {
                 font: fontRegular,
-                size: 8.5,
+                size: isCompact ? 8 : 8.5,
                 color: eDark,
                 align: 'left',
                 width: colWs[1] - 16
               });
-              curY -= 10.5;
+              curY -= descLineH;
             });
           }
           if (durLines.length > 0) {
-            curY -= 4;
+            curY -= isCompact ? 2.5 : 4;
             durLines.forEach((lineText) => {
               drawTextHelper(page, lineText, cx + 8, curY, {
                 font: fontBold,
-                size: 8.5,
+                size: isCompact ? 8 : 8.5,
                 color: eDark,
                 align: 'left',
                 width: colWs[1] - 16
               });
-              curY -= 11;
+              curY -= durLineH;
             });
           }
           if (fallbackLines.length > 0) {
-            curY -= 2;
+            curY -= isCompact ? 1.5 : 2;
             fallbackLines.forEach((lineText) => {
               drawTextHelper(page, lineText, cx + 8, curY, {
                 font: fontRegular,
-                size: 8.5,
+                size: isCompact ? 8 : 8.5,
                 color: eDark,
                 align: 'left',
                 width: colWs[1] - 16
               });
-              curY -= 10.5;
+              curY -= descLineH;
             });
           }
           cx += colWs[1];
 
           // Col 2: AMOUNT (Unit Price)
           const upVal = isComp ? '₹0.00' : `₹${eFmt(item.unit_price)}`;
-          drawTextHelper(page, upVal, cx + colWs[2] / 2, cellY, { font: fontBold, size: 8.5, color: eDark, align: 'center' });
+          drawTextHelper(page, upVal, cx + colWs[2] / 2, cellY, { font: fontBold, size: isCompact ? 8 : 8.5, color: eDark, align: 'center' });
           cx += colWs[2];
 
           // Col 3: CGST
           const cgstVal = isComp ? '₹0.00' : `₹${eFmt(cgstAmt)}`;
-          drawTextHelper(page, cgstVal, cx + colWs[3] / 2, cellY, { font: fontBold, size: 8.5, color: eDark, align: 'center' });
+          drawTextHelper(page, cgstVal, cx + colWs[3] / 2, cellY, { font: fontBold, size: isCompact ? 8 : 8.5, color: eDark, align: 'center' });
           cx += colWs[3];
 
           // Col 4: SGST / IGST
           const secondTaxVal = isComp ? '₹0.00' : `₹${eFmt(secondTaxAmt)}`;
-          drawTextHelper(page, secondTaxVal, cx + colWs[4] / 2, cellY, { font: fontBold, size: 8.5, color: eDark, align: 'center' });
+          drawTextHelper(page, secondTaxVal, cx + colWs[4] / 2, cellY, { font: fontBold, size: isCompact ? 8 : 8.5, color: eDark, align: 'center' });
           cx += colWs[4];
 
           // Col 5: TOTAL
           const totVal = isComp ? '₹0.00' : `₹${eFmt(item.total_amount)}`;
-          drawTextHelper(page, totVal, cx + colWs[5] / 2, cellY, { font: fontBold, size: 8.5, color: eDark, align: 'center' });
+          drawTextHelper(page, totVal, cx + colWs[5] / 2, cellY, { font: fontBold, size: isCompact ? 8 : 8.5, color: eDark, align: 'center' });
         }
 
         // Row bottom border
@@ -1343,41 +1373,53 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       const boxW  = 190;
       const boxX  = width - marginX - boxW;
-      let totY    = currentY - 16;
-
-      // ── Box 1: Bordered — SUB TOTAL + TOTAL GST ───────────────
-      const box1H = 50;
-      const box1Y = totY - box1H;
-      page.drawRectangle({
-        x: boxX, y: box1Y, width: boxW, height: box1H,
-        borderColor: eBlue, borderWidth: 1.2, color: eWhite
-      });
-      // Row 1: SUB TOTAL
-      drawTextHelper(page, 'SUB TOTAL:', boxX + 10, box1Y + 33, { font: fontBold, size: 9.5, color: eDark });
-      drawTextHelper(page, `₹${eFmt(invoice.subtotal)}`, boxX + boxW - 10, box1Y + 33, { font: fontRegular, size: 9.5, color: eDark, align: 'right' });
-      // Row 2: TOTAL GST
-      drawTextHelper(page, 'TOTAL GST:', boxX + 10, box1Y + 13, { font: fontBold, size: 9.5, color: eDark });
-      drawTextHelper(page, `₹${eFmt(invoice.gst_amount)}`, boxX + boxW - 10, box1Y + 13, { font: fontRegular, size: 9.5, color: eDark, align: 'right' });
-
-      totY = box1Y - 10;
-
-      // ── Box 2: Solid Royal Blue — TOTAL / (DISCOUNT) / PAID / DUE ─────
+      
+      const box1H = isCompact ? 40 : 48;
+      const box2RowH = isCompact ? 18 : 22;
       const box2Rows = [
         { label: 'TOTAL:', val: `₹${eFmt(preDiscTotal)}` },
         ...(discountAmount > 0 ? [{ label: 'DISCOUNT:', val: `-₹${eFmt(discountAmount)}`, highlight: true }] : []),
         { label: 'PAID:', val: `₹${eFmt(paidAmt)}` },
         { label: 'DUE:', val: `₹${eFmtZeroAsPadded(dueAmt)}` }
       ];
-      const box2H = box2Rows.length * 22;
-      const box2Y = totY - box2H;
+      const box2H = box2Rows.length * box2RowH;
+      const totGap1 = isCompact ? 8 : 14;
+      const totGap2 = isCompact ? 6 : 10;
+
+      let totY    = currentY - totGap1;
+      let box1Y   = totY - box1H;
+      let box2Y   = box1Y - totGap2 - box2H;
+
+      // Safe clamp: ensure box2 never collides with footer (footer is 80pt, plus 3pt accent strip = 83pt)
+      const minBox2Y = 83 + 8; // 91pt
+      if (box2Y < minBox2Y) {
+        const shiftUp = minBox2Y - box2Y;
+        box2Y += shiftUp;
+        box1Y += shiftUp;
+      }
+
+      // ── Box 1: Bordered — SUB TOTAL + TOTAL GST ───────────────
+      page.drawRectangle({
+        x: boxX, y: box1Y, width: boxW, height: box1H,
+        borderColor: eBlue, borderWidth: 1.2, color: eWhite
+      });
+      // Row 1: SUB TOTAL
+      const subTotalY = box1Y + box1H * 0.62;
+      drawTextHelper(page, 'SUB TOTAL:', boxX + 10, subTotalY, { font: fontBold, size: isCompact ? 9 : 9.5, color: eDark });
+      drawTextHelper(page, `₹${eFmt(invoice.subtotal)}`, boxX + boxW - 10, subTotalY, { font: fontRegular, size: isCompact ? 9 : 9.5, color: eDark, align: 'right' });
+      // Row 2: TOTAL GST
+      const gstY = box1Y + box1H * 0.22;
+      drawTextHelper(page, 'TOTAL GST:', boxX + 10, gstY, { font: fontBold, size: isCompact ? 9 : 9.5, color: eDark });
+      drawTextHelper(page, `₹${eFmt(invoice.gst_amount)}`, boxX + boxW - 10, gstY, { font: fontRegular, size: isCompact ? 9 : 9.5, color: eDark, align: 'right' });
+
+      // ── Box 2: Solid Royal Blue — TOTAL / (DISCOUNT) / PAID / DUE ─────
       page.drawRectangle({ x: boxX, y: box2Y, width: boxW, height: box2H, color: eBlue });
 
-      const row2H = box2H / box2Rows.length;
       box2Rows.forEach((row, i) => {
-        const ry = box2Y + box2H - (i + 1) * row2H + row2H / 2 - 4.5;
+        const ry = box2Y + box2H - (i + 1) * box2RowH + box2RowH / 2 - 4;
         const valColor = row.highlight ? rgb(255/255, 220/255, 80/255) : eWhite;
-        drawTextHelper(page, row.label, boxX + 10, ry, { font: fontBold, size: 9.5, color: eWhite });
-        drawTextHelper(page, row.val, boxX + boxW - 10, ry, { font: fontRegular, size: 9.5, color: valColor, align: 'right' });
+        drawTextHelper(page, row.label, boxX + 10, ry, { font: fontBold, size: isCompact ? 9 : 9.5, color: eWhite });
+        drawTextHelper(page, row.val, boxX + boxW - 10, ry, { font: fontRegular, size: isCompact ? 9 : 9.5, color: valColor, align: 'right' });
       });
 
       currentY = box2Y - 16;
@@ -1398,23 +1440,23 @@ export const generateInvoicePDF = async (invoice, settings) => {
       });
 
       // ── LEFT COLUMN: Phone / Email / Web ──────────────────────
-      const footerTop = footerH - 16;  // start from top of footer
-      const lineGap = 18;
+      const footerTop = footerH - 18;  // start cleanly from top of footer
+      const lineGap = 16;
 
       // Phone
       drawTextHelper(page, `Phone: ${companyPhone}`, marginX, footerTop, {
-        font: fontBold, size: 10, color: eWhite
+        font: fontBold, size: 9.5, color: eWhite
       });
 
       // Email with underline
       drawTextHelper(page, `Email:`, marginX, footerTop - lineGap, {
-        font: fontBold, size: 10, color: eWhite
+        font: fontBold, size: 9.5, color: eWhite
       });
-      const emailLabelW = fontBold.widthOfTextAtSize('Email: ', 10);
+      const emailLabelW = fontBold.widthOfTextAtSize('Email: ', 9.5);
       drawTextHelper(page, companyEmail, marginX + emailLabelW, footerTop - lineGap, {
-        font: fontBold, size: 10, color: eWhite
+        font: fontBold, size: 9.5, color: eWhite
       });
-      const emailTxtW = fontBold.widthOfTextAtSize(companyEmail, 10);
+      const emailTxtW = fontBold.widthOfTextAtSize(companyEmail, 9.5);
       page.drawLine({
         start: { x: marginX + emailLabelW, y: footerTop - lineGap - 2 },
         end:   { x: marginX + emailLabelW + emailTxtW, y: footerTop - lineGap - 2 },
@@ -1422,14 +1464,13 @@ export const generateInvoicePDF = async (invoice, settings) => {
       });
       // Register clickable mailto link in PDF
       addLinkToPdf(pdfDoc, page, marginX + emailLabelW, footerTop - lineGap - 2, emailTxtW, 12, `mailto:${companyEmail}`);
-
       // Web
       if (companyWebsite) {
         drawTextHelper(page, `Web: ${companyWebsite}`, marginX, footerTop - lineGap * 2, {
-          font: fontBold, size: 10, color: eWhite
+          font: fontBold, size: 9.5, color: eWhite
         });
-        const webLabelW = fontBold.widthOfTextAtSize('Web: ', 10);
-        const webTxtW = fontBold.widthOfTextAtSize(companyWebsite, 10);
+        const webLabelW = fontBold.widthOfTextAtSize('Web: ', 9.5);
+        const webTxtW = fontBold.widthOfTextAtSize(companyWebsite, 9.5);
         const webUrl = companyWebsite.startsWith('http') ? companyWebsite : `https://${companyWebsite}`;
         
         // Underline web link
@@ -1446,18 +1487,17 @@ export const generateInvoicePDF = async (invoice, settings) => {
       // ── RIGHT COLUMN: ADDRESS label + address text ─────────────
       const addrRightEdge = width - 65; // aligned professionally closer to the right margin
       const addrMaxW = 220;
-      const addrX = addrRightEdge - addrMaxW;
 
       // "ADDRESS" label (small caps, slate-400 style → use muted white)
       drawTextHelper(page, 'ADDRESS', addrRightEdge, footerTop, {
-        font: fontBold, size: 7.5, color: rgb(150/255, 165/255, 195/255), align: 'right'
+        font: fontBold, size: 8, color: rgb(150/255, 165/255, 195/255), align: 'right'
       });
 
-      // Address text — wrapped, right-aligned
+      // Address text — wrapped, right-aligned with 11pt line spacing so it fits cleanly
       const addrLines = wrapText(companyAddress, fontRegular, 8, addrMaxW);
       addrLines.forEach((line, i) => {
-        drawTextHelper(page, line, addrRightEdge, footerTop - lineGap * (i + 1), {
-          font: fontRegular, size: 8, color: rgb(200/255, 210/255, 230/255), align: 'right'
+        drawTextHelper(page, line, addrRightEdge, footerTop - 12 - (i * 11), {
+          font: fontRegular, size: 8, color: rgb(200/255, 210/255, 235/255), align: 'right'
         });
       });
 
