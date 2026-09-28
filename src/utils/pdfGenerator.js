@@ -1970,24 +1970,16 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // ── PMI STAMP & SIGNATURE (Above Footer) ────────────────────
       const signBlockBottomY = Math.max(55, box2Y);
-      const pmiStampW = isCompact ? 75 : 85;
-      const pmiStampH = isCompact ? 72 : 82;
-      const pmiStampX = marginX + 10;
-      const pmiStampY = signBlockBottomY + (isCompact ? 2 : 5);
+      const lineStartX = marginX + 10;
+      const lineWidth = isCompact ? 140 : 150;
+      const lineEndX = lineStartX + lineWidth;
+      const sigLineY = signBlockBottomY + 18;
 
-      if (pmiStampImage) {
-        page.drawImage(pmiStampImage, {
-          x: pmiStampX,
-          y: pmiStampY,
-          width: pmiStampW,
-          height: pmiStampH
-        });
-      }
-
-      const pmiSigW = isCompact ? 110 : 125;
-      const pmiSigH = isCompact ? 36 : 42;
-      const pmiSigX = pmiStampX + pmiStampW + 12;
-      const pmiSigY = signBlockBottomY + 22;
+      // 1. Signature on Left
+      const pmiSigW = isCompact ? 105 : 115;
+      const pmiSigH = isCompact ? 36 : 40;
+      const pmiSigX = lineStartX;
+      const pmiSigY = sigLineY - 2;
 
       if (pmiSigImage) {
         page.drawImage(pmiSigImage, {
@@ -1998,17 +1990,31 @@ export const generateInvoicePDF = async (invoice, settings) => {
         });
       }
 
-      // Line under signature
-      const sigLineY = signBlockBottomY + 18;
+      // 2. Stamp on Right (overlapping signature)
+      const pmiStampW = isCompact ? 68 : 74;
+      const pmiStampH = isCompact ? 65 : 71;
+      const pmiStampX = lineEndX - pmiStampW;
+      const pmiStampY = sigLineY - 3;
+
+      if (pmiStampImage) {
+        page.drawImage(pmiStampImage, {
+          x: pmiStampX,
+          y: pmiStampY,
+          width: pmiStampW,
+          height: pmiStampH
+        });
+      }
+
+      // 3. Line under signature and stamp
       page.drawLine({
-        start: { x: pmiSigX - 5, y: sigLineY },
-        end: { x: pmiSigX + pmiSigW + 5, y: sigLineY },
+        start: { x: lineStartX, y: sigLineY },
+        end: { x: lineEndX, y: sigLineY },
         color: pmiBlack,
         thickness: 0.8
       });
 
-      // "Authorized Signatory" text
-      drawTextHelper(page, 'Authorized Signatory', pmiSigX + pmiSigW / 2, signBlockBottomY + 6, {
+      // 4. "Authorized Signatory" text centered under the line
+      drawTextHelper(page, 'Authorized Signatory', lineStartX + lineWidth / 2, signBlockBottomY + 6, {
         font: fontBold,
         size: isCompact ? 8 : 8.5,
         color: pmiBlack,

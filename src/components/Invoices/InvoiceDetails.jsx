@@ -895,21 +895,23 @@ export const InvoiceDetails = () => {
                     return (
                       <div className="flex justify-between items-end mt-4 text-[9.5px] text-left">
                         {/* PMI Stamp & Signature (Left side, above footer) */}
-                        <div className="flex items-end gap-3 pb-1">
-                          <img 
-                            src="/pmi-stamp.png" 
-                            alt="PMI Services Stamp" 
-                            className="w-[85px] h-[82px] object-contain select-none pointer-events-none" 
-                          />
-                          <div className="flex flex-col items-center">
+                        <div className="flex flex-col items-center select-none pointer-events-none pb-1">
+                          <div className="relative w-[150px] h-[68px]">
+                            {/* Signature on Left */}
                             <img 
                               src="/pmi-signature.png" 
                               alt="PMI Authorized Signature" 
-                              className="w-[125px] h-[42px] object-contain select-none pointer-events-none mb-1" 
+                              className="absolute left-0 bottom-[2px] w-[115px] h-[40px] object-contain z-10" 
                             />
-                            <div className="w-[135px] border-b border-black mb-1"></div>
-                            <span className="text-[8.5px] font-bold text-black tracking-wide">Authorized Signatory</span>
+                            {/* Stamp on Right, overlapping signature */}
+                            <img 
+                              src="/pmi-stamp.png" 
+                              alt="PMI Services Stamp" 
+                              className="absolute right-0 bottom-[-2px] w-[75px] h-[72px] object-contain z-20" 
+                            />
                           </div>
+                          <div className="w-[150px] border-b border-black mb-1"></div>
+                          <span className="text-[8.5px] font-bold text-black tracking-wide text-center">Authorized Signatory</span>
                         </div>
 
                         {/* Summary Box */}
