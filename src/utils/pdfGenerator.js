@@ -25,6 +25,7 @@ import { PMI_FOOTER_CONFIG } from './pmiFooterConfig.js';
 import { harvardLayout } from '../../shared/harvardInvoiceLayout.ts';
 import { princetonLayout } from './princetonLayoutConfig.js';
 import { eliteLayout } from './eliteLayoutConfig.js';
+import { cambridgeLayout } from './cambridgeLayoutConfig.js';
 
 
 // Helper to manually create link annotations in pdf-lib (adds clickable hyperlinks to PDF)
@@ -375,7 +376,10 @@ export const generateInvoicePDF = async (invoice, settings) => {
     let themeKey = 'default';
     let localLogoPath = null;
 
-    if (companyName.includes('elite')) {
+    if (companyName.includes('cambridge') || companyName.includes('cls')) {
+      themeKey = 'cambridge';
+      localLogoPath = '/logo-cambridge.png';
+    } else if (companyName.includes('elite')) {
       themeKey = 'elite';
       localLogoPath = '/logo-elite.png';
     } else if (companyName.includes('harvard') || companyName.includes('havard')) {
@@ -454,6 +458,15 @@ export const generateInvoicePDF = async (invoice, settings) => {
         lightBg: rgb(248/255, 250/255, 252/255),   // Slate-50
         border: rgb(226/255, 232/255, 240/255),    // Slate-200
         white: rgb(1, 1, 1),
+      },
+      cambridge: {
+        primary: rgb(7/255, 56/255, 36/255),       // #073824
+        secondary: rgb(171/255, 92/255, 55/255),   // #AB5C37 Terracotta
+        dark: rgb(26/255, 33/255, 30/255),         // #1A211E
+        muted: rgb(100/255, 116/255, 139/255),
+        lightBg: rgb(248/255, 250/255, 252/255),
+        border: rgb(26/255, 33/255, 30/255),
+        white: rgb(1, 1, 1),
       }
     };
 
@@ -505,6 +518,14 @@ export const generateInvoicePDF = async (invoice, settings) => {
         email: 'support@isuccessnode.com',
         website: 'www.isuccessnode.com',
         gst_number: '09AAHCI9258G1Z3'
+      },
+      cambridge: {
+        company_name: 'Cambridge Learning Services',
+        phone: '+91 7969325899',
+        email: 'support@cambridgelearning.com',
+        website: 'www.cambridgelearningservices.com',
+        gst_number: '09KLBPS8834N1Z0',
+        address: 'Office No-244, Tower-T3, Golden I Sec-Techzone-4, Greater Noida West, Gautambuddha Nagar, Uttar Pradesh, 201306'
       }
     };
 
@@ -627,6 +648,495 @@ export const generateInvoicePDF = async (invoice, settings) => {
       } catch (err) {
         console.warn("Failed to load Princeton address icon:", err);
       }
+    }
+
+    // ============================================================
+    // ===  CAMBRIDGE LEARNING SERVICES — EXACT 1:1 REPLICATION  ===
+    // ============================================================
+    if (themeKey === 'cambridge') {
+      const cGreen = rgb(7/255, 56/255, 36/255);        // #073824
+      const cDarkGreen = rgb(4/255, 31/255, 21/255);    // #041F15
+      const cTerracotta = rgb(171/255, 92/255, 55/255); // #AB5C37
+      const cDark = rgb(26/255, 33/255, 30/255);        // #1A211E
+      const cWhite = rgb(1, 1, 1);
+      const cBorder = rgb(26/255, 33/255, 30/255);
+      
+      const cFmt = (num) => new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(num) || 0);
+
+      // Load Cambridge Stamp & Signature
+      let cambridgeStampImage = null;
+      let cambridgeSigImage = null;
+      try {
+        const stampRes = await fetch('/cambridge-stamp.png');
+        if (stampRes.ok) {
+          const ab = await stampRes.arrayBuffer();
+          cambridgeStampImage = await pdfDoc.embedPng(ab);
+        }
+      } catch (err) {
+        console.warn("Failed to load Cambridge stamp:", err);
+      }
+      try {
+        const sigRes = await fetch('/cambridge-signature.png');
+        if (sigRes.ok) {
+          const ab = await sigRes.arrayBuffer();
+          cambridgeSigImage = await pdfDoc.embedPng(ab);
+        }
+      } catch (err) {
+        console.warn("Failed to load Cambridge signature:", err);
+      }
+
+      // ── TOP HEADER DECORATIONS ────────────────────────────────
+      // 1. Top left green strip
+      drawPolygonHelper(page, [
+        { x: 0,   y: height },
+        { x: 285, y: height },
+        { x: 255, y: height - 18 },
+        { x: 0,   y: height - 18 },
+      ], { color: cGreen });
+
+      // 2. Top right green title banner
+      drawPolygonHelper(page, [
+        { x: 360,   y: height },
+        { x: width, y: height },
+        { x: width, y: height - 78 },
+        { x: 315,   y: height - 78 },
+      ], { color: cGreen });
+
+      // "TAX INVOICE" text
+      drawTextHelper(page, 'TAX INVOICE', 393.58, height - 50, {
+        font: fontBold,
+        size: 27,
+        color: cWhite,
+        align: 'left'
+      });
+
+      // 3. Top right terracotta invoice number ribbon
+      drawPolygonHelper(page, [
+        { x: 375,   y: height - 81 },
+        { x: width, y: height - 81 },
+        { x: width, y: height - 118 },
+        { x: 340,   y: height - 118 },
+      ], { color: cTerracotta });
+
+      // Invoice number text
+      drawTextHelper(page, invoice.invoice_number, 468.08, height - 105, {
+        font: fontBold,
+        size: 14,
+        color: cWhite,
+        align: 'left'
+      });
+
+      // 4. Top right green triangle accent (under terracotta ribbon)
+      drawPolygonHelper(page, [
+        { x: 523.28, y: height - 118 },
+        { x: width,  y: height - 118 },
+        { x: width,  y: height - 212 },
+      ], { color: cGreen });
+
+      // 5. Logo on the left
+      if (logoImage) {
+        const dims = logoImage.scaleToFit(205, 55);
+        page.drawImage(logoImage, {
+          x: 49.52,
+          y: height - 100,
+          width: dims.width,
+          height: dims.height
+        });
+      }
+
+      // ── BILL TO & METADATA SECTION ────────────────────────────
+      const custY = height - 166;
+      // "BILL TO"
+      drawTextHelper(page, 'BILL TO', 45, custY, {
+        font: fontBold,
+        size: 11,
+        color: cDarkGreen
+      });
+      // Terracotta underline under "BILL TO"
+      page.drawLine({
+        start: { x: 45, y: custY - 7 },
+        end:   { x: 103, y: custY - 7 },
+        color: cTerracotta,
+        thickness: 1.5
+      });
+
+      // Customer Name
+      const custNameVal = invoice.customers?.name || invoice.customer_name || 'Debananda Mohapatra';
+      drawTextHelper(page, 'Customer Name:', 45, custY - 39, { font: fontBold, size: 9.5, color: cDark });
+      drawTextHelper(page, custNameVal, 138, custY - 39, { font: fontRegular, size: 9.5, color: cDark });
+
+      // Customer Email
+      const custEmailVal = invoice.customers?.email || '';
+      if (custEmailVal) {
+        drawTextHelper(page, 'Customer Email:', 45, custY - 57, { font: fontBold, size: 9.5, color: cDark });
+        drawTextHelper(page, custEmailVal, 138, custY - 57, { font: fontRegular, size: 9.5, color: cDark });
+      }
+
+      // GSTIN on Right (Company's GSTIN shown permanently)
+      drawTextHelper(page, 'GSTIN:', 433.28, custY, { font: fontBold, size: 9.5, color: cDark });
+      drawTextHelper(page, '09KLBPS8834N1Z0', 471.28, custY, { font: fontRegular, size: 9.5, color: cDark });
+
+      // Date on Right
+      drawTextHelper(page, 'Date:', 433.28, custY - 18, { font: fontBold, size: 9.5, color: cDark });
+      drawTextHelper(page, formatDate(invoice.invoice_date), 471.28, custY - 18, { font: fontRegular, size: 9.5, color: cDark });
+
+      // ── ITEMS TABLE ───────────────────────────────────────────
+      const tableX = 42;
+      const tableW = 517;
+      const colWs = [36, 188, 72, 72, 72, 77];
+      const hdrH = 38;
+      const tHdrLabels = ['S.NO.', 'ITEM', 'AMOUNT', `CGST (${halfPct}%)`, `${taxType} (${halfPct}%)`, 'TOTAL'];
+      
+      let tableY = height - 250; // top of table header
+
+      // Draw Header Background
+      page.drawRectangle({
+        x: tableX,
+        y: tableY - hdrH,
+        width: tableW,
+        height: hdrH,
+        color: cGreen
+      });
+
+      // Draw Header Labels
+      let hx = tableX;
+      tHdrLabels.forEach((lbl, idx) => {
+        const cw = colWs[idx];
+        drawTextHelper(page, lbl, hx + cw / 2, tableY - hdrH + 14, {
+          font: fontBold,
+          size: 9,
+          color: cWhite,
+          align: 'center'
+        });
+        hx += cw;
+      });
+
+      tableY -= hdrH;
+      const tableDataTop = tableY;
+
+      // Draw Items Rows
+      const items = invoice.invoice_items || [];
+      const rowPad = 14;
+
+      for (let rIdx = 0; rIdx < items.length; rIdx++) {
+        const item = items[rIdx];
+        let displayDesc = item.description || '';
+        let courseDesc = item.course_description || '';
+        let duration = item.duration || '';
+        try {
+          if (displayDesc.startsWith('{') && displayDesc.endsWith('}')) {
+            const j = JSON.parse(displayDesc);
+            displayDesc = j.text || '';
+            if (j.course_description) courseDesc = j.course_description;
+            if (j.duration) duration = j.duration;
+          }
+        } catch (e) {}
+
+        const progName = item.program_name || '';
+        const titleLines = wrapText(progName, fontBold, 9.2, colWs[1] - 16);
+        const descLines = courseDesc ? wrapText(courseDesc, fontRegular, 8.1, colWs[1] - 16) : [];
+        const durLines = duration ? wrapText(`Course Duration: ${duration}`, fontBold, 8.3, colWs[1] - 16) : [];
+        const fallbackLines = (!courseDesc && displayDesc) ? wrapText(`(${displayDesc})`, fontRegular, 8.1, colWs[1] - 16) : [];
+
+        const titleH = titleLines.length * 11;
+        const descH = descLines.length > 0 ? (descLines.length * 10.5 + 4) : 0;
+        const durH = durLines.length > 0 ? (durLines.length * 11 + 6) : 0;
+        const fallbackH = fallbackLines.length > 0 ? (fallbackLines.length * 10 + 3) : 0;
+        const totalContentH = titleH + descH + durH + fallbackH;
+
+        const rowHeight = Math.max(34, totalContentH + rowPad);
+        const isComp = item ? parseFloat(item.unit_price) === 0 : false;
+        const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
+        const cellCenterY = tableY - rowHeight / 2 - 3.5;
+
+        // Draw Row Background
+        page.drawRectangle({
+          x: tableX,
+          y: tableY - rowHeight,
+          width: tableW,
+          height: rowHeight,
+          color: cWhite
+        });
+
+        let cx = tableX;
+
+        // Col 0: S.NO.
+        const sNoStr = String(rIdx + 1).padStart(2, '0');
+        drawTextHelper(page, sNoStr, cx + colWs[0] / 2, cellCenterY, {
+          font: fontBold,
+          size: 9.5,
+          color: cDark,
+          align: 'center'
+        });
+        cx += colWs[0];
+
+        // Col 1: ITEM & Description
+        let textY = tableY - (rowHeight - totalContentH) / 2 - 8.5;
+        titleLines.forEach(line => {
+          drawTextHelper(page, line, cx + 8, textY, {
+            font: fontBold,
+            size: 9.2,
+            color: cDark,
+            align: 'left',
+            width: colWs[1] - 16
+          });
+          textY -= 11;
+        });
+        if (descLines.length > 0) {
+          textY -= 2;
+          descLines.forEach(line => {
+            drawTextHelper(page, line, cx + 8, textY, {
+              font: fontRegular,
+              size: 8.1,
+              color: cDark,
+              align: 'left',
+              width: colWs[1] - 16
+            });
+            textY -= 10.5;
+          });
+        }
+        if (durLines.length > 0) {
+          textY -= 4;
+          durLines.forEach(line => {
+            drawTextHelper(page, line, cx + 8, textY, {
+              font: fontBold,
+              size: 8.3,
+              color: cDark,
+              align: 'left',
+              width: colWs[1] - 16
+            });
+            textY -= 11;
+          });
+        }
+        if (fallbackLines.length > 0) {
+          textY -= 2;
+          fallbackLines.forEach(line => {
+            drawTextHelper(page, line, cx + 8, textY, {
+              font: fontRegular,
+              size: 8.1,
+              color: cDark,
+              align: 'left',
+              width: colWs[1] - 16
+            });
+            textY -= 10;
+          });
+        }
+        cx += colWs[1];
+
+        // Col 2: AMOUNT
+        const amtStr = isComp ? '₹0.00' : `₹${cFmt(item.unit_price)}`;
+        drawTextHelper(page, amtStr, cx + colWs[2] / 2, cellCenterY, {
+          font: fontRegular,
+          size: 8.5,
+          color: cDark,
+          align: 'center'
+        });
+        cx += colWs[2];
+
+        // Col 3: CGST
+        const cgstStr = isComp ? '₹0.00' : `₹${cFmt(cgstAmt)}`;
+        drawTextHelper(page, cgstStr, cx + colWs[3] / 2, cellCenterY, {
+          font: fontRegular,
+          size: 8.5,
+          color: cDark,
+          align: 'center'
+        });
+        cx += colWs[3];
+
+        // Col 4: SGST
+        const secondTaxStr = isComp ? '₹0.00' : `₹${cFmt(secondTaxAmt)}`;
+        drawTextHelper(page, secondTaxStr, cx + colWs[4] / 2, cellCenterY, {
+          font: fontRegular,
+          size: 8.5,
+          color: cDark,
+          align: 'center'
+        });
+        cx += colWs[4];
+
+        // Col 5: TOTAL
+        const totStr = isComp ? '₹0.00' : `₹${cFmt(item.total_amount)}`;
+        drawTextHelper(page, totStr, cx + colWs[5] / 2, cellCenterY, {
+          font: fontRegular,
+          size: 8.5,
+          color: cDark,
+          align: 'center'
+        });
+
+        // Row bottom line
+        page.drawLine({
+          start: { x: tableX, y: tableY - rowHeight },
+          end:   { x: tableX + tableW, y: tableY - rowHeight },
+          color: cBorder,
+          thickness: 0.9
+        });
+
+        tableY -= rowHeight;
+      }
+
+      // Draw Table Vertical Lines & Outer Box
+      const tableBottom = tableY;
+      const tableTop = tableDataTop + hdrH;
+
+      page.drawRectangle({
+        x: tableX,
+        y: tableBottom,
+        width: tableW,
+        height: tableTop - tableBottom,
+        borderColor: cBorder,
+        borderWidth: 0.9
+      });
+
+      let vx = tableX;
+      colWs.forEach((cw, idx) => {
+        if (idx > 0) {
+          page.drawLine({
+            start: { x: vx, y: tableTop },
+            end:   { x: vx, y: tableBottom },
+            color: cBorder,
+            thickness: 0.9
+          });
+        }
+        vx += cw;
+      });
+
+      // ── SUMMARY BOXES (Right side) ────────────────────────────
+      const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
+      const preDiscTotal   = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
+      const paidAmt        = (discountAmount > 0 && Math.abs((invoice.paid_amount || 0) - preDiscTotal) < 0.05)
+        ? (invoice.paid_amount || 0) - discountAmount
+        : (invoice.paid_amount || 0);
+      const dueAmt         = Math.max(0, preDiscTotal - discountAmount - paidAmt);
+
+      const sumW = 223;
+      const sumX = 356;
+      const sumBox1H = 53;
+      const sumBox2H = 98;
+
+      let sumBox1Y = tableBottom - 18 - sumBox1H;
+      let sumBox2Y = sumBox1Y - 8 - sumBox2H;
+
+      // Safe clamp
+      if (sumBox2Y < 88) {
+        const shift = 88 - sumBox2Y;
+        sumBox2Y += shift;
+        sumBox1Y += shift;
+      }
+
+      // Upper Box: White bg, border, SUB TOTAL + TOTAL GST
+      page.drawRectangle({
+        x: sumX,
+        y: sumBox1Y,
+        width: sumW,
+        height: sumBox1H,
+        color: cWhite,
+        borderColor: cBorder,
+        borderWidth: 0.9
+      });
+
+      const padX = 12;
+      const subTotalY = sumBox1Y + 32;
+      const gstY = sumBox1Y + 12;
+
+      drawTextHelper(page, 'SUB TOTAL:', sumX + padX, subTotalY, { font: fontBold, size: 9, color: cDark });
+      drawTextHelper(page, `₹${cFmt(invoice.subtotal)}`, sumX + sumW - padX, subTotalY, { font: fontRegular, size: 9, color: cDark, align: 'right' });
+
+      drawTextHelper(page, 'TOTAL GST:', sumX + padX, gstY, { font: fontBold, size: 9, color: cDark });
+      drawTextHelper(page, `₹${cFmt(invoice.gst_amount)}`, sumX + sumW - padX, gstY, { font: fontRegular, size: 9, color: cDark, align: 'right' });
+
+      // Lower Box: Dark Green bg, TOTAL, DISCOUNT, PAID, DUE
+      page.drawRectangle({
+        x: sumX,
+        y: sumBox2Y,
+        width: sumW,
+        height: sumBox2H,
+        color: cGreen,
+      });
+
+      const b2Rows = [
+        { label: 'TOTAL:', val: `₹${cFmt(preDiscTotal)}` },
+        { label: 'DISCOUNT:', val: (discountAmount > 0 ? `-₹${cFmt(discountAmount)}` : `-₹0.00`), isDisc: discountAmount > 0 },
+        { label: 'PAID:', val: `₹${cFmt(paidAmt)}` },
+        { label: 'DUE:', val: `₹${cFmt(dueAmt)}` },
+      ];
+
+      let b2Y = sumBox2Y + sumBox2H - 20;
+      b2Rows.forEach(row => {
+        drawTextHelper(page, row.label, sumX + padX, b2Y, { font: fontBold, size: 9, color: cWhite });
+        drawTextHelper(page, row.val, sumX + sumW - padX, b2Y, { font: fontRegular, size: 9, color: cWhite, align: 'right' });
+        b2Y -= 22;
+      });
+
+      // ── STAMP & SIGNATURE (Left: Sign, Right: Stamp overlapping) ──
+      const signBaseY = sumBox2Y;
+      
+      const sigLineStartX = 48;
+      const sigLineWidth = 138;
+      const sigLineEndX = sigLineStartX + sigLineWidth;
+      const sigLineY = signBaseY + 12;
+
+      // 1. Horizontal line under signature
+      page.drawLine({
+        start: { x: sigLineStartX, y: sigLineY },
+        end:   { x: sigLineEndX, y: sigLineY },
+        color: cDarkGreen,
+        thickness: 0.9
+      });
+
+      // 2. Stamp on Right
+      if (cambridgeStampImage) {
+        page.drawImage(cambridgeStampImage, {
+          x: 140,
+          y: signBaseY - 24,
+          width: 115,
+          height: 114.8
+        });
+      }
+
+      // 3. Signature on Left (overlapping ON TOP OF stamp and line)
+      if (cambridgeSigImage) {
+        page.drawImage(cambridgeSigImage, {
+          x: 48,
+          y: signBaseY + 10,
+          width: 130,
+          height: 48.6
+        });
+      }
+
+      // 4. "Authorized Signatory" text centered under the line
+      drawTextHelper(page, 'Authorized Signatory', sigLineStartX + sigLineWidth / 2, signBaseY - 2, {
+        font: fontBold,
+        size: 8.5,
+        color: cDarkGreen,
+        align: 'center'
+      });
+
+      // ── FOOTER ────────────────────────────────────────────────
+      // Dark green footer bar
+      page.drawRectangle({
+        x: 0,
+        y: 0,
+        width: width,
+        height: 78,
+        color: cGreen
+      });
+
+      // Terracotta right corner accent
+      drawPolygonHelper(page, [
+        { x: 525.28, y: 78 },
+        { x: width,  y: 78 },
+        { x: width,  y: 0 },
+        { x: 475.28, y: 0 },
+      ], { color: cTerracotta });
+
+      // Address text
+      drawTextHelper(page, 'Office No-244, Tower-T3, Golden I Sec-Techzone-4, Greater Noida West, Gautambuddha Nagar, Uttar Pradesh, 201306', 43, 48, {
+        font: fontRegular,
+        size: 7.7,
+        color: cWhite
+      });
+
+      const pdfBytes = await pdfDoc.save();
+      return pdfBytes;
     }
 
     // ============================================================
@@ -1975,22 +2485,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
       const lineEndX = lineStartX + lineWidth;
       const sigLineY = signBlockBottomY + 18;
 
-      // 1. Signature on Left
-      const pmiSigW = isCompact ? 105 : 115;
-      const pmiSigH = isCompact ? 36 : 40;
-      const pmiSigX = lineStartX;
-      const pmiSigY = sigLineY - 2;
-
-      if (pmiSigImage) {
-        page.drawImage(pmiSigImage, {
-          x: pmiSigX,
-          y: pmiSigY,
-          width: pmiSigW,
-          height: pmiSigH
-        });
-      }
-
-      // 2. Stamp on Right (overlapping signature)
+      // 1. Stamp on Right
       const pmiStampW = isCompact ? 68 : 74;
       const pmiStampH = isCompact ? 65 : 71;
       const pmiStampX = lineEndX - pmiStampW;
@@ -2005,13 +2500,28 @@ export const generateInvoicePDF = async (invoice, settings) => {
         });
       }
 
-      // 3. Line under signature and stamp
+      // 2. Line under signature and stamp
       page.drawLine({
         start: { x: lineStartX, y: sigLineY },
         end: { x: lineEndX, y: sigLineY },
         color: pmiBlack,
         thickness: 0.8
       });
+
+      // 3. Signature on Left (overlapping ON TOP OF stamp and line)
+      const pmiSigW = isCompact ? 105 : 115;
+      const pmiSigH = isCompact ? 36 : 40;
+      const pmiSigX = lineStartX;
+      const pmiSigY = sigLineY - 2;
+
+      if (pmiSigImage) {
+        page.drawImage(pmiSigImage, {
+          x: pmiSigX,
+          y: pmiSigY,
+          width: pmiSigW,
+          height: pmiSigH
+        });
+      }
 
       // 4. "Authorized Signatory" text centered under the line
       drawTextHelper(page, 'Authorized Signatory', lineStartX + lineWidth / 2, signBlockBottomY + 6, {

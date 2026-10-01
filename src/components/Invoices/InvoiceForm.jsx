@@ -341,7 +341,15 @@ export const InvoiceForm = () => {
       activeProfile.id === 'hc-elite' || 
       (activeProfile.company_name && activeProfile.company_name.toLowerCase().includes('elite'))
     );
-    const profileGst = isEliteProfile ? '09AAICE4778J1Z0' : (activeProfile?.gst_number || '');
+    const isCambridgeProfile = activeProfile && (
+      activeProfile.id === 'hc-cambridge' || 
+      (activeProfile.company_name && activeProfile.company_name.toLowerCase().includes('cambridge'))
+    );
+    const profileGst = isEliteProfile 
+      ? '09AAICE4778J1Z0' 
+      : isCambridgeProfile 
+        ? '09KLBPS8834N1Z0' 
+        : (activeProfile?.gst_number || '');
 
     const metadataItem = {
       program_name: '__profile_metadata__',

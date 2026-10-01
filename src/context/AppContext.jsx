@@ -27,6 +27,12 @@ const isEliteName = (name) => {
   return n.includes('elitetoolistic') || n.includes('elitetool');
 };
 
+const isCambridgeName = (name) => {
+  if (!name) return false;
+  const n = name.toLowerCase().replace(/[\s\-_]/g, '');
+  return n.includes('cambridge') || n.includes('cambridgelearning') || n.includes('cambridgelearningservices') || n === 'cls';
+};
+
 
 const AppContext = createContext();
 
@@ -329,6 +335,8 @@ export const AppProvider = ({ children }) => {
         processedFields.gst_number = '09AAHCI9258G1Z3';
       } else if (isEliteName(processedFields.company_name)) {
         processedFields.gst_number = '09AAICE4778J1Z0';
+      } else if (isCambridgeName(processedFields.company_name)) {
+        processedFields.gst_number = '09KLBPS8834N1Z0';
       }
       if (useSupabase) {
         // Supabase Database Update
@@ -415,6 +423,17 @@ export const AppProvider = ({ children }) => {
       logo_url: '/logo-pmi.jpg',
       is_default: false,
     },
+    {
+      id: 'hc-cambridge',
+      company_name: 'Cambridge Learning Services',
+      gst_number: '09KLBPS8834N1Z0',
+      email: 'support@cambridgelearning.com',
+      phone: '+91-7969325899',
+      website: 'www.cambridgelearningservices.com',
+      address: 'Office No-244, Tower-T3, Golden I Sec-Techzone-4, Greater Noida West, Gautambuddha Nagar, Uttar Pradesh, 201306',
+      logo_url: '/logo-cambridge.png',
+      is_default: false,
+    },
   ];
 
   /**
@@ -469,6 +488,12 @@ export const AppProvider = ({ children }) => {
           if (company.id === 'hc-isn' && existing && existing.gst_number !== company.gst_number) {
             updates.gst_number = company.gst_number;
           }
+          if (company.id === 'hc-cambridge' && existing && existing.gst_number !== company.gst_number) {
+            updates.gst_number = company.gst_number;
+          }
+          if (company.id === 'hc-cambridge' && existing && existing.logo_url !== company.logo_url) {
+            updates.logo_url = company.logo_url;
+          }
           if (Object.keys(updates).length > 0) {
             await idbUpdateProfile(company.id, updates);
           }
@@ -506,6 +531,8 @@ export const AppProvider = ({ children }) => {
         processedFields.gst_number = '09AAHCI9258G1Z3';
       } else if (isEliteName(processedFields.company_name)) {
         processedFields.gst_number = '09AAICE4778J1Z0';
+      } else if (isCambridgeName(processedFields.company_name)) {
+        processedFields.gst_number = '09KLBPS8834N1Z0';
       }
       const newProfile = await idbCreateProfile({ ...processedFields, is_default: false });
       setProfiles(prev => [...prev, newProfile]);
@@ -524,6 +551,8 @@ export const AppProvider = ({ children }) => {
         processedFields.gst_number = '09AAHCI9258G1Z3';
       } else if (isEliteName(processedFields.company_name) || id === 'hc-elite') {
         processedFields.gst_number = '09AAICE4778J1Z0';
+      } else if (isCambridgeName(processedFields.company_name) || id === 'hc-cambridge') {
+        processedFields.gst_number = '09KLBPS8834N1Z0';
       }
       // If updating the default profile, also sync the main settings
       const target = profiles.find(p => p.id === id);

@@ -6,6 +6,7 @@ import { generateInvoicePDF } from '../../utils/pdfGenerator';
 import { eliteLayout } from '../../utils/eliteLayoutConfig';
 import { harvardLayout } from '../../../shared/harvardInvoiceLayout.ts';
 import { princetonLayout } from '../../utils/princetonLayoutConfig';
+import { cambridgeLayout } from '../../utils/cambridgeLayoutConfig';
 import { PMISFooter } from '../Shared/PMISFooter';
 import { 
   ArrowLeft, 
@@ -402,7 +403,10 @@ export const InvoiceDetails = () => {
   let themeKey = 'default';
   let localLogoPath = null;
 
-  if (companyName.includes('elite')) {
+  if (companyName.includes('cambridge') || companyName.includes('cls')) {
+    themeKey = 'cambridge';
+    localLogoPath = '/logo-cambridge.png';
+  } else if (companyName.includes('elite')) {
     themeKey = 'elite';
     localLogoPath = '/logo-elite.png';
   } else if (companyName.includes('harvard') || companyName.includes('havard')) {
@@ -489,6 +493,18 @@ export const InvoiceDetails = () => {
       secondary: '#84cc16',
       dark: '#000050',
       bg: '#ffffff'
+    },
+    cambridge: {
+      company_name: 'Cambridge Learning Services',
+      phone: '+91 7969325899',
+      email: 'support@cambridgelearning.com',
+      website: 'www.cambridgelearningservices.com',
+      gst_number: '09KLBPS8834N1Z0',
+      address: 'Office No-244, Tower-T3, Golden I Sec-Techzone-4, Greater Noida West, Gautambuddha Nagar, Uttar Pradesh, 201306',
+      primary: '#073824',
+      secondary: '#AB5C37',
+      dark: '#1A211E',
+      bg: '#FFFFFF'
     },
     default: {
       company_name: activeCompany?.company_name || 'I-SUCCESSNODE',
@@ -577,9 +593,9 @@ export const InvoiceDetails = () => {
           className="bg-white text-slate-900 border border-slate-200 rounded-2xl mx-auto shadow-md relative overflow-hidden transition-colors flex flex-col justify-between" 
           style={{ 
             fontFamily: 'Inter, sans-serif',
-            width: (themeKey === 'elite' || themeKey === 'pmi' || themeKey === 'harvard' || themeKey === 'princeton') ? '595.276px' : '100%',
-            maxWidth: (themeKey === 'elite' || themeKey === 'pmi' || themeKey === 'harvard' || themeKey === 'princeton') ? '595.276px' : '56rem',
-            minHeight: (themeKey === 'elite' || themeKey === 'pmi' || themeKey === 'harvard' || themeKey === 'princeton') ? '841.89px' : '1050px',
+            width: (themeKey === 'elite' || themeKey === 'pmi' || themeKey === 'harvard' || themeKey === 'princeton' || themeKey === 'cambridge') ? '595.276px' : '100%',
+            maxWidth: (themeKey === 'elite' || themeKey === 'pmi' || themeKey === 'harvard' || themeKey === 'princeton' || themeKey === 'cambridge') ? '595.276px' : '56rem',
+            minHeight: (themeKey === 'elite' || themeKey === 'pmi' || themeKey === 'harvard' || themeKey === 'princeton' || themeKey === 'cambridge') ? '841.89px' : '1050px',
           }}
         >
           {themeKey === 'isuccessnode' ? (
@@ -897,17 +913,17 @@ export const InvoiceDetails = () => {
                         {/* PMI Stamp & Signature (Left side, above footer) */}
                         <div className="flex flex-col items-center select-none pointer-events-none pb-1">
                           <div className="relative w-[150px] h-[68px]">
-                            {/* Signature on Left */}
-                            <img 
-                              src="/pmi-signature.png" 
-                              alt="PMI Authorized Signature" 
-                              className="absolute left-0 bottom-[2px] w-[115px] h-[40px] object-contain z-10" 
-                            />
-                            {/* Stamp on Right, overlapping signature */}
+                            {/* Stamp on Right */}
                             <img 
                               src="/pmi-stamp.png" 
                               alt="PMI Services Stamp" 
-                              className="absolute right-0 bottom-[-2px] w-[75px] h-[72px] object-contain z-20" 
+                              className="absolute right-0 bottom-[-2px] w-[75px] h-[72px] object-contain z-10" 
+                            />
+                            {/* Signature on Left, overlapping on top of stamp */}
+                            <img 
+                              src="/pmi-signature.png" 
+                              alt="PMI Authorized Signature" 
+                              className="absolute left-0 bottom-[2px] w-[115px] h-[40px] object-contain z-20" 
                             />
                           </div>
                           <div className="w-[150px] border-b border-black mb-1"></div>
@@ -1270,6 +1286,242 @@ export const InvoiceDetails = () => {
                   </p>
                   <p>{harvardLayout.footer.address}</p>
                 </div>
+              </div>
+            </>
+          ) : themeKey === 'cambridge' ? (
+            <>
+              {/* Top Green Left Strip */}
+              <div 
+                className="absolute top-0 left-0 w-full h-[18px] z-10 pointer-events-none"
+                style={{
+                  backgroundColor: '#073824',
+                  clipPath: 'polygon(0 0, 285px 0, 255px 18px, 0 18px)'
+                }}
+              />
+
+              {/* Top Green Right Title Banner */}
+              <div 
+                className="absolute top-0 right-0 h-[78px] flex items-center justify-start pl-16 z-10 pointer-events-none"
+                style={{
+                  width: '280px',
+                  backgroundColor: '#073824',
+                  clipPath: 'polygon(45px 0, 100% 0, 100% 100%, 0 100%)'
+                }}
+              >
+                <span className="font-extrabold text-white text-[25px] tracking-wide">TAX INVOICE</span>
+              </div>
+
+              {/* Top Terracotta Invoice Number Ribbon */}
+              <div 
+                className="absolute top-[78px] right-0 h-[37px] flex items-center justify-start pl-14 z-10 pointer-events-none"
+                style={{
+                  width: '255px',
+                  backgroundColor: '#AB5C37',
+                  clipPath: 'polygon(35px 0, 100% 0, 100% 100%, 0 100%)'
+                }}
+              >
+                <span className="font-bold text-white text-[13px] tracking-wide">{invoice.invoice_number}</span>
+              </div>
+
+              {/* Top Right Green Triangle Accent */}
+              <div 
+                className="absolute top-[115px] right-0 w-[72px] h-[94px] z-10 pointer-events-none"
+                style={{
+                  backgroundColor: '#073824',
+                  clipPath: 'polygon(100% 0, 100% 100%, 0 0)'
+                }}
+              />
+
+              {/* Logo on Left */}
+              <div className="absolute left-[45px] top-[32px] flex items-center z-10">
+                {logoUrlToRender ? (
+                  <img src={logoUrlToRender} alt="Cambridge Learning Services" className="w-[195px] h-[52px] object-contain" />
+                ) : (
+                  <span className="font-bold text-base text-[#073824]">Cambridge Learning Services</span>
+                )}
+              </div>
+
+              {/* Main Content Area */}
+              <div className="flex-grow flex flex-col justify-between" style={{ paddingTop: '150px', paddingLeft: '42px', paddingRight: '42px', paddingBottom: '90px' }}>
+                <div>
+                  {/* BILL TO & GST Section */}
+                  <div className="text-[10px] text-black leading-normal text-left">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <span className="font-bold text-[11px] tracking-wide text-[#041F15] pb-0.5 border-b-2 border-[#AB5C37] inline-block">BILL TO</span>
+                        <div className="mt-3 space-y-1">
+                          <p className="text-[#1A211E]"><span className="font-bold">Customer Name: </span>{resolvedCustomer?.name || 'Debananda Mohapatra'}</p>
+                          {(resolvedCustomer?.email || invoice.customers?.email) && (
+                            <p className="text-[#1A211E]"><span className="font-bold">Customer Email: </span>{resolvedCustomer?.email || invoice.customers?.email}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-start text-[#1A211E] font-medium text-[9.5px] w-[180px]">
+                        <p><span className="font-bold">GSTIN: </span>09KLBPS8834N1Z0</p>
+                        <p className="mt-1"><span className="font-bold">Date: </span>{formatDate(invoice.invoice_date)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items Table */}
+                  <div className="mt-5">
+                    <table className="w-full border-collapse border border-[#1A211E] text-[10px] text-left" style={{ tableLayout: 'fixed' }}>
+                      <thead>
+                        <tr className="bg-[#073824] text-white text-[9px] font-bold" style={{ height: '38px' }}>
+                          <th className="border border-[#1A211E] text-center whitespace-nowrap" style={{ width: '36px' }}>S.NO.</th>
+                          <th className="border border-[#1A211E] text-center" style={{ width: '188px' }}>ITEM</th>
+                          <th className="border border-[#1A211E] text-center whitespace-nowrap" style={{ width: '72px' }}>AMOUNT</th>
+                          <th className="border border-[#1A211E] text-center whitespace-nowrap" style={{ width: '72px' }}>CGST ({halfPct}%)</th>
+                          <th className="border border-[#1A211E] text-center whitespace-nowrap" style={{ width: '72px' }}>{taxType} ({halfPct}%)</th>
+                          <th className="border border-[#1A211E] text-center whitespace-nowrap" style={{ width: '77px' }}>TOTAL</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const items = invoice.invoice_items || [];
+                          const cFmt = (num) => new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(num) || 0);
+
+                          return items.map((item, rIdx) => {
+                            const isComp = item ? parseFloat(item.unit_price) === 0 : false;
+                            let displayDesc = item.description || '';
+                            let courseDesc = item.course_description || '';
+                            let duration = item.duration || '';
+                            try {
+                              if (displayDesc.startsWith('{') && displayDesc.endsWith('}')) {
+                                const j = JSON.parse(displayDesc);
+                                displayDesc = j.text || '';
+                                if (j.course_description) courseDesc = j.course_description;
+                                if (j.duration) duration = j.duration;
+                              }
+                            } catch (e) {}
+
+                            const { cgstAmt, secondTaxAmt } = getSplitAmounts(item);
+                            return (
+                              <tr key={rIdx} className="text-black border-b border-[#1A211E]" style={{ backgroundColor: '#FFFFFF', minHeight: '34px' }}>
+                                <td className="border border-[#1A211E] p-2 text-center align-middle font-bold text-[9.5px]" style={{ width: '36px' }}>
+                                  {String(rIdx + 1).padStart(2, '0')}
+                                </td>
+                                <td className="border border-[#1A211E] p-2 text-left align-middle leading-tight break-words [overflow-wrap:anywhere] [word-break:break-word]" style={{ width: '188px' }}>
+                                  <div className="font-bold text-[#1A211E] text-[9.2px] leading-snug break-words">{item.program_name}</div>
+                                  {courseDesc && (
+                                    <div className="text-[8.1px] text-[#1A211E] font-normal mt-1 leading-normal break-words whitespace-pre-line">
+                                      {courseDesc}
+                                    </div>
+                                  )}
+                                  {duration && (
+                                    <div className="text-[8.3px] text-[#1A211E] mt-1.5 leading-tight">
+                                      <span className="font-bold">Course Duration:</span> <span className="font-normal">{duration}</span>
+                                    </div>
+                                  )}
+                                  {!courseDesc && displayDesc && (
+                                    <div className="text-[8.1px] text-slate-500 font-normal mt-0.5">
+                                      ({displayDesc})
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="border border-[#1A211E] px-1 py-2 text-center align-middle font-mono text-[8.5px] whitespace-nowrap overflow-hidden" style={{ width: '72px' }}>
+                                  {isComp ? '₹0.00' : `₹${cFmt(item.unit_price)}`}
+                                </td>
+                                <td className="border border-[#1A211E] px-1 py-2 text-center align-middle font-mono text-[8.5px] whitespace-nowrap overflow-hidden" style={{ width: '72px' }}>
+                                  {isComp ? '₹0.00' : `₹${cFmt(cgstAmt)}`}
+                                </td>
+                                <td className="border border-[#1A211E] px-1 py-2 text-center align-middle font-mono text-[8.5px] whitespace-nowrap overflow-hidden" style={{ width: '72px' }}>
+                                  {isComp ? '₹0.00' : `₹${cFmt(secondTaxAmt)}`}
+                                </td>
+                                <td className="border border-[#1A211E] px-1 py-2 text-center align-middle font-mono text-[8.5px] whitespace-nowrap overflow-hidden" style={{ width: '77px' }}>
+                                  {isComp ? '₹0.00' : `₹${cFmt(item.total_amount)}`}
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Summary & Stamp Section */}
+                  {(() => {
+                    const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
+                    const preDiscTotal   = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
+                    const paidAmt        = (discountAmount > 0 && Math.abs((invoice.paid_amount || 0) - preDiscTotal) < 0.05)
+                      ? (invoice.paid_amount || 0) - discountAmount
+                      : (invoice.paid_amount || 0);
+                    const dueAmt         = Math.max(0, preDiscTotal - discountAmount - paidAmt);
+                    const cFmt = (num) => new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(num) || 0);
+
+                    return (
+                      <div className="flex justify-between items-end mt-5 text-[9px] text-left">
+                        {/* Cambridge Stamp & Signature (Left: Sign, Right: Stamp overlapping) */}
+                        <div className="flex flex-col items-start select-none pointer-events-none pb-1 relative">
+                          <div className="relative w-[220px] h-[95px] flex items-center">
+                            {/* Round Stamp on Right */}
+                            <img 
+                              src="/cambridge-stamp.png" 
+                              alt="Cambridge Stamp" 
+                              className="absolute left-[80px] bottom-[-10px] w-[105px] h-[105px] object-contain z-10 opacity-95" 
+                            />
+                            {/* Signature on Left overlapping on top of stamp */}
+                            <img 
+                              src="/cambridge-signature.png" 
+                              alt="Arun Sharma Signature" 
+                              className="absolute left-[0px] bottom-[12px] w-[125px] h-[48px] object-contain z-20" 
+                            />
+                          </div>
+                          <div className="w-[130px] border-b border-[#041F15] mb-1"></div>
+                          <span className="text-[8.5px] font-bold text-[#041F15] tracking-wide text-center w-[130px]">Authorized Signatory</span>
+                        </div>
+
+                        {/* Summary Boxes (Right) */}
+                        <div className="flex flex-col gap-2 w-[223px]">
+                          {/* Upper Box */}
+                          <div className="border border-[#1A211E] p-2.5 space-y-1.5 bg-white text-[#1A211E] font-bold text-[9px]">
+                            <div className="flex justify-between">
+                              <span>SUB TOTAL:</span>
+                              <span className="font-normal font-mono">₹{cFmt(invoice.subtotal)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>TOTAL GST:</span>
+                              <span className="font-normal font-mono">₹{cFmt(invoice.gst_amount)}</span>
+                            </div>
+                          </div>
+                          {/* Lower Box */}
+                          <div className="bg-[#073824] text-white p-2.5 space-y-1.5 font-bold text-[9px]">
+                            <div className="flex justify-between">
+                              <span>TOTAL:</span>
+                              <span className="font-normal font-mono">₹{cFmt(preDiscTotal)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>DISCOUNT:</span>
+                              <span className="font-normal font-mono">{discountAmount > 0 ? `-₹${cFmt(discountAmount)}` : '-₹0.00'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>PAID:</span>
+                              <span className="font-normal font-mono">₹{cFmt(paidAmt)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>DUE:</span>
+                              <span className="font-normal font-mono">₹{cFmt(dueAmt)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Footer Bar */}
+              <div 
+                className="absolute bottom-0 left-0 w-full h-[78px] bg-[#073824] text-white flex items-center px-10 text-left overflow-hidden z-10"
+              >
+                <p className="text-[7.7px] text-white max-w-[420px] leading-relaxed font-normal">
+                  Office No-244, Tower-T3, Golden I Sec-Techzone-4, Greater Noida West, Gautambuddha Nagar, Uttar Pradesh, 201306
+                </p>
+                {/* Terracotta Corner Accent */}
+                <svg className="absolute right-0 bottom-0 pointer-events-none" width="120" height="78" viewBox="0 0 120 78">
+                  <polygon points="50,78 120,78 120,0 0,0" fill="#AB5C37" />
+                </svg>
               </div>
             </>
           ) : (

@@ -35,6 +35,12 @@ const isEliteName = (name) => {
   return n.includes('elitetoolistic') || n.includes('elitetool');
 };
 
+const isCambridgeName = (name) => {
+  if (!name) return false;
+  const n = name.toLowerCase().replace(/[\s\-_]/g, '');
+  return n.includes('cambridge') || n.includes('cambridgelearning') || n.includes('cambridgelearningservices') || n === 'cls';
+};
+
 
 export const Settings = () => {
   const { 
@@ -95,7 +101,9 @@ export const Settings = () => {
       ? '09AAHCI9258G1Z3' 
       : isEliteName(companyName) 
         ? '09AAICE4778J1Z0' 
-        : gstNumber;
+        : isCambridgeName(companyName)
+          ? '09KLBPS8834N1Z0'
+          : gstNumber;
     const payload = {
       company_name: companyName,
       gst_number: finalGstNumber,
@@ -358,12 +366,14 @@ export const Settings = () => {
                           ? '09AAHCI9258G1Z3' 
                           : isEliteName(companyName) 
                             ? '09AAICE4778J1Z0' 
-                            : gstNumber
+                            : isCambridgeName(companyName)
+                              ? '09KLBPS8834N1Z0'
+                              : gstNumber
                       }
                       onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-                      disabled={isIsNodeName(companyName) || isEliteName(companyName)}
+                      disabled={isIsNodeName(companyName) || isEliteName(companyName) || isCambridgeName(companyName)}
                       className={`w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono ${
-                        (isIsNodeName(companyName) || isEliteName(companyName))
+                        (isIsNodeName(companyName) || isEliteName(companyName) || isCambridgeName(companyName))
                           ? 'bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-80' 
                           : 'bg-slate-50 dark:bg-slate-800'
                       }`}
