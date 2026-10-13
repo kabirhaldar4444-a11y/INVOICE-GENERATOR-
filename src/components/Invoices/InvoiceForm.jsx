@@ -4,12 +4,12 @@ import { useApp } from '../../context/AppContext';
 import { generateNextInvoiceNumber } from '../../utils/helpers';
 import CustomSelect from '../Shared/CustomSelect';
 import confetti from 'canvas-confetti';
-import { 
-  Plus, 
-  Trash2, 
-  Save, 
-  ArrowLeft, 
-  Calendar, 
+import {
+  Plus,
+  Trash2,
+  Save,
+  ArrowLeft,
+  Calendar,
   Calculator,
   User,
   ShoppingBag,
@@ -32,19 +32,19 @@ const parseAmount = (val) => {
 const isIsNodeName = (name) => {
   if (!name) return false;
   const n = name.toLowerCase();
-  return n.includes('isuccessnode') || 
-         n.includes('isucessnode') || 
-         n.includes('successnode') || 
-         n.includes('sucessnode') ||
-         n.includes('i-successnode') || 
-         n.includes('i-sucessnode');
+  return n.includes('isuccessnode') ||
+    n.includes('isucessnode') ||
+    n.includes('successnode') ||
+    n.includes('sucessnode') ||
+    n.includes('i-successnode') ||
+    n.includes('i-sucessnode');
 };
 
 export const InvoiceForm = () => {
   const { invoices, customers, addInvoice, updateInvoice, showToast, profiles, settings, addCustomer, updateCustomer } = useApp();
   const navigate = useNavigate();
   const { id } = useParams();
-  
+
   const isEditMode = !!id;
 
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -122,7 +122,7 @@ export const InvoiceForm = () => {
           const uPrice = parseFloat(item.unit_price) || 0;
           const gstPct = parseFloat(item.gst_percentage) || 0;
           const gross = uPrice * (1 + gstPct / 100);
-          
+
           let parsedDesc = item.description || '';
           let itemCourseDesc = item.course_description || '';
           let itemDuration = item.duration || '';
@@ -198,8 +198,8 @@ export const InvoiceForm = () => {
   const totalBeforeDiscount = items.reduce((sum, item) => sum + parseAmount(item.paid_amount), 0);
   const parsedPendingAmt = parseAmount(pendingAmount);
   const parsedDiscountVal = parseAmount(discountValue);
-  const discountAmt = discountType === 'percentage' 
-    ? (totalBeforeDiscount * parsedDiscountVal / 100) 
+  const discountAmt = discountType === 'percentage'
+    ? (totalBeforeDiscount * parsedDiscountVal / 100)
     : parsedDiscountVal;
   const finalTotalAmount = Math.max(0, totalBeforeDiscount - discountAmt);
   const actualPaidAmount = Math.max(0, finalTotalAmount - parsedPendingAmt);
@@ -280,7 +280,7 @@ export const InvoiceForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!newCustName.trim()) {
       showToast('Please enter customer name', 'error');
       return;
@@ -338,17 +338,17 @@ export const InvoiceForm = () => {
     };
 
     const isEliteProfile = activeProfile && (
-      activeProfile.id === 'hc-elite' || 
+      activeProfile.id === 'hc-elite' ||
       (activeProfile.company_name && activeProfile.company_name.toLowerCase().includes('elite'))
     );
     const isCambridgeProfile = activeProfile && (
-      activeProfile.id === 'hc-cambridge' || 
+      activeProfile.id === 'hc-cambridge' ||
       (activeProfile.company_name && activeProfile.company_name.toLowerCase().includes('cambridge'))
     );
-    const profileGst = isEliteProfile 
-      ? '09AAICE4778J1Z0' 
-      : isCambridgeProfile 
-        ? '09KLBPS8834N1Z0' 
+    const profileGst = isEliteProfile
+      ? '09AAICE4778J1Z0'
+      : isCambridgeProfile
+        ? '09KLBPS8834N1Z0'
         : (activeProfile?.gst_number || '');
 
     const metadataItem = {
@@ -409,7 +409,7 @@ export const InvoiceForm = () => {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Header back bar */}
       <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 transition-colors">
         <button
@@ -424,17 +424,17 @@ export const InvoiceForm = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Main fields column */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {/* Section 0: Issuing Profile */}
           <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 transition-colors shadow-sm space-y-4 animate-fade-in">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
               <Building2 className="w-5 h-5 text-primary-500" />
               <h3 className="font-display font-bold text-base text-slate-800 dark:text-white">Issuing Company Profile</h3>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
               <div className="md:col-span-1">
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-450 uppercase tracking-wide mb-1.5">
@@ -580,11 +580,10 @@ export const InvoiceForm = () => {
                   value={isIssuingNode ? '09AAHCI9258G1Z3' : newCustGst}
                   onChange={(e) => setNewCustGst(e.target.value.toUpperCase())}
                   disabled={isIssuingNode}
-                  className={`w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono ${
-                    isIssuingNode 
-                      ? 'bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-80' 
-                      : 'bg-slate-50 dark:bg-slate-800'
-                  }`}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm font-mono ${isIssuingNode
+                    ? 'bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-80'
+                    : 'bg-slate-50 dark:bg-slate-800'
+                    }`}
                 />
               </div>
             </div>
@@ -645,7 +644,7 @@ export const InvoiceForm = () => {
             {/* Line items dynamic builder */}
             <div className="space-y-4">
               {items.map((item, index) => (
-                <div 
+                <div
                   key={index}
                   className="p-4 border border-slate-100 dark:border-slate-800 rounded-xl space-y-4 bg-slate-50/30 dark:bg-slate-850/10 transition-colors"
                 >
@@ -667,8 +666,8 @@ export const InvoiceForm = () => {
                         value={item.gst_percentage}
                         onChange={(v) => handleItemFieldChange(index, 'gst_percentage', parseInt(v, 10))}
                         options={[
-                          { value: 0,  label: '0% GST (Exempted)' },
-                          { value: 5,  label: '5% GST' },
+                          { value: 0, label: '0% GST (Exempted)' },
+                          { value: 5, label: '5% GST' },
                           { value: 12, label: '12% GST' },
                           { value: 18, label: '18% GST (Standard)' },
                           { value: 28, label: '28% GST (Luxury)' },
@@ -681,8 +680,8 @@ export const InvoiceForm = () => {
                         value={item.tax_type || globalTaxType || 'SGST'}
                         onChange={(v) => handleItemFieldChange(index, 'tax_type', v)}
                         options={[
-                          { value: 'SGST', label: `SGST (Col 5: SGST ${(item.gst_percentage || 18)/2}%)` },
-                          { value: 'IGST', label: `IGST (Col 5: IGST ${(item.gst_percentage || 18)/2}%)` },
+                          { value: 'SGST', label: `SGST (Col 5: SGST ${(item.gst_percentage || 18) / 2}%)` },
+                          { value: 'IGST', label: `IGST (Col 5: IGST ${(item.gst_percentage || 18) / 2}%)` },
                         ]}
                       />
                     </div>
@@ -690,203 +689,203 @@ export const InvoiceForm = () => {
 
                   {/* Row Bottom Details: Description, Qty, Excl. Rate, Incl. Rate */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                      <div className="md:col-span-6 relative description-preset-container">
-                        <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">
-                          Description (Optional)
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            placeholder="e.g. Training / complementary"
-                            value={item.description}
-                            onChange={(e) => handleItemFieldChange(index, 'description', e.target.value)}
-                            className="w-full pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-850 dark:text-slate-205 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs font-medium"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setOpenDescriptionIndex(openDescriptionIndex === index ? null : index)}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-655 dark:text-slate-500 dark:hover:text-slate-350 rounded-md transition-colors cursor-pointer"
-                            title="Select Description Preset"
-                          >
-                            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDescriptionIndex === index ? 'rotate-180 text-primary-500' : ''}`} />
-                          </button>
-                        </div>
-
-                        {/* Presets suggestions dropdown */}
-                        {openDescriptionIndex === index && (
-                          <div className="absolute z-30 right-0 mt-1 w-52 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 shadow-xl overflow-hidden py-1 animate-dropdown-in">
-                            <div className="px-3.5 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                              Quick Presets
-                            </div>
-                            {[
-                              { label: '🎁 complementary (₹0)', value: 'complementary' },
-                              { label: '🎈 Free Item (₹0)', value: 'Free' },
-                              { label: '📚 Training Module', value: 'Training' },
-                              { label: '⚙️ Service Fee', value: 'Service Fee' },
-                              { label: '🛠️ Support Services', value: 'Support' }
-                            ].map((preset) => (
-                              <button
-                                key={preset.value}
-                                type="button"
-                                onClick={() => {
-                                  handleItemFieldChange(index, 'description', preset.value);
-                                  if (preset.value.toLowerCase() === 'complementary' || preset.value.toLowerCase() === 'free') {
-                                    handleItemFieldChange(index, 'paid_amount', '0');
-                                    handleItemFieldChange(index, 'gst_percentage', 0);
-                                  }
-                                  setOpenDescriptionIndex(null);
-                                }}
-                                className="w-full text-left px-3.5 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer font-medium"
-                              >
-                                {preset.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="md:col-span-1">
-                        <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1 text-center">
-                          Qty
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          min="1"
-                          placeholder="Qty"
-                          value={item.quantity}
-                          onChange={(e) => handleItemFieldChange(index, 'quantity', e.target.value)}
-                          className="w-full px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 text-center focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wide mb-1 text-right">
-                          Price (incl. GST) (₹)
-                        </label>
+                    <div className="md:col-span-6 relative description-preset-container">
+                      <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">
+                        Description (Optional)
+                      </label>
+                      <div className="relative">
                         <input
                           type="text"
-                          required
-                          placeholder="0.00"
-                          value={item.paid_amount}
-                          onChange={(e) => handleItemFieldChange(index, 'paid_amount', e.target.value)}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-850 dark:text-slate-100 text-right focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs font-mono font-bold"
-                          title="Original price of the course inclusive of GST (pre-discount)"
+                          placeholder="e.g. Training / Complementary"
+                          value={item.description}
+                          onChange={(e) => handleItemFieldChange(index, 'description', e.target.value)}
+                          className="w-full pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-850 dark:text-slate-205 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setOpenDescriptionIndex(openDescriptionIndex === index ? null : index)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-655 dark:text-slate-500 dark:hover:text-slate-350 rounded-md transition-colors cursor-pointer"
+                          title="Select Description Preset"
+                        >
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDescriptionIndex === index ? 'rotate-180 text-primary-500' : ''}`} />
+                        </button>
+                      </div>
+
+                      {/* Presets suggestions dropdown */}
+                      {openDescriptionIndex === index && (
+                        <div className="absolute z-30 right-0 mt-1 w-52 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 shadow-xl overflow-hidden py-1 animate-dropdown-in">
+                          <div className="px-3.5 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                            Quick Presets
+                          </div>
+                          {[
+                            { label: '🎁 Complementary (₹0)', value: 'Complementary' },
+                            { label: '🎈 Free Item (₹0)', value: 'Free' },
+                            { label: '📚 Training Module', value: 'Training' },
+                            { label: '⚙️ Service Fee', value: 'Service Fee' },
+                            { label: '🛠️ Support Services', value: 'Support' }
+                          ].map((preset) => (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              onClick={() => {
+                                handleItemFieldChange(index, 'description', preset.value);
+                                if (preset.value.toLowerCase() === 'Complementary' || preset.value.toLowerCase() === 'free') {
+                                  handleItemFieldChange(index, 'paid_amount', '0');
+                                  handleItemFieldChange(index, 'gst_percentage', 0);
+                                }
+                                setOpenDescriptionIndex(null);
+                              }}
+                              className="w-full text-left px-3.5 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer font-medium"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="md:col-span-1">
+                      <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1 text-center">
+                        Qty
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        placeholder="Qty"
+                        value={item.quantity}
+                        onChange={(e) => handleItemFieldChange(index, 'quantity', e.target.value)}
+                        className="w-full px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 text-center focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wide mb-1 text-right">
+                        Price (incl. GST) (₹)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="0.00"
+                        value={item.paid_amount}
+                        onChange={(e) => handleItemFieldChange(index, 'paid_amount', e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-850 dark:text-slate-100 text-right focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs font-mono font-bold"
+                        title="Original price of the course inclusive of GST (pre-discount)"
+                      />
+                    </div>
+
+                    <div className="md:col-span-3 flex justify-between items-center pl-2 pb-1.5">
+                      <div className="text-[10px] text-right font-semibold text-slate-400 leading-tight">
+                        <div>Total: <span className="text-slate-800 dark:text-slate-200 font-bold">₹{computedItems[index]?.total_amount}</span></div>
+                        <div className="mt-0.5">
+                          Pending: <span className={`${(computedItems[index]?.pending_amount || 0) > 0 ? 'text-amber-600 font-bold' : 'text-slate-400 font-medium'}`}>
+                            ₹{(computedItems[index]?.pending_amount || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(index)}
+                        className="p-1.5 rounded-lg border border-slate-100 dark:border-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Smart Course Details (Description & Duration) */}
+                  <div className="pt-3 mt-1 border-t border-slate-150/70 dark:border-slate-800/80">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                      {/* Course Description Text Box */}
+                      <div className="md:col-span-8">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                            <span>Course Description (Optional)</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleItemFieldChange(index, 'course_description', 'Professional Development Certification is a premier training program designed to equip modern professionals with the high-impact competencies required for corporate excellence.');
+                              if (!item.duration) handleItemFieldChange(index, 'duration', '20 days');
+                            }}
+                            className="text-[9.5px] font-bold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline cursor-pointer"
+                            title="Load example course description and 20 days duration"
+                          >
+                            + Load Certification Sample
+                          </button>
+                        </div>
+                        <textarea
+                          rows="2"
+                          placeholder="Add course description here (will wrap cleanly in invoice table without affecting layout)..."
+                          value={item.course_description || ''}
+                          onChange={(e) => handleItemFieldChange(index, 'course_description', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs resize-y font-normal"
                         />
                       </div>
 
-                      <div className="md:col-span-3 flex justify-between items-center pl-2 pb-1.5">
-                        <div className="text-[10px] text-right font-semibold text-slate-400 leading-tight">
-                          <div>Total: <span className="text-slate-800 dark:text-slate-200 font-bold">₹{computedItems[index]?.total_amount}</span></div>
-                          <div className="mt-0.5">
-                            Pending: <span className={`${(computedItems[index]?.pending_amount || 0) > 0 ? 'text-amber-600 font-bold' : 'text-slate-400 font-medium'}`}>
-                              ₹{(computedItems[index]?.pending_amount || 0).toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(index)}
-                          className="p-1.5 rounded-lg border border-slate-100 dark:border-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Smart Course Details (Description & Duration) */}
-                    <div className="pt-3 mt-1 border-t border-slate-150/70 dark:border-slate-800/80">
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                        {/* Course Description Text Box */}
-                        <div className="md:col-span-8">
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
-                              <span>Course Description (Optional)</span>
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handleItemFieldChange(index, 'course_description', 'Professional Development Certification is a premier training program designed to equip modern professionals with the high-impact competencies required for corporate excellence.');
-                                if (!item.duration) handleItemFieldChange(index, 'duration', '20 days');
-                              }}
-                              className="text-[9.5px] font-bold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline cursor-pointer"
-                              title="Load example course description and 20 days duration"
-                            >
-                              + Load Certification Sample
-                            </button>
-                          </div>
-                          <textarea
-                            rows="2"
-                            placeholder="Add course description here (will wrap cleanly in invoice table without affecting layout)..."
-                            value={item.course_description || ''}
-                            onChange={(e) => handleItemFieldChange(index, 'course_description', e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-xs resize-y font-normal"
-                          />
-                        </div>
-
-                        {/* Course Duration Option */}
-                        <div className="md:col-span-4">
-                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
-                            Course Duration Option
-                          </label>
-                          <div className="space-y-1.5">
-                            <CustomSelect
-                              size="sm"
-                              value={
-                                ['', '5 days', '10 days', '15 days', '20 days', '30 days', '45 days', '60 days', '90 days', '1 Month', '2 Months', '3 Months', '6 Months', '1 Year'].includes(item.duration)
-                                  ? item.duration
-                                  : (item.duration ? 'custom' : '')
-                              }
-                              onChange={(v) => {
-                                if (v === 'custom') {
-                                  if (!item.duration || ['', '5 days', '10 days', '15 days', '20 days', '30 days', '45 days', '60 days', '90 days', '1 Month', '2 Months', '3 Months', '6 Months', '1 Year'].includes(item.duration)) {
-                                    handleItemFieldChange(index, 'duration', '20 days');
-                                  }
-                                } else {
-                                  handleItemFieldChange(index, 'duration', v);
+                      {/* Course Duration Option */}
+                      <div className="md:col-span-4">
+                        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
+                          Course Duration Option
+                        </label>
+                        <div className="space-y-1.5">
+                          <CustomSelect
+                            size="sm"
+                            value={
+                              ['', '5 days', '10 days', '15 days', '20 days', '30 days', '45 days', '60 days', '90 days', '1 Month', '2 Months', '3 Months', '6 Months', '1 Year'].includes(item.duration)
+                                ? item.duration
+                                : (item.duration ? 'custom' : '')
+                            }
+                            onChange={(v) => {
+                              if (v === 'custom') {
+                                if (!item.duration || ['', '5 days', '10 days', '15 days', '20 days', '30 days', '45 days', '60 days', '90 days', '1 Month', '2 Months', '3 Months', '6 Months', '1 Year'].includes(item.duration)) {
+                                  handleItemFieldChange(index, 'duration', '20 days');
                                 }
-                              }}
-                              options={[
-                                { value: '', label: 'None (No Duration)' },
-                                { value: '5 days', label: '5 days' },
-                                { value: '10 days', label: '10 days' },
-                                { value: '15 days', label: '15 days' },
-                                { value: '20 days', label: '20 days' },
-                                { value: '30 days', label: '30 days' },
-                                { value: '45 days', label: '45 days' },
-                                { value: '60 days', label: '60 days' },
-                                { value: '90 days', label: '90 days' },
-                                { value: '1 Month', label: '1 Month' },
-                                { value: '2 Months', label: '2 Months' },
-                                { value: '3 Months', label: '3 Months' },
-                                { value: '6 Months', label: '6 Months' },
-                                { value: '1 Year', label: '1 Year' },
-                                { value: 'custom', label: '✏️ Custom Duration...' },
-                              ]}
+                              } else {
+                                handleItemFieldChange(index, 'duration', v);
+                              }
+                            }}
+                            options={[
+                              { value: '', label: 'None (No Duration)' },
+                              { value: '5 days', label: '5 days' },
+                              { value: '10 days', label: '10 days' },
+                              { value: '15 days', label: '15 days' },
+                              { value: '20 days', label: '20 days' },
+                              { value: '30 days', label: '30 days' },
+                              { value: '45 days', label: '45 days' },
+                              { value: '60 days', label: '60 days' },
+                              { value: '90 days', label: '90 days' },
+                              { value: '1 Month', label: '1 Month' },
+                              { value: '2 Months', label: '2 Months' },
+                              { value: '3 Months', label: '3 Months' },
+                              { value: '6 Months', label: '6 Months' },
+                              { value: '1 Year', label: '1 Year' },
+                              { value: 'custom', label: '✏️ Custom Duration...' },
+                            ]}
+                          />
+                          {(!['', '5 days', '10 days', '15 days', '20 days', '30 days', '45 days', '60 days', '90 days', '1 Month', '2 Months', '3 Months', '6 Months', '1 Year'].includes(item.duration) || item.duration === 'custom') && (
+                            <input
+                              type="text"
+                              placeholder="Type duration (e.g. 25 days, 40 hours)"
+                              value={item.duration === 'custom' ? '' : item.duration}
+                              onChange={(e) => handleItemFieldChange(index, 'duration', e.target.value)}
+                              className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 font-medium"
                             />
-                            {(!['', '5 days', '10 days', '15 days', '20 days', '30 days', '45 days', '60 days', '90 days', '1 Month', '2 Months', '3 Months', '6 Months', '1 Year'].includes(item.duration) || item.duration === 'custom') && (
-                              <input
-                                type="text"
-                                placeholder="Type duration (e.g. 25 days, 40 hours)"
-                                value={item.duration === 'custom' ? '' : item.duration}
-                                onChange={(e) => handleItemFieldChange(index, 'duration', e.target.value)}
-                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 font-medium"
-                              />
-                            )}
-                          </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
-                ))}
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
         {/* Floating summaries and actions column */}
         <div className="space-y-6">
-          
+
           {/* Summary calculations */}
           <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 transition-colors shadow-sm space-y-4 sticky top-24">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -903,7 +902,7 @@ export const InvoiceForm = () => {
                 <span>Total GST Collected</span>
                 <span className="font-bold">₹{calculatedGstAmount.toFixed(2)}</span>
               </div>
-              
+
               <div className="h-px bg-slate-100 dark:bg-slate-800" />
 
               <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
@@ -917,32 +916,32 @@ export const InvoiceForm = () => {
                   <span className="font-bold">-₹{discountAmt.toFixed(2)}</span>
                 </div>
               )}
-              
+
               <div className="h-px bg-slate-100 dark:bg-slate-800" />
-              
+
               <div className="flex justify-between items-center text-sm font-bold text-slate-800 dark:text-white">
                 <span>Gross Payable</span>
                 <span className="text-primary-600 dark:text-primary-400">₹{calculatedTotalAmount.toFixed(2)}</span>
               </div>
-              
+
               <div className="h-px bg-slate-100 dark:bg-slate-800" />
 
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
-                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-455 uppercase tracking-wide mb-1">
-                        Discount Type
-                      </label>
-                      <CustomSelect
-                        size="sm"
-                        value={discountType}
-                        onChange={setDiscountType}
-                        options={[
-                          { value: 'percentage', label: 'Percentage (%)' },
-                          { value: 'rupees',     label: 'Rupees (₹)' },
-                        ]}
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-455 uppercase tracking-wide mb-1">
+                      Discount Type
+                    </label>
+                    <CustomSelect
+                      size="sm"
+                      value={discountType}
+                      onChange={setDiscountType}
+                      options={[
+                        { value: 'percentage', label: 'Percentage (%)' },
+                        { value: 'rupees', label: 'Rupees (₹)' },
+                      ]}
+                    />
+                  </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-455 uppercase tracking-wide mb-1">
                       Discount Value
@@ -991,8 +990,8 @@ export const InvoiceForm = () => {
                     value={status}
                     onChange={handleStatusChange}
                     options={[
-                      { value: 'pending',   label: '🕐 Pending Receipt' },
-                      { value: 'paid',      label: '✅ Paid Invoice' },
+                      { value: 'pending', label: '🕐 Pending Receipt' },
+                      { value: 'paid', label: '✅ Paid Invoice' },
                       { value: 'cancelled', label: '❌ Cancelled' },
                     ]}
                   />
@@ -1000,7 +999,7 @@ export const InvoiceForm = () => {
               </div>
 
               <div className="h-px bg-slate-100 dark:bg-slate-800" />
-              
+
               <div className="flex justify-between items-center text-xs font-bold text-amber-600 dark:text-amber-450">
                 <span>Net Balance Due</span>
                 <span>₹{balanceDue.toFixed(2)}</span>
