@@ -383,8 +383,8 @@ export const AppProvider = ({ children }) => {
       id: 'hc-elite',
       company_name: 'EliteToolistic',
       gst_number: '09AAICE4778J1Z0',
-      email: 'info@elitetoolistic.com',
-      phone: '+91-7969325899',
+      email: 'support@elitetoolistic.com',
+      phone: '+91 7969654626, +91 8062386662',
       website: 'www.elitetoolistic.com',
       address: '301, 2nd Floor, The Capital, Science City Road, Sola, Ahmedabad - 380060',
       logo_url: '/logo-elite.png',
@@ -482,8 +482,10 @@ export const AppProvider = ({ children }) => {
           if (existing && existing.logo_url !== company.logo_url) {
             updates.logo_url = company.logo_url;
           }
-          if (company.id === 'hc-elite' && existing && existing.gst_number !== company.gst_number) {
-            updates.gst_number = company.gst_number;
+          if (company.id === 'hc-elite' && existing) {
+            if (existing.gst_number !== company.gst_number) updates.gst_number = company.gst_number;
+            if (existing.email !== company.email) updates.email = company.email;
+            if (existing.phone !== company.phone) updates.phone = company.phone;
           }
           if (company.id === 'hc-isn' && existing && existing.gst_number !== company.gst_number) {
             updates.gst_number = company.gst_number;

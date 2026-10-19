@@ -53,6 +53,17 @@ export const eliteLayout = {
     borderThickness: 1.2,
   },
 
+  // Stamp & Signature configuration
+  signStamp: {
+    stampX: 64,
+    stampWidth: 100,
+    stampHeight: 93.2,
+    sigX: 138,
+    sigWidth: 122,
+    sigHeight: 61,
+    authSignSize: 8.5,
+  },
+
   // Footer layout
   footer: {
     height: 72,

@@ -438,8 +438,8 @@ export const InvoiceDetails = () => {
   const brandData = {
     elite: {
       company_name: 'ELITETOOLISTIC',
-      phone: '+91 7969325899',
-      email: 'info@elitetoolistic.com',
+      phone: '+91 7969654626, +91 8062386662',
+      email: 'support@elitetoolistic.com',
       website: 'www.elitetoolistic.com',
       gst_number: '09AAICE4778J1Z0',
       address: '301, 2nd Floor, The Capital, Science City Road, Sola, Ahmedabad - 380060',
@@ -2008,7 +2008,44 @@ export const InvoiceDetails = () => {
 
                   {/* Calculations grid */}
                   {themeKey === 'elite' ? (
-                    <div className="flex justify-end mt-6 text-xs" style={{ paddingLeft: `${eliteMarginX}px`, paddingRight: `${eliteMarginX}px` }}>
+                    <div className="flex justify-between items-start mt-6 text-xs" style={{ paddingLeft: `${eliteMarginX}px`, paddingRight: `${eliteMarginX}px` }}>
+                      {/* Left: Stamp & Signature */}
+                      <div className="relative select-none pointer-events-none flex flex-col items-start pt-1">
+                        <div className="relative w-[260px] h-[105px]">
+                          {/* Stamp on Left (enlarged) */}
+                          <img 
+                            src="/elite-stamp.png" 
+                            alt="Elite Toolistic Stamp" 
+                            className="absolute left-[16px] top-0 w-[100px] h-[93px] object-contain z-10" 
+                            onError={(e) => {
+                              if (!e.target.dataset.triedDist) {
+                                e.target.dataset.triedDist = 'true';
+                                e.target.src = '/Elite Toolistic circular stamp logo 1.png';
+                              }
+                            }}
+                          />
+                          {/* Signature on Right overlapping Stamp */}
+                          <img 
+                            src="/elite-signature.png" 
+                            alt="Hemant Signature" 
+                            className="absolute left-[86px] top-[18px] w-[122px] h-[61px] object-contain z-20" 
+                            onError={(e) => {
+                              if (!e.target.dataset.triedDist) {
+                                e.target.dataset.triedDist = 'true';
+                                e.target.src = '/Clean isolated Hemant signature.png';
+                              }
+                            }}
+                          />
+                          {/* Authorized Signatory text under signature */}
+                          <div 
+                            className="absolute left-[116px] bottom-[2px] font-normal text-[9px] tracking-wide"
+                            style={{ color: eliteLayout.colors.dark }}
+                          >
+                            Authorized Signatory
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="flex flex-col gap-3" style={{ width: `${eliteLayout.summary.width}px` }}>
                         {/* Box 1: Bordered Box */}
                         <div className="p-3 space-y-2 rounded-none text-xs" style={{ border: `${eliteLayout.summary.borderThickness}px solid ${eliteLayout.colors.primary}`, color: eliteLayout.colors.dark }}>

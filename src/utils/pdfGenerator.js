@@ -483,8 +483,8 @@ export const generateInvoicePDF = async (invoice, settings) => {
     const brandData = {
       elite: {
         company_name: 'ELITETOOLISTIC',
-        phone: '+91 7969325899',
-        email: 'info@elitetoolistic.com',
+        phone: '+91 7969654626, +91 8062386662',
+        email: 'support@elitetoolistic.com',
         website: 'www.elitetoolistic.com',
         gst_number: '09AAICE4778J1Z0',
         address: '301, 2nd Floor, The Capital, Science City Road, Sola, Ahmedabad - 380060'
@@ -1521,6 +1521,41 @@ export const generateInvoicePDF = async (invoice, settings) => {
         return eFmt(parsed);
       };
 
+      // ── LOAD ELITE STAMP & SIGNATURE ──────────────────────────
+      let eliteStampImage = null;
+      let eliteSigImage = null;
+      try {
+        const stampUrls = ['/elite-stamp.png', '/Elite Toolistic circular stamp logo 1.png'];
+        for (const url of stampUrls) {
+          try {
+            const stampRes = await fetch(url);
+            if (stampRes.ok) {
+              const ab = await stampRes.arrayBuffer();
+              eliteStampImage = await pdfDoc.embedPng(ab);
+              break;
+            }
+          } catch (_) {}
+        }
+      } catch (err) {
+        console.warn("Failed to load Elite stamp:", err);
+      }
+
+      try {
+        const sigUrls = ['/elite-signature.png', '/Clean isolated Hemant signature.png'];
+        for (const url of sigUrls) {
+          try {
+            const sigRes = await fetch(url);
+            if (sigRes.ok) {
+              const ab = await sigRes.arrayBuffer();
+              eliteSigImage = await pdfDoc.embedPng(ab);
+              break;
+            }
+          } catch (_) {}
+        }
+      } catch (err) {
+        console.warn("Failed to load Elite signature:", err);
+      }
+
       // ── TOP THIN BLUE STRIP ────────────────────────────────────
       // Blue strip: occupies the very top 6pt of the page
       // y=835.89 to y=841.89 in pdf-lib coordinates (0=bottom, height=top)
@@ -1932,7 +1967,50 @@ export const generateInvoicePDF = async (invoice, settings) => {
         drawTextHelper(page, row.val, boxX + boxW - 10, ry, { font: fontRegular, size: isCompact ? 9 : 9.5, color: valColor, align: 'right' });
       });
 
-      currentY = box2Y - 16;
+      // ── STAMP & SIGNATURE (Left side, matching reference PDF) ──
+      const signStampCfg = eliteLayout.signStamp || {};
+      const stampW = isCompact ? 86 : (signStampCfg.stampWidth || 100);
+      const stampH = stampW * (1211 / 1299);
+      const stampX = signStampCfg.stampX || 64;
+      const stampTop = box1Y + box1H - (isCompact ? 1 : 2);
+      const stampY = stampTop - stampH;
+
+      // 1. Circular Stamp on Left (enlarged for prominence)
+      if (eliteStampImage) {
+        page.drawImage(eliteStampImage, {
+          x: stampX,
+          y: stampY,
+          width: stampW,
+          height: stampH
+        });
+      }
+
+      // 2. Handwritten Signature "Hemant" overlapping right side of Stamp
+      const sigW = isCompact ? 110 : (signStampCfg.sigWidth || 122);
+      const sigH = sigW * (887 / 1774);
+      const sigX = signStampCfg.sigX || (stampX + stampW * 0.74);
+      const sigY = stampY + stampH * 0.12;
+
+      if (eliteSigImage) {
+        page.drawImage(eliteSigImage, {
+          x: sigX,
+          y: sigY,
+          width: sigW,
+          height: sigH
+        });
+      }
+
+      // 3. "Authorized Signatory" text directly below signature stroke
+      const authSignX = sigX + 26;
+      const authSignY = sigY - 2;
+      drawTextHelper(page, 'Authorized Signatory', authSignX, authSignY, {
+        font: fontRegular,
+        size: isCompact ? 8 : (signStampCfg.authSignSize || 8.5),
+        color: eDark,
+        align: 'left'
+      });
+
+      currentY = Math.min(box2Y, authSignY) - 16;
 
       // ── FOOTER ─────────────────────────────────────────────────
       const footerH = 80;
