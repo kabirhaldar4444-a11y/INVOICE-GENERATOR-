@@ -611,6 +611,8 @@ export const generateInvoicePDF = async (invoice, settings) => {
     let princetonSideBg = null;
     let princetonEmailIcon = null;
     let princetonAddressIcon = null;
+    let princetonStampImage = null;
+    let princetonSigImage = null;
     if (themeKey === 'princeton') {
       try {
         const headerRes = await fetch('/princeton-header-bg.png');
@@ -647,6 +649,24 @@ export const generateInvoicePDF = async (invoice, settings) => {
         }
       } catch (err) {
         console.warn("Failed to load Princeton address icon:", err);
+      }
+      try {
+        const stampRes = await fetch('/princeton-stamp.png');
+        if (stampRes.ok) {
+          const ab = await stampRes.arrayBuffer();
+          princetonStampImage = await pdfDoc.embedPng(ab);
+        }
+      } catch (err) {
+        console.warn("Failed to load Princeton stamp:", err);
+      }
+      try {
+        const sigRes = await fetch('/isn-signature.png');
+        if (sigRes.ok) {
+          const ab = await sigRes.arrayBuffer();
+          princetonSigImage = await pdfDoc.embedPng(ab);
+        }
+      } catch (err) {
+        console.warn("Failed to load Krishna Sharma signature for Princeton:", err);
       }
     }
 
@@ -1085,10 +1105,10 @@ export const generateInvoicePDF = async (invoice, settings) => {
       // 2. Stamp on Right
       if (cambridgeStampImage) {
         page.drawImage(cambridgeStampImage, {
-          x: 140,
-          y: signBaseY - 24,
-          width: 115,
-          height: 114.8
+          x: 160,
+          y: signBaseY + 2,
+          width: 135,
+          height: 64.8
         });
       }
 
@@ -1148,6 +1168,28 @@ export const generateInvoicePDF = async (invoice, settings) => {
       const hGold = hexToRgbHelper(harvardLayout.colors.gold);
       const hWhite = hexToRgbHelper(harvardLayout.colors.white);
       const hBlack = hexToRgbHelper(harvardLayout.colors.black);
+
+      // Load Harvard Stamp & Hemant Signature
+      let harvardStampImage = null;
+      let harvardSigImage = null;
+      try {
+        const stampRes = await fetch('/harvard-stamp.png');
+        if (stampRes.ok) {
+          const ab = await stampRes.arrayBuffer();
+          harvardStampImage = await pdfDoc.embedPng(ab);
+        }
+      } catch (err) {
+        console.warn("Failed to load Harvard stamp:", err);
+      }
+      try {
+        const sigRes = await fetch('/elite-signature.png');
+        if (sigRes.ok) {
+          const ab = await sigRes.arrayBuffer();
+          harvardSigImage = await pdfDoc.embedPng(ab);
+        }
+      } catch (err) {
+        console.warn("Failed to load Hemant signature for Harvard:", err);
+      }
 
       const formatVal = (val) => {
         if (val === 0) return '-';
@@ -1462,8 +1504,57 @@ export const generateInvoicePDF = async (invoice, settings) => {
         textYOffset -= sumLineH;
       });
 
-      // ── FOOTER SECTION ───────────────────────────────────────
+      // ── FOOTER SECTION & STAMP ───────────────────────────────
       const footerConf = harvardLayout.footer;
+
+      // ── HARVARD STAMP & HEMANT SIGNATORY (Left of summary, above footer) ──
+      const hSigLineY = footerConf.height + 40;
+      const hStampW = 115;
+      const hStampH = hStampW / 2.0829;
+      const hStampX = harvardLayout.marginX;
+      const hStampY = hSigLineY - 10;
+
+      // 1. Harvard Stamp on Left
+      if (harvardStampImage) {
+        page.drawImage(harvardStampImage, {
+          x: hStampX,
+          y: hStampY,
+          width: hStampW,
+          height: hStampH
+        });
+      }
+
+      // 2. Hemant Signature on Right subtly touching Stamp border by ~12pt
+      const hSigW = 115;
+      const hSigH = hSigW * (887 / 1774);
+      const hSigX = hStampX + hStampW - 12; // 148
+      const hSigY = hSigLineY - 2;
+
+      if (harvardSigImage) {
+        page.drawImage(harvardSigImage, {
+          x: hSigX,
+          y: hSigY,
+          width: hSigW,
+          height: hSigH
+        });
+      }
+
+      // 3. Line under signature
+      const hLineWidth = 120;
+      page.drawLine({
+        start: { x: hSigX - 3, y: hSigLineY },
+        end: { x: hSigX - 3 + hLineWidth, y: hSigLineY },
+        color: hNavy,
+        thickness: 0.9
+      });
+
+      // 4. "Authorized Signatory" text centered under the line
+      drawTextHelper(page, 'Authorized Signatory', hSigX - 3 + hLineWidth / 2, hSigLineY - 12, {
+        font: fontBold,
+        size: 8.5,
+        color: hNavy,
+        align: 'center'
+      });
       
       // Draw Navy background rect
       page.drawRectangle({
@@ -1969,13 +2060,13 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       // ── STAMP & SIGNATURE (Left side, matching reference PDF) ──
       const signStampCfg = eliteLayout.signStamp || {};
-      const stampW = isCompact ? 86 : (signStampCfg.stampWidth || 100);
-      const stampH = stampW * (1211 / 1299);
-      const stampX = signStampCfg.stampX || 64;
+      const stampW = isCompact ? 105 : (signStampCfg.stampWidth || 120);
+      const stampH = stampW / 2.2728;
+      const stampX = isCompact ? 48 : (signStampCfg.stampX || 50);
       const stampTop = box1Y + box1H - (isCompact ? 1 : 2);
       const stampY = stampTop - stampH;
 
-      // 1. Circular Stamp on Left (enlarged for prominence)
+      // 1. Rectangular Stamp on Left
       if (eliteStampImage) {
         page.drawImage(eliteStampImage, {
           x: stampX,
@@ -1985,11 +2076,11 @@ export const generateInvoicePDF = async (invoice, settings) => {
         });
       }
 
-      // 2. Handwritten Signature "Hemant" overlapping right side of Stamp
-      const sigW = isCompact ? 110 : (signStampCfg.sigWidth || 122);
+      // 2. Handwritten Signature "Hemant" subtly touching right border of Stamp
+      const sigW = isCompact ? 105 : (signStampCfg.sigWidth || 120);
       const sigH = sigW * (887 / 1774);
-      const sigX = signStampCfg.sigX || (stampX + stampW * 0.74);
-      const sigY = stampY + stampH * 0.12;
+      const sigX = signStampCfg.sigX || (stampX + stampW - 8);
+      const sigY = stampY + stampH * 0.08;
 
       if (eliteSigImage) {
         page.drawImage(eliteSigImage, {
@@ -2000,14 +2091,14 @@ export const generateInvoicePDF = async (invoice, settings) => {
         });
       }
 
-      // 3. "Authorized Signatory" text directly below signature stroke
-      const authSignX = sigX + 26;
+      // 3. "Authorized Signatory" text centered below signature stroke
+      const authSignX = sigX + sigW / 2;
       const authSignY = sigY - 2;
       drawTextHelper(page, 'Authorized Signatory', authSignX, authSignY, {
         font: fontRegular,
         size: isCompact ? 8 : (signStampCfg.authSignSize || 8.5),
         color: eDark,
-        align: 'left'
+        align: 'center'
       });
 
       currentY = Math.min(box2Y, authSignY) - 16;
@@ -2559,15 +2650,14 @@ export const generateInvoicePDF = async (invoice, settings) => {
       // ── PMI STAMP & SIGNATURE (Above Footer) ────────────────────
       const signBlockBottomY = Math.max(55, box2Y);
       const lineStartX = marginX + 10;
-      const lineWidth = isCompact ? 140 : 150;
-      const lineEndX = lineStartX + lineWidth;
+      const lineWidth = isCompact ? 115 : 120;
       const sigLineY = signBlockBottomY + 18;
 
-      // 1. Stamp on Right
-      const pmiStampW = isCompact ? 68 : 74;
-      const pmiStampH = isCompact ? 65 : 71;
-      const pmiStampX = lineEndX - pmiStampW;
-      const pmiStampY = sigLineY - 3;
+      // 1. Stamp on Right (overlap signature by ~14pt)
+      const pmiStampW = isCompact ? 105 : 115;
+      const pmiStampH = pmiStampW / 2.0829;
+      const pmiStampX = lineStartX + (isCompact ? 95 : 101);
+      const pmiStampY = sigLineY - 4;
 
       if (pmiStampImage) {
         page.drawImage(pmiStampImage, {
@@ -2578,17 +2668,17 @@ export const generateInvoicePDF = async (invoice, settings) => {
         });
       }
 
-      // 2. Line under signature and stamp
+      // 2. Line under signature
       page.drawLine({
         start: { x: lineStartX, y: sigLineY },
-        end: { x: lineEndX, y: sigLineY },
+        end: { x: lineStartX + lineWidth, y: sigLineY },
         color: pmiBlack,
         thickness: 0.8
       });
 
-      // 3. Signature on Left (overlapping ON TOP OF stamp and line)
-      const pmiSigW = isCompact ? 105 : 115;
-      const pmiSigH = isCompact ? 36 : 40;
+      // 3. Signature on Left (subtly touches the left edge of the stamp by ~14pt)
+      const pmiSigW = isCompact ? 100 : 110;
+      const pmiSigH = isCompact ? 35 : 38;
       const pmiSigX = lineStartX;
       const pmiSigY = sigLineY - 2;
 
@@ -2623,6 +2713,41 @@ export const generateInvoicePDF = async (invoice, settings) => {
       const isn_muted = rgb(100/255, 116/255, 139/255); // Slate-500 to match CSS text-slate-500
       const isn_border = rgb(0, 0, 0);       // Black border lines
       const isn_headerBg = rgb(188/255, 224/255, 253/255); // Light blue table header (#BCE0FD)
+
+      // Load ISN Stamp & Signature
+      let isnStampImage = null;
+      let isnSigImage = null;
+      try {
+        const stampUrls = ['/isn-stamp.png', '/isn stamp.png'];
+        for (const url of stampUrls) {
+          try {
+            const stampRes = await fetch(url);
+            if (stampRes.ok) {
+              const ab = await stampRes.arrayBuffer();
+              isnStampImage = await pdfDoc.embedPng(ab);
+              break;
+            }
+          } catch (_) {}
+        }
+      } catch (err) {
+        console.warn("Failed to load ISN stamp:", err);
+      }
+
+      try {
+        const sigUrls = ['/isn-signature.png', '/Elegant blue Krishna Sharma signature.png'];
+        for (const url of sigUrls) {
+          try {
+            const sigRes = await fetch(url);
+            if (sigRes.ok) {
+              const ab = await sigRes.arrayBuffer();
+              isnSigImage = await pdfDoc.embedPng(ab);
+              break;
+            }
+          } catch (_) {}
+        }
+      } catch (err) {
+        console.warn("Failed to load ISN signature:", err);
+      }
 
       let y = height - 50;
       const lx = marginX;  // Left margin X
@@ -2893,6 +3018,60 @@ export const generateInvoicePDF = async (invoice, settings) => {
           page.drawLine({ start: { x: totX - 8, y: totY - totRowH }, end: { x: rx, y: totY - totRowH }, color: isn_border, thickness: 0.8 });
         }
         totY -= totRowH;
+      });
+
+      // ── ISN STAMP & SIGNATURE (Left side, matching reference) ──
+      // Positioned on the left side, slightly overlapping, vertically aligned with Totals block
+      const signBlockY = y - totalBoxH;
+      const sigLineStartX = lx + 103;
+      const sigLineWidth = 130;
+      const sigLineEndX = sigLineStartX + sigLineWidth;
+      const sigLineY = Math.max(88, signBlockY + 14);
+
+      // 1. Stamp on Left
+      const stampW = 115;
+      const stampH = stampW / 2.0829;
+      const stampX = lx;
+      const stampY = sigLineY - 14;
+
+      if (isnStampImage) {
+        page.drawImage(isnStampImage, {
+          x: stampX,
+          y: stampY,
+          width: stampW,
+          height: stampH
+        });
+      }
+
+      // 2. Line under signature
+      page.drawLine({
+        start: { x: sigLineStartX, y: sigLineY },
+        end: { x: sigLineEndX, y: sigLineY },
+        color: isn_border,
+        thickness: 0.8
+      });
+
+      // 3. Signature subtly touching right side of Stamp on top of line by ~12pt
+      const sigW = 135;
+      const sigH = sigW * (724 / 2172); // ~45pt
+      const sigX = sigLineStartX; // Overlaps stamp right border (lx + 115) by 12pt
+      const sigY = sigLineY - 2;
+
+      if (isnSigImage) {
+        page.drawImage(isnSigImage, {
+          x: sigX,
+          y: sigY,
+          width: sigW,
+          height: sigH
+        });
+      }
+
+      // 4. "Authorized Signatory" text centered under the line
+      drawTextHelper(page, 'Authorized Signatory', sigLineStartX + sigLineWidth / 2, sigLineY - 12, {
+        font: fontBold,
+        size: 9.5,
+        color: isn_dark,
+        align: 'center'
       });
 
       // --- FOOTER ---
@@ -3335,6 +3514,55 @@ export const generateInvoicePDF = async (invoice, settings) => {
         drawTextHelper(page, label, sumX + ps.paddingX, lRowY, { font: fontBold, size: ps.fontSize, color: pWhite });
         drawTextHelper(page, val, sumX + ps.width - ps.paddingX, lRowY, { font: fontRegular, size: ps.fontSize, color: pWhite, align: 'right' });
         lRowY -= ps.lineGap;
+      });
+
+      // ── PRINCETON STAMP & KRISHNA SHARMA SIGNATURE (Left of summary, above footer) ──
+      const pSigLineY = Math.max(65, sumY - lowerH + 20);
+      const pStampW = 115;
+      const pStampH = pStampW / 2.2716;
+      const pStampX = mx;
+      const pStampY = pSigLineY - 8;
+
+      // 1. Princeton Stamp on Left
+      if (princetonStampImage) {
+        page.drawImage(princetonStampImage, {
+          x: pStampX,
+          y: pStampY,
+          width: pStampW,
+          height: pStampH
+        });
+      }
+
+      // 2. Krishna Sharma Signature on Right subtly touching Stamp border by ~12pt
+      const pSigW = 135;
+      const pSigH = pSigW * (724 / 2172); // ~45pt
+      const pSigX = pStampX + pStampW - 12; // 148
+      const pSigY = pSigLineY - 2;
+
+      if (princetonSigImage) {
+        page.drawImage(princetonSigImage, {
+          x: pSigX,
+          y: pSigY,
+          width: pSigW,
+          height: pSigH
+        });
+      }
+
+      // 3. Line under signature
+      const pLineWidth = 130;
+      page.drawLine({
+        start: { x: pSigX - 2, y: pSigLineY },
+        end: { x: pSigX - 2 + pLineWidth, y: pSigLineY },
+        color: pNavy,
+        thickness: 0.9
+      });
+
+      // 4. "Authorized Signatory" text centered under the line
+      drawTextHelper(page, 'Authorized Signatory', pSigX - 2 + pLineWidth / 2, pSigLineY - 12, {
+        font: fontBold,
+        size: 8.5,
+        color: pNavy,
+        align: 'center'
       });
 
       // Save and return early for Princeton

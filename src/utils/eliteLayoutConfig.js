@@ -55,12 +55,12 @@ export const eliteLayout = {
 
   // Stamp & Signature configuration
   signStamp: {
-    stampX: 64,
-    stampWidth: 100,
-    stampHeight: 93.2,
-    sigX: 138,
-    sigWidth: 122,
-    sigHeight: 61,
+    stampX: 50,
+    stampWidth: 120,
+    stampHeight: 52.8,
+    sigX: 158,
+    sigWidth: 120,
+    sigHeight: 60,
     authSignSize: 8.5,
   },
 

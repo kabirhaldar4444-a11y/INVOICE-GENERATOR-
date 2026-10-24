@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Cambridge Stamp Processor</title>
+  <style>
+    body { font-family: sans-serif; background: #222; color: #fff; padding: 20px; }
+    canvas { border: 1px solid #555; background: repeating-conic-gradient(#808080 0% 25%, #fff 0% 50%) 50% / 20px 20px; max-width: 500px; height: auto; }
+    .container { display: flex; gap: 20px; flex-wrap: wrap; }
+    .panel { background: #333; padding: 15px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h2>Cambridge Stamp Processor</h2>
+  <div id="status" style="font-size: 18px; margin-bottom: 15px; color: #ffeb3b;">Initializing...</div>
+  <div class="container">
+    <div class="panel">
+      <h3>Original Image</h3>
+      <canvas id="origCanvas"></canvas>
+    </div>
+    <div class="panel">
+      <h3>Processed Transparent Stamp</h3>
+      <canvas id="procCanvas"></canvas>
+    </div>
+  </div>
+
+  <script>
+    async function run() {
+      const status = document.getElementById('status');
+      try {
+        const img = new Image();
+        img.src = '/New Stamps/ChatGPT Image 24 Oct 2026_ 10_53_14.png?' + Date.now();
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = () => reject(new Error('Failed to load image from /New Stamps/ChatGPT Image 24 Oct 2026_ 10_53_14.png'));
+        });
+
+        const origCanvas = document.getElementById('origCanvas');
+        origCanvas.width = img.naturalWidth;
+        origCanvas.height = img.naturalHeight;
+        const oCtx = origCanvas.getContext('2d');
+        oCtx.drawImage(img, 0, 0);
+
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        const imgData = oCtx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+
+        // 1. Find bounding box of stamp
+        // Stamp ink has low luminance (dark)
+        let minX = w, maxX = 0, minY = h, maxY = 0;
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            const r = data[idx];
+            const g = data[idx + 1];
+            const b = data[idx + 2];
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            if (lum < 200) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+
+        // Add small padding around bounding box
+        const pad = 8;
+        const cropX = Math.max(0, minX - pad);
+        const cropY = Math.max(0, minY - pad);
+        const cropW = Math.min(w - cropX, (maxX - minX) + pad * 2);
+        const cropH = Math.min(h - cropY, (maxY - minY) + pad * 2);
+
+        console.log({ w, h, minX, maxX, minY, maxY, cropW, cropH, aspect: cropW / cropH });
+
+        // 2. Process transparency with anti-aliasing
+        const procCanvas = document.getElementById('procCanvas');
+        procCanvas.width = cropW;
+        procCanvas.height = cropH;
+        const pCtx = procCanvas.getContext('2d');
+        const pImgData = pCtx.createImageData(cropW, cropH);
+        const pData = pImgData.data;
+
+        for (let py = 0; py < cropH; py++) {
+          for (let px = 0; px < cropW; px++) {
+            const srcX = cropX + px;
+            const srcY = cropY + py;
+            const srcIdx = (srcY * w + srcX) * 4;
+            const dstIdx = (py * cropW + px) * 4;
+
+            const r = data[srcIdx];
+            const g = data[srcIdx + 1];
+            const b = data[srcIdx + 2];
+
+            // Calculate luminance
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+            // White threshold: above 240 is completely transparent
+            // Below 70 is completely solid ink
+            if (lum >= 242) {
+              pData[dstIdx] = 0;
+              pData[dstIdx + 1] = 0;
+              pData[dstIdx + 2] = 0;
+              pData[dstIdx + 3] = 0;
+            } else if (lum <= 70) {
+              pData[dstIdx] = 30; // Clean deep dark ink
+              pData[dstIdx + 1] = 30;
+              pData[dstIdx + 2] = 30;
+              pData[dstIdx + 3] = 255;
+            } else {
+              // Smooth gradient for anti-aliased edge
+              const alphaRatio = (242 - lum) / (242 - 70);
+              const alpha = Math.round(alphaRatio * 255);
+              pData[dstIdx] = Math.round(r * 0.7);
+              pData[dstIdx + 1] = Math.round(g * 0.7);
+              pData[dstIdx + 2] = Math.round(b * 0.7);
+              pData[dstIdx + 3] = alpha;
+            }
+          }
+        }
+
+        pCtx.putImageData(pImgData, 0, 0);
+
+        // 3. Save to /api/save-stamp
+        const dataUrl = procCanvas.toDataURL('image/png');
+        const res = await fetch('/api/save-stamp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+            'x-target-filename': 'cambridge-stamp.png'
+          },
+          body: dataUrl
+        });
+
+        const resJson = await res.json();
+        if (resJson.success) {
+          status.innerHTML = `<span style="color: #4caf50;">SUCCESS: Saved cambridge-stamp.png (${cropW}x${cropH}, aspect ratio: ${(cropW / cropH).toFixed(3)}, ${resJson.size} bytes)</span>`;
+          window.__STAMP_RESULT__ = {
+            success: true,
+            cropW,
+            cropH,
+            aspectRatio: cropW / cropH,
+            size: resJson.size
+          };
+        } else {
+          throw new Error(resJson.error || 'Server error saving stamp');
+        }
+      } catch (e) {
+        status.innerHTML = `<span style="color: #f44336;">Error: ${e.message}</span>`;
+        window.__STAMP_RESULT__ = { error: e.message };
+      }
+    }
+
+    run();
+  </script>
+</body>
+</html>

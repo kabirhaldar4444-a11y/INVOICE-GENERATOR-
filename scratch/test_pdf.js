@@ -135,6 +135,17 @@ const companiesToTest = [
       address: 'Sarkhej Gandhinagar Service Road, Near Wide Angle Cinema, Ramdevnagar, Satellite, Ahmedabad, Gujarat 380015',
       logo_url: '/logo-pmi.jpg'
     }
+  },
+  {
+    key: 'cambridge',
+    settings: {
+      company_name: 'Cambridge Learning Services',
+      gst_number: '09KLBPS8834N1Z0',
+      email: 'support@cambridgelearning.com',
+      website: 'www.cambridgelearningservices.com',
+      address: 'Office No-244, Tower-T3, Golden I Sec-Techzone-4, Greater Noida West, Gautambuddha Nagar, Uttar Pradesh, 201306',
+      logo_url: '/logo-cambridge.png'
+    }
   }
 ];
 

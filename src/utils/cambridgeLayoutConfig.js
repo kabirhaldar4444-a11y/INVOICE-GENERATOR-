@@ -149,10 +149,10 @@ export const cambridgeLayout = {
       height: 48.6,
     },
     stamp: {
-      x: 140,
-      y: 222.10,
-      width: 115,
-      height: 114.8,
+      x: 160,
+      y: 248,
+      width: 135,
+      height: 64.8,
     },
     signatoryText: {
       text: 'Authorized Signatory',

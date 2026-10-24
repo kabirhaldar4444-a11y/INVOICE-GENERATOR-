@@ -20,7 +20,72 @@ import {
   X,
   FileText
 } from 'lucide-react';
-import { generateCertificatePDF } from '../../utils/certificateGenerator';const isIsNodeName = (name) => {
+import { generateCertificatePDF } from '../../utils/certificateGenerator';
+
+const CANONICAL_PROFILES = [
+  {
+    id: 'hc-isn',
+    company_name: 'I-SUCCESSNODE',
+    gst_number: '09AAHCI9258G1Z3',
+    email: 'support@isuccessnode.com',
+    phone: '+91-7969537567',
+    website: 'www.isuccessnode.com',
+    address: 'I-SUCCESSNODE Office, India',
+    logo_url: '/logo-isn.png',
+  },
+  {
+    id: 'hc-cambridge',
+    company_name: 'Cambridge Learning Services',
+    gst_number: '09KLBPS8834N1Z0',
+    email: 'support@cambridgelearning.com',
+    phone: '+91 7969325899',
+    website: 'www.cambridgelearningservices.com',
+    address: 'Office No-244, Tower-T3, Golden I Sec-Techzone-4, Greater Noida West, Gautambuddha Nagar, Uttar Pradesh, 201306',
+    logo_url: '/logo-cambridge.png',
+  },
+  {
+    id: 'hc-elite',
+    company_name: 'EliteToolistic',
+    gst_number: '09AAICE4778J1Z0',
+    email: 'support@elitetoolistic.com',
+    phone: '+91 7969654626, +91 8062386662',
+    website: 'www.elitetoolistic.com',
+    address: '301, 2nd Floor, The Capital, Science City Road, Sola, Ahmedabad - 380060',
+    logo_url: '/logo-elite.png',
+  },
+  {
+    id: 'hc-harvard',
+    company_name: 'HAVARD LEARNING',
+    gst_number: '09AAOCP5868J1ZI',
+    email: 'support@harvardlearning.com',
+    phone: '+91 7969325899',
+    website: 'www.harvardlearning.com',
+    address: 'SG Highway, Bodakdev, Ahmedabad, Gujarat - 380054, India',
+    logo_url: '/logo-harvard.png',
+  },
+  {
+    id: 'hc-pmis',
+    company_name: 'PMI Services PMIS',
+    gst_number: '09TRFPS5497N1Z6',
+    email: 'support@pmiservices.in',
+    phone: '+91 7969325899',
+    website: 'www.pmiservices.in',
+    address: 'Sarkhej Gandhinagar Service Road Near Wide Angle Cinema Ramdev Nagar, Satellite, Ahmedabad, Gujarat 380015',
+    logo_url: '/logo-pmi.jpg',
+  },
+  {
+    id: 'hc-princeton',
+    company_name: 'Princeton Professional',
+    gst_number: '09AAOCP5868J1ZI',
+    email: 'support@princetonprofessional.com',
+    phone: '+91-7969325899',
+    website: 'www.princetonprofessional.com',
+    address: '1203, Mondeal Heights, Sarkhej Gandhinagar Service Road, Ahmedabad, Gujarat 380015',
+    logo_url: '/logo-princeton.png',
+  },
+];
+
+const isIsNodeName = (name) => {
   if (!name) return false;
   const n = name.toLowerCase();
   return n.includes('isuccessnode') || 
@@ -105,11 +170,12 @@ const getBifurcatedTaxInfo = (invoice) => {
 };
 
 export const InvoiceDetails = () => {
-  const { invoices, customers, settings, deleteInvoice, showToast, confirm } = useApp();
+  const { invoices, customers, settings, profiles, deleteInvoice, showToast, confirm } = useApp();
   const navigate = useNavigate();
   const { id } = useParams();
 
   const [invoice, setInvoice] = useState(null);
+  const [selectedProfile, setSelectedProfile] = useState(null);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   
   // Email state
@@ -129,13 +195,45 @@ export const InvoiceDetails = () => {
   const [certStatus, setCertStatus] = useState('UNDER TRAINING');
   const [generatingCert, setGeneratingCert] = useState(false);
 
+  const combinedProfiles = React.useMemo(() => {
+    const list = [...CANONICAL_PROFILES];
+    if (profiles && Array.isArray(profiles)) {
+      profiles.forEach(p => {
+        if (!p || !p.company_name) return;
+        const exists = list.some(cp => 
+          cp.id === p.id || 
+          cp.company_name.trim().toLowerCase() === p.company_name.trim().toLowerCase()
+        );
+        if (!exists) {
+          list.push(p);
+        }
+      });
+    }
+    return list;
+  }, [profiles]);
+
   useEffect(() => {
     const found = invoices.find(inv => inv.id === id);
     if (found) {
       setInvoice(found);
       setToEmail(found.customers?.email || '');
-      const activeCompany = found.invoice_profile || settings;
-      setSubject(`Tax Invoice ${found.invoice_number} from ${activeCompany?.company_name || 'I-SUCCESSNODE'}`);
+      
+      const invProf = found.invoice_profile;
+      if (invProf) {
+        const match = combinedProfiles.find(p => 
+          p.id === invProf.id || 
+          (p.company_name && invProf.company_name && p.company_name.toLowerCase() === invProf.company_name.toLowerCase())
+        ) || invProf;
+        setSelectedProfile(prev => prev || match);
+      } else {
+        const match = settings?.company_name 
+          ? combinedProfiles.find(p => p.company_name.toLowerCase() === settings.company_name.toLowerCase()) 
+          : CANONICAL_PROFILES[0];
+        setSelectedProfile(prev => prev || match || CANONICAL_PROFILES[0]);
+      }
+
+      const compProfile = found.invoice_profile || settings || CANONICAL_PROFILES[0];
+      setSubject(`Tax Invoice ${found.invoice_number} from ${compProfile?.company_name || 'I-SUCCESSNODE'}`);
       
       // Build clean itemized list
       const itemsText = found.invoice_items?.map(item => {
@@ -164,10 +262,10 @@ export const InvoiceDetails = () => {
 `Status       : ${found.status.toUpperCase()}\n\n` +
 `-----------------------------------------------\n` +
 `FROM:\n` +
-`  ${activeCompany?.company_name || 'I-SUCCESSNODE'}\n` +
-`  Email: ${activeCompany?.email || 'N/A'}\n` +
-`  Phone: ${activeCompany?.phone || 'N/A'}\n` +
-`  GSTIN: ${activeCompany?.gst_number || 'N/A'}\n\n` +
+`  ${compProfile?.company_name || 'I-SUCCESSNODE'}\n` +
+`  Email: ${compProfile?.email || 'N/A'}\n` +
+`  Phone: ${compProfile?.phone || 'N/A'}\n` +
+`  GSTIN: ${compProfile?.gst_number || 'N/A'}\n\n` +
 `BILL TO:\n` +
 `  ${found.customers?.name || 'Client'}\n` +
 `  Email: ${found.customers?.email || 'N/A'}\n` +
@@ -298,12 +396,58 @@ export const InvoiceDetails = () => {
     );
   }
 
+  const activeCompany = selectedProfile || invoice.invoice_profile || settings || CANONICAL_PROFILES[0];
+  const resolvedCustomer = (customers || []).find(c => c.id === invoice.customer_id) || invoice.customers || null;
+
+  const currentProfileId = selectedProfile?.id || 
+    combinedProfiles.find(p => p.company_name?.toLowerCase() === (activeCompany?.company_name || '').toLowerCase())?.id || 
+    CANONICAL_PROFILES[0].id;
+
+  const handleProfileChange = (newProfileId) => {
+    const chosen = combinedProfiles.find(p => p.id === newProfileId) ||
+                   combinedProfiles.find(p => p.company_name === newProfileId);
+    if (!chosen) return;
+
+    setSelectedProfile(chosen);
+    setInvoice(prev => ({
+      ...prev,
+      invoice_profile: chosen
+    }));
+    setSubject(`Tax Invoice ${invoice.invoice_number} from ${chosen.company_name}`);
+
+    // Silently persist to localStorage for continuous state
+    try {
+      const raw = localStorage.getItem('invoisify_invoices');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const updated = parsed.map(inv => {
+          if (inv.id === invoice.id || inv.id === id) {
+            const nonProfileItems = (inv.invoice_items || []).filter(it => it.program_name !== '__profile_metadata__');
+            return {
+              ...inv,
+              invoice_items: [
+                ...nonProfileItems,
+                { program_name: '__profile_metadata__', description: JSON.stringify(chosen), quantity: 1, unit_price: 0, total_amount: 0 }
+              ]
+            };
+          }
+          return inv;
+        });
+        localStorage.setItem('invoisify_invoices', JSON.stringify(updated));
+      }
+    } catch (e) {
+      console.warn('Could not persist to localStorage:', e);
+    }
+
+    showToast(`Switched preview to ${chosen.company_name}`, 'success');
+  };
+
   const handleDownloadPDF = async () => {
     try {
       showToast('Generating PDF Document...', 'info');
       // Resolve customer with fallback so PDF always has the name
       const resolvedCust = (customers || []).find(c => c.id === invoice.customer_id) || invoice.customers || null;
-      const pdfBytes = await generateInvoicePDF({ ...invoice, customers: resolvedCust }, settings);
+      const pdfBytes = await generateInvoicePDF({ ...invoice, invoice_profile: activeCompany, customers: resolvedCust }, activeCompany);
       
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -331,7 +475,6 @@ export const InvoiceDetails = () => {
     setSendingEmail(true);
     try {
       // Build FormData without file attachments for compatibility with Web3Forms free plan
-      const activeCompany = invoice.invoice_profile || settings;
       const formData = new FormData();
       formData.append("access_key", "33b16dfe-bac0-40f9-8137-1c00c3b758f8");
       formData.append("from_name", activeCompany?.company_name || 'I-SUCCESSNODE');
@@ -379,12 +522,6 @@ export const InvoiceDetails = () => {
     }
   };
 
-  const activeCompany = invoice.invoice_profile || settings;
-
-  // ── Customer resolution: always resolve from multiple sources so name never disappears
-  // Priority: invoice.customers join → customers[] array lookup by customer_id → null
-  const resolvedCustomer = (customers || []).find(c => c.id === invoice.customer_id) || invoice.customers || null;
-
   const discountAmount = parseFloat(invoice.invoice_profile?.discount_amount) || 0;
   const preDiscountTotal = (parseFloat(invoice.subtotal) || 0) + (parseFloat(invoice.gst_amount) || 0);
   const displayPaidAmount = (discountAmount > 0 && Math.abs(invoice.paid_amount - preDiscountTotal) < 0.05)
@@ -411,13 +548,13 @@ export const InvoiceDetails = () => {
     localLogoPath = '/logo-elite.png';
   } else if (companyName.includes('harvard') || companyName.includes('havard')) {
     themeKey = 'harvard';
-    localLogoPath = '/logos/harvard.png';
+    localLogoPath = '/logo-harvard.png';
   } else if (companyName.includes('pmi')) {
     themeKey = 'pmi';
     localLogoPath = '/logo-pmi.jpg';
   } else if (companyName.includes('princeton') || companyName.includes('princetion')) {
     themeKey = 'princeton';
-    localLogoPath = '/logos/princeton.png';
+    localLogoPath = '/logo-princeton.png';
   } else if (
     companyName.includes('isuccessnode') || 
     companyName.includes('i-successnode') || 
@@ -427,7 +564,7 @@ export const InvoiceDetails = () => {
     companyName.includes('sucessnode')
   ) {
     themeKey = 'isuccessnode';
-    localLogoPath = '/logos/isuccessnode.png';
+    localLogoPath = '/logo-isn.png';
   }
 
   const { taxType, halfPct, getSplitAmounts } = getBifurcatedTaxInfo(invoice);
@@ -535,12 +672,43 @@ export const InvoiceDetails = () => {
     <div className="space-y-6">
       {/* Header controls bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 transition-colors shadow-sm no-print">
-        <button
-          onClick={() => navigate('/invoices')}
-          className="flex items-center gap-2 py-2 px-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold transition-colors text-sm"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to Invoices
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => navigate('/invoices')}
+            className="flex items-center gap-2 py-2 px-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold transition-colors text-sm"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back to Invoices
+          </button>
+
+          {/* Smart Profile Dropdown */}
+          <div className="flex items-center gap-2.5 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 shadow-sm transition-all focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500">
+            <div className="w-6 h-6 rounded-lg bg-white dark:bg-slate-700 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-600 flex-shrink-0 shadow-xs">
+              {logoUrlToRender ? (
+                <img src={logoUrlToRender} alt="Profile Logo" className="max-h-full max-w-full object-contain p-0.5" />
+              ) : (
+                <Building className="w-3.5 h-3.5 text-primary-500" />
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-450 uppercase tracking-wider hidden sm:inline">
+                Profile:
+              </span>
+              <select
+                id="smart-profile-dropdown"
+                value={currentProfileId}
+                onChange={(e) => handleProfileChange(e.target.value)}
+                className="bg-transparent font-bold text-sm text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer pr-1"
+                title="Select Company Profile to change layout and preview instantly"
+              >
+                {combinedProfiles.map((p) => (
+                  <option key={p.id} value={p.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-medium py-1">
+                    {p.company_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           {themeKey === 'isuccessnode' && (
@@ -691,8 +859,43 @@ export const InvoiceDetails = () => {
                     </table>
                   </div>
 
-                  {/* Totals Table right aligned */}
-                  <div className="flex justify-end mt-8">
+                  {/* Bottom section: Stamp & Signature on left, Totals on right */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mt-8">
+                    {/* ISN Stamp & Signature on Left */}
+                    <div className="flex flex-col items-start select-none pointer-events-none pb-1 relative">
+                      <div className="relative w-[280px] h-[95px] flex items-end">
+                        {/* Stamp on Left (rectangular) */}
+                        <img 
+                          src="/isn-stamp.png" 
+                          alt="I-Success Node Stamp" 
+                          className="absolute left-[0px] bottom-[4px] w-[125px] h-[60px] object-contain z-10 opacity-95" 
+                          onError={(e) => {
+                            if (!e.target.dataset.triedFallback) {
+                              e.target.dataset.triedFallback = 'true';
+                              e.target.src = '/isn stamp.png';
+                            }
+                          }}
+                        />
+                        {/* Signature subtly touching right border of Stamp by ~13px */}
+                        <img 
+                          src="/isn-signature.png" 
+                          alt="Krishna Sharma Signature" 
+                          className="absolute left-[112px] bottom-[10px] w-[145px] h-[48px] object-contain z-20" 
+                          onError={(e) => {
+                            if (!e.target.dataset.triedFallback) {
+                              e.target.dataset.triedFallback = 'true';
+                              e.target.src = '/Elegant blue Krishna Sharma signature.png';
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="w-[140px] ml-[112px] border-b border-black mb-1"></div>
+                      <span className="text-[10px] font-bold text-black tracking-wide text-center w-[140px] ml-[112px]">
+                        Authorized Signatory
+                      </span>
+                    </div>
+
+                    {/* Totals Table right aligned */}
                     <div className="w-[260px] bg-white border border-black flex flex-col text-sm">
                       {/* Row Sub-Total */}
                       <div className="flex justify-between items-center border-b border-black">
@@ -911,23 +1114,23 @@ export const InvoiceDetails = () => {
                     return (
                       <div className="flex justify-between items-end mt-4 text-[9.5px] text-left">
                         {/* PMI Stamp & Signature (Left side, above footer) */}
-                        <div className="flex flex-col items-center select-none pointer-events-none pb-1">
-                          <div className="relative w-[150px] h-[68px]">
+                        <div className="flex flex-col items-start select-none pointer-events-none pb-1">
+                          <div className="relative w-[230px] h-[68px]">
                             {/* Stamp on Right */}
                             <img 
                               src="/pmi-stamp.png" 
                               alt="PMI Services Stamp" 
-                              className="absolute right-0 bottom-[-2px] w-[75px] h-[72px] object-contain z-10" 
+                              className="absolute left-[102px] bottom-[-2px] w-[115px] h-[55px] object-contain z-10" 
                             />
-                            {/* Signature on Left, overlapping on top of stamp */}
+                            {/* Signature on Left, subtly touching left border of stamp by ~13px */}
                             <img 
                               src="/pmi-signature.png" 
                               alt="PMI Authorized Signature" 
                               className="absolute left-0 bottom-[2px] w-[115px] h-[40px] object-contain z-20" 
                             />
                           </div>
-                          <div className="w-[150px] border-b border-black mb-1"></div>
-                          <span className="text-[8.5px] font-bold text-black tracking-wide text-center">Authorized Signatory</span>
+                          <div className="w-[130px] border-b border-black mb-1"></div>
+                          <span className="text-[8.5px] font-bold text-black tracking-wide text-center w-[130px]">Authorized Signatory</span>
                         </div>
 
                         {/* Summary Box */}
@@ -1241,6 +1444,34 @@ export const InvoiceDetails = () => {
                 </div>
               </div>
 
+              {/* Harvard Stamp & Signature on Left */}
+              {/* Harvard Stamp & Hemant Signature on Left */}
+              <div 
+                className="absolute flex flex-col items-start select-none pointer-events-none pb-1"
+                style={{
+                  left: `${harvardLayout.marginX}px`,
+                  bottom: `${harvardLayout.footer.height + 15}px`,
+                  zIndex: 10
+                }}
+              >
+                <div className="relative w-[260px] h-[75px] flex items-center">
+                  {/* Harvard Stamp on Left */}
+                  <img 
+                    src="/harvard-stamp.png" 
+                    alt="Harvard Learning Stamp" 
+                    className="absolute left-[0px] bottom-[2px] w-[120px] h-[57px] object-contain z-10 opacity-95" 
+                  />
+                  {/* Hemant Signature on Right subtly touching Stamp border by ~12px */}
+                  <img 
+                    src="/elite-signature.png" 
+                    alt="Hemant Signature" 
+                    className="absolute left-[108px] bottom-[6px] w-[115px] h-[58px] object-contain z-20" 
+                  />
+                </div>
+                <div className="w-[125px] ml-[108px] border-b border-[#081E42] mb-1"></div>
+                <span className="text-[8.5px] font-bold text-[#081E42] tracking-wide text-center w-[125px] ml-[108px]">Authorized Signatory</span>
+              </div>
+
               {/* Footer Section */}
               <div 
                 className="absolute bottom-0 left-0 w-full overflow-hidden text-white text-left font-sans"
@@ -1454,18 +1685,18 @@ export const InvoiceDetails = () => {
                       <div className="flex justify-between items-end mt-5 text-[9px] text-left">
                         {/* Cambridge Stamp & Signature (Left: Sign, Right: Stamp overlapping) */}
                         <div className="flex flex-col items-start select-none pointer-events-none pb-1 relative">
-                          <div className="relative w-[220px] h-[95px] flex items-center">
-                            {/* Round Stamp on Right */}
+                          <div className="relative w-[240px] h-[85px] flex items-center">
+                            {/* Rectangular Stamp on Right */}
                             <img 
                               src="/cambridge-stamp.png" 
                               alt="Cambridge Stamp" 
-                              className="absolute left-[80px] bottom-[-10px] w-[105px] h-[105px] object-contain z-10 opacity-95" 
+                              className="absolute left-[105px] bottom-[10px] w-[135px] h-[65px] object-contain z-10 opacity-95" 
                             />
                             {/* Signature on Left overlapping on top of stamp */}
                             <img 
                               src="/cambridge-signature.png" 
                               alt="Arun Sharma Signature" 
-                              className="absolute left-[0px] bottom-[12px] w-[125px] h-[48px] object-contain z-20" 
+                              className="absolute left-[0px] bottom-[10px] w-[125px] h-[48px] object-contain z-20" 
                             />
                           </div>
                           <div className="w-[130px] border-b border-[#041F15] mb-1"></div>
@@ -1804,6 +2035,26 @@ export const InvoiceDetails = () => {
                             <img src="/princeton-address-icon.png" alt="Address" className="w-3.5 h-3.5 object-contain mt-0.5 flex-shrink-0" />
                             <span className="font-normal leading-normal">{companyAddress}</span>
                           </div>
+
+                          {/* Princeton Stamp & Krishna Sharma Signature */}
+                          <div className="relative pt-2 select-none pointer-events-none">
+                            <div className="relative w-[260px] h-[68px] flex items-center">
+                              {/* Princeton Stamp on Left */}
+                              <img 
+                                src="/princeton-stamp.png" 
+                                alt="Princeton Stamp" 
+                                className="absolute left-[0px] bottom-[2px] w-[115px] h-[51px] object-contain z-10 opacity-95" 
+                              />
+                              {/* Krishna Sharma Signature on Right subtly touching Stamp border by ~12px */}
+                              <img 
+                                src="/isn-signature.png" 
+                                alt="Krishna Sharma Signature" 
+                                className="absolute left-[103px] bottom-[6px] w-[135px] h-[45px] object-contain z-20" 
+                              />
+                            </div>
+                            <div className="w-[135px] ml-[103px] border-b border-[#102744] mb-1"></div>
+                            <span className="text-[8.5px] font-bold text-[#102744] tracking-wide text-center block w-[135px] ml-[103px]">Authorized Signatory</span>
+                          </div>
                         </div>
 
                         {/* Right: Summary Panels */}
@@ -2011,12 +2262,12 @@ export const InvoiceDetails = () => {
                     <div className="flex justify-between items-start mt-6 text-xs" style={{ paddingLeft: `${eliteMarginX}px`, paddingRight: `${eliteMarginX}px` }}>
                       {/* Left: Stamp & Signature */}
                       <div className="relative select-none pointer-events-none flex flex-col items-start pt-1">
-                        <div className="relative w-[260px] h-[105px]">
-                          {/* Stamp on Left (enlarged) */}
+                        <div className="relative w-[270px] h-[105px]">
+                          {/* Stamp on Left (rectangular) */}
                           <img 
                             src="/elite-stamp.png" 
                             alt="Elite Toolistic Stamp" 
-                            className="absolute left-[16px] top-0 w-[100px] h-[93px] object-contain z-10" 
+                            className="absolute left-[10px] top-[10px] w-[125px] h-[55px] object-contain z-10" 
                             onError={(e) => {
                               if (!e.target.dataset.triedDist) {
                                 e.target.dataset.triedDist = 'true';
@@ -2024,11 +2275,11 @@ export const InvoiceDetails = () => {
                               }
                             }}
                           />
-                          {/* Signature on Right overlapping Stamp */}
+                          {/* Signature on Right subtly touching Stamp border by ~13px */}
                           <img 
                             src="/elite-signature.png" 
                             alt="Hemant Signature" 
-                            className="absolute left-[86px] top-[18px] w-[122px] h-[61px] object-contain z-20" 
+                            className="absolute left-[122px] top-[14px] w-[122px] h-[61px] object-contain z-20" 
                             onError={(e) => {
                               if (!e.target.dataset.triedDist) {
                                 e.target.dataset.triedDist = 'true';
@@ -2038,7 +2289,7 @@ export const InvoiceDetails = () => {
                           />
                           {/* Authorized Signatory text under signature */}
                           <div 
-                            className="absolute left-[116px] bottom-[2px] font-normal text-[9px] tracking-wide"
+                            className="absolute left-[136px] bottom-[2px] font-normal text-[9px] tracking-wide text-center w-[120px]"
                             style={{ color: eliteLayout.colors.dark }}
                           >
                             Authorized Signatory
